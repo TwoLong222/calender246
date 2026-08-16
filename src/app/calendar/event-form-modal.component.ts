@@ -109,15 +109,31 @@ function toTimeInputValue(d: Date): string {
             <div class="flex items-start gap-2 text-sm">
               <span class="w-5 pt-1.5 text-center">👤</span>
               <div class="flex-1">
-                <div class="flex gap-2">
-                  <input
-                    type="email"
-                    [(ngModel)]="guestEmailDraft"
-                    (keydown.enter)="addGuest()"
-                    placeholder="Thêm khách bằng email"
-                    class="flex-1 rounded border border-gray-300 px-2 py-1"
-                  />
-                  <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">Thêm</button>
+                <div class="relative">
+                  <div class="flex gap-2">
+                    <input
+                      type="email"
+                      [(ngModel)]="guestEmailDraft"
+                      (keydown.enter)="addGuest()"
+                      placeholder="Thêm khách bằng email"
+                      class="flex-1 rounded border border-gray-300 px-2 py-1"
+                    />
+                    <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">Thêm</button>
+                  </div>
+                  <!-- Gợi ý các email đã từng mời (autocomplete) -->
+                  @if (guestSuggestions().length > 0) {
+                    <div class="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                      @for (s of guestSuggestions(); track s) {
+                        <button
+                          type="button"
+                          (click)="pickSuggestion(s)"
+                          class="block w-full truncate px-3 py-1.5 text-left hover:bg-gray-50"
+                        >
+                          {{ s }}
+                        </button>
+                      }
+                    </div>
+                  }
                 </div>
                 @if (guests().length > 0) {
                   <ul class="mt-2 space-y-1">
@@ -293,6 +309,31 @@ export class EventFormModalComponent {
   formatRange(e: CalendarEvent): string {
     const fmt = (d: Date) => d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     return `${fmt(e.start)} – ${fmt(e.end)}`;
+  }
+
+  /** Gợi ý các email ĐÃ TỪNG mời (gom từ mọi event), khớp với chữ đang gõ, chưa nằm trong danh sách hiện tại */
+  guestSuggestions = computed<string[]>(() => {
+    const q = this.guestEmailDraft().trim().toLowerCase();
+    if (!q) return [];
+    const alreadyAdded = new Set(this.guests().map((g) => g.email.toLowerCase()));
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const ev of this.state.events()) {
+      for (const g of ev.guests) {
+        const key = g.email.toLowerCase();
+        if (seen.has(key) || alreadyAdded.has(key)) continue;
+        if (!key.includes(q)) continue;
+        seen.add(key);
+        result.push(g.email);
+        if (result.length >= 6) return result;
+      }
+    }
+    return result;
+  });
+
+  pickSuggestion(email: string): void {
+    this.guestEmailDraft.set(email);
+    this.addGuest();
   }
 
   addGuest(): void {
