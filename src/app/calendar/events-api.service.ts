@@ -69,6 +69,12 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
   };
 }
 
+/** Tùy chọn lặp lại khi tạo event mới (materialized: backend tạo `count` event thật) */
+export interface RecurrenceOptions {
+  repeat: 'daily' | 'weekly' | 'monthly';
+  count: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class EventsApiService {
   private readonly http = inject(HttpClient);
@@ -78,8 +84,11 @@ export class EventsApiService {
     return this.http.get<ApiEvent[]>(this.base).pipe(map((rows) => rows.map(fromApiEvent)));
   }
 
-  create(draft: Omit<CalendarEvent, 'id'>): Observable<SaveResult> {
-    return this.http.post<MutationResponse>(this.base, toApiPayload(draft)).pipe(
+  create(draft: Omit<CalendarEvent, 'id'>, recurrence?: RecurrenceOptions): Observable<SaveResult> {
+    const payload = recurrence
+      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count }
+      : toApiPayload(draft);
+    return this.http.post<MutationResponse>(this.base, payload).pipe(
       map((res) => ({
         event: fromApiEvent(res.event),
         conflictTitles: res.conflicts.map((c) => c.title),

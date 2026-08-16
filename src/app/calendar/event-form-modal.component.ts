@@ -77,6 +77,24 @@ function toTimeInputValue(d: Date): string {
               Cả ngày
             </label>
 
+            <!-- Lặp lại: chỉ cho tạo mới (sửa 1 event trong chuỗi lặp phức tạp -> để sau) -->
+            @if (!editing()) {
+              <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
+                <span>🔁</span>
+                <select [(ngModel)]="repeat" class="rounded border border-gray-300 px-2 py-1">
+                  <option value="none">Không lặp</option>
+                  <option value="daily">Hàng ngày</option>
+                  <option value="weekly">Hàng tuần</option>
+                  <option value="monthly">Hàng tháng</option>
+                </select>
+                @if (repeat() !== 'none') {
+                  <span>×</span>
+                  <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="w-16 rounded border border-gray-300 px-2 py-1" />
+                  <span>lần</span>
+                }
+              </div>
+            }
+
             @if (conflicts().length > 0) {
               <div class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 ⚠️ Trùng lịch với {{ conflicts().length }} sự kiện khác:
@@ -204,6 +222,10 @@ export class EventFormModalComponent {
   guests = signal<Guest[]>([]);
   guestEmailDraft = signal('');
   color = signal('sky');
+  repeat = signal<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  repeatCount = signal(4);
+  /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
+  editing = signal(false);
 
   readonly colorOptions = [
     { name: 'sky', label: 'Xanh dương', class: 'bg-sky-600' },
@@ -222,6 +244,7 @@ export class EventFormModalComponent {
       if (!this.state.isFormOpen()) return;
       const editing = this.state.editingEvent();
       this.editingId = editing?.id ?? null;
+      this.editing.set(!!editing);
 
       if (editing) {
         this.tab.set(editing.kind);
@@ -249,6 +272,8 @@ export class EventFormModalComponent {
         this.description.set('');
         this.guests.set([]);
         this.color.set('sky');
+        this.repeat.set('none');
+        this.repeatCount.set(4);
       }
       this.guestEmailDraft.set('');
     });
@@ -290,17 +315,27 @@ export class EventFormModalComponent {
     const start = this.isAllDay() ? new Date(`${this.startDate()}T00:00`) : this.computedStart();
     const end = this.isAllDay() ? new Date(`${this.endDate()}T23:59`) : this.computedEnd();
 
-    this.state.saveEvent({
-      id: this.editingId ?? undefined,
-      kind: this.tab(),
-      title: this.title().trim(),
-      description: this.description() || undefined,
-      location: this.location() || undefined,
-      start,
-      end,
-      isAllDay: this.isAllDay(),
-      guests: this.guests(),
-      color: this.color(),
-    });
+    // Chỉ cho lặp khi TẠO MỚI và có chọn kiểu lặp
+    const repeat = this.repeat();
+    const recurrence =
+      !this.editingId && repeat !== 'none'
+        ? { repeat, count: Math.min(Math.max(this.repeatCount() || 1, 1), 52) }
+        : undefined;
+
+    this.state.saveEvent(
+      {
+        id: this.editingId ?? undefined,
+        kind: this.tab(),
+        title: this.title().trim(),
+        description: this.description() || undefined,
+        location: this.location() || undefined,
+        start,
+        end,
+        isAllDay: this.isAllDay(),
+        guests: this.guests(),
+        color: this.color(),
+      },
+      recurrence,
+    );
   }
 }

@@ -8,7 +8,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
-import { EventsApiService } from './events-api.service';
+import { EventsApiService, RecurrenceOptions } from './events-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
@@ -135,16 +135,21 @@ export class CalendarStateService {
     });
   }
 
-  saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }): void {
+  saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }, recurrence?: RecurrenceOptions): void {
     const { id, ...rest } = draft;
-    const request$ = id ? this.api.update(id, rest) : this.api.create(rest);
+    const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
 
     request$.subscribe({
       next: ({ event, conflictTitles }) => {
-        this.events.update((list) => {
-          const exists = list.some((e) => e.id === event.id);
-          return exists ? list.map((e) => (e.id === event.id ? event : e)) : [...list, event];
-        });
+        if (recurrence) {
+          // Sự kiện lặp tạo nhiều event cùng lúc -> tải lại danh sách để thấy hết các lần lặp
+          this.reload();
+        } else {
+          this.events.update((list) => {
+            const exists = list.some((e) => e.id === event.id);
+            return exists ? list.map((e) => (e.id === event.id ? event : e)) : [...list, event];
+          });
+        }
         this.lastSavedConflicts.set(conflictTitles);
         this.closeForm();
       },
