@@ -15,6 +15,7 @@ import { EventDetailPopoverComponent } from './event-detail-popover.component';
 import { AiAssistantComponent } from '../ai/ai-assistant.component';
 import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
 import { ThemeService } from '../theme.service';
+import { IcsService } from './ics.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { MONTH_LABELS, addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
@@ -184,6 +185,22 @@ import { SupabaseService } from '../auth/supabase.service';
               </li>
             </ul>
           </div>
+
+          <div class="mt-6">
+            <p class="mb-2 text-sm font-medium text-gray-700">Nhập / Xuất</p>
+            <div class="flex flex-col gap-2">
+              <button type="button" (click)="onExport()" class="rounded border border-gray-300 px-3 py-1.5 text-left text-sm hover:bg-gray-50">
+                ⬇️ Xuất file .ics
+              </button>
+              <button type="button" (click)="fileInput.click()" class="rounded border border-gray-300 px-3 py-1.5 text-left text-sm hover:bg-gray-50">
+                ⬆️ Nhập file .ics
+              </button>
+              <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event)" />
+              @if (importMsg()) {
+                <p class="text-xs text-gray-500">{{ importMsg() }}</p>
+              }
+            </div>
+          </div>
         </aside>
 
         <!-- Main view -->
@@ -238,8 +255,48 @@ export class CalendarPageComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly supabase = inject(SupabaseService);
   protected readonly theme = inject(ThemeService);
+  private readonly ics = inject(IcsService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
+  protected readonly importMsg = signal('');
+
+  onExport(): void {
+    this.ics.exportToFile(this.state.events());
+  }
+
+  onImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = this.ics.parse(String(reader.result));
+        if (imported.length === 0) {
+          this.importMsg.set('Không tìm thấy sự kiện nào trong file.');
+          return;
+        }
+        for (const ev of imported) {
+          this.state.saveEvent({
+            kind: 'event',
+            title: ev.title,
+            description: ev.description,
+            location: ev.location,
+            start: ev.start,
+            end: ev.end,
+            isAllDay: ev.isAllDay,
+            guests: [],
+            color: 'sky',
+          });
+        }
+        this.importMsg.set(`Đã nhập ${imported.length} sự kiện.`);
+      } catch {
+        this.importMsg.set('File .ics không hợp lệ.');
+      }
+      input.value = ''; // cho phép chọn lại cùng file
+    };
+    reader.readAsText(file);
+  }
 
   // ----- Tìm kiếm sự kiện -----
   protected readonly searchQuery = signal('');
