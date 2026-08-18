@@ -213,6 +213,7 @@ import { SupabaseService } from '../auth/supabase.service';
                 (slotClicked)="onSlotClicked($event)"
                 (eventClicked)="onEventClicked($event)"
                 (eventTimesChanged)="onEventTimesChanged($event)"
+                (dateSelected)="onDayHeaderClicked($event)"
               />
             }
             @case ('week') {
@@ -222,6 +223,7 @@ import { SupabaseService } from '../auth/supabase.service';
                 (slotClicked)="onSlotClicked($event)"
                 (eventClicked)="onEventClicked($event)"
                 (eventTimesChanged)="onEventTimesChanged($event)"
+                (dateSelected)="onDayHeaderClicked($event)"
               />
             }
             @case ('month') {
@@ -367,6 +369,11 @@ export class CalendarPageComponent {
   }
 
   onMonthDateClicked(date: Date): void {
+    this.state.selectDate(date, true);
+  }
+
+  /** Bấm ngày ở header lưới giờ -> chuyển sang view Ngày của ngày đó */
+  onDayHeaderClicked(date: Date): void {
     this.state.selectDate(date, true);
   }
 

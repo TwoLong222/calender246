@@ -107,20 +107,25 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-full flex-col overflow-hidden">
-      <!-- Header: tên ngày + số ngày, hôm nay có vòng tròn xanh -->
+      <!-- Header: tên ngày + số ngày, hôm nay có vòng tròn xanh. Bấm vào ngày -> xem view Ngày. -->
       <div class="flex border-b border-gray-200 pl-14">
         @for (date of dates(); track date.getTime()) {
-          <div class="flex flex-1 flex-col items-center py-2">
+          <button
+            type="button"
+            (click)="dateSelected.emit(date)"
+            class="flex flex-1 flex-col items-center py-2 hover:bg-gray-50"
+            title="Xem ngày này"
+          >
             <span class="text-xs font-medium uppercase text-gray-500">{{ weekdayLabel(date) }}</span>
             <span
-              class="mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg"
+              class="mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg hover:bg-blue-100"
               [class.bg-blue-700]="isToday(date)"
               [class.text-white]="isToday(date)"
               [class.text-gray-800]="!isToday(date)"
             >
               {{ date.getDate() }}
             </span>
-          </div>
+          </button>
         }
       </div>
 
@@ -225,6 +230,8 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   slotClicked = output<Date>();
   eventClicked = output<CalendarEvent>();
+  /** Bấm vào 1 ngày ở header -> xem view Ngày của ngày đó */
+  dateSelected = output<Date>();
   /** Phát ra khi người dùng kéo co giãn 1 sự kiện xong -> trang cha lưu lại qua API */
   eventTimesChanged = output<CalendarEvent>();
 
