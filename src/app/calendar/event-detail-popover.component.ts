@@ -2,13 +2,16 @@
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { CommentsService } from './comments.service';
 import { AttendeeStatus } from './calendar.types';
 
 @Component({
   selector: 'app-event-detail-popover',
   standalone: true,
+  imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (event(); as e) {
@@ -92,6 +95,58 @@ import { AttendeeStatus } from './calendar.types';
             </button>
           </div>
 
+          <!-- Bình luận -->
+          <div class="mt-4 border-t border-gray-100 pt-3">
+            <p class="mb-2 text-xs font-medium text-gray-500">💬 Bình luận</p>
+
+            <ul class="mb-2 max-h-40 space-y-2 overflow-y-auto">
+              @for (c of comments.comments(); track c.id) {
+                <li class="rounded-md bg-gray-50 px-2 py-1.5">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <span class="truncate text-xs font-medium text-gray-700">{{ c.userEmail }}</span>
+                    <span class="shrink-0 text-[10px] text-gray-400">{{ commentTime(c.createdAt) }}</span>
+                  </div>
+                  @if (editingId() === c.id) {
+                    <textarea [(ngModel)]="editText" rows="2" class="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"></textarea>
+                    <div class="mt-1 flex gap-3">
+                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700 hover:underline">Lưu</button>
+                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500 hover:underline">Hủy</button>
+                    </div>
+                  } @else {
+                    <p class="mt-0.5 whitespace-pre-wrap break-words text-sm text-gray-800">{{ c.content }}</p>
+                    @if (isMine(c)) {
+                      <div class="mt-1 flex gap-3">
+                        <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">Sửa</button>
+                        <button type="button" (click)="deleteComment(c.id)" class="text-xs text-red-500 hover:underline">Xóa</button>
+                      </div>
+                    }
+                  }
+                </li>
+              } @empty {
+                @if (!comments.loading()) {
+                  <li class="text-xs text-gray-400">Chưa có bình luận nào.</li>
+                }
+              }
+            </ul>
+
+            <div class="flex gap-2">
+              <textarea
+                [(ngModel)]="newComment"
+                rows="1"
+                placeholder="Viết bình luận..."
+                class="flex-1 resize-none rounded border border-gray-300 px-2 py-1 text-sm"
+              ></textarea>
+              <button
+                type="button"
+                (click)="sendComment()"
+                [disabled]="!newComment().trim()"
+                class="shrink-0 self-start rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-40"
+              >
+                Gửi
+              </button>
+            </div>
+          </div>
+
           <!-- Xác nhận xóa: nếu là sự kiện lặp thì cho chọn xóa riêng hoặc xóa cả chuỗi -->
           @if (confirmingDelete()) {
             <div class="mt-3 rounded-md bg-red-50 p-3 text-sm">
@@ -119,8 +174,47 @@ import { AttendeeStatus } from './calendar.types';
 export class EventDetailPopoverComponent {
   protected readonly state = inject(CalendarStateService);
   private readonly supabase = inject(SupabaseService);
+  protected readonly comments = inject(CommentsService);
 
   event = computed(() => this.state.selectedEvent());
+
+  // ----- Bình luận -----
+  newComment = signal('');
+  editingId = signal<string | null>(null);
+  editText = signal('');
+
+  isMine(c: { userEmail: string }): boolean {
+    return c.userEmail.toLowerCase() === this.comments.myEmail()?.toLowerCase();
+  }
+
+  commentTime(d: Date): string {
+    return d.toLocaleString('vi-VN', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  sendComment(): void {
+    const text = this.newComment().trim();
+    if (!text) return;
+    this.comments.add(text);
+    this.newComment.set('');
+  }
+
+  startEdit(id: string, content: string): void {
+    this.editingId.set(id);
+    this.editText.set(content);
+  }
+
+  saveEdit(id: string): void {
+    this.comments.edit(id, this.editText());
+    this.editingId.set(null);
+  }
+
+  cancelEdit(): void {
+    this.editingId.set(null);
+  }
+
+  deleteComment(id: string): void {
+    if (confirm('Xóa bình luận này?')) this.comments.remove(id);
+  }
 
   /** Trạng thái tham dự của CHÍNH user hiện tại cho event này (để tô đậm nút đang chọn) */
   myStatus = computed<AttendeeStatus | null>(() => {
@@ -210,6 +304,18 @@ export class EventDetailPopoverComponent {
     effect(() => {
       this.state.selectedEventId();
       this.confirmingDelete.set(false);
+    });
+
+    // Mở/đổi event -> tải bình luận của event đó; đóng popover -> dọn
+    effect(() => {
+      const e = this.event();
+      if (e) {
+        this.comments.loadFor(e.id);
+      } else {
+        this.comments.clear();
+        this.editingId.set(null);
+        this.newComment.set('');
+      }
     });
   }
 
