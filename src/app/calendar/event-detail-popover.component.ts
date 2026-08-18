@@ -31,6 +31,10 @@ import { AttendeeStatus } from './calendar.types';
 
           <p class="mb-2 text-sm text-gray-600">{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</p>
 
+          @if (e.creatorEmail) {
+            <p class="mb-2 text-sm text-gray-600">👤 Người tạo: {{ e.creatorEmail }}</p>
+          }
+
           @if (e.location) {
             <p class="mb-2 text-sm text-gray-600">📍 {{ e.location }}</p>
           }

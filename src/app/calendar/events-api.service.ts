@@ -26,6 +26,7 @@ interface ApiEvent {
   kind: EventKind;
   color: string;
   series_id: string | null;
+  creator_email?: string | null;
   attendees?: ApiAttendee[];
 }
 
@@ -68,6 +69,7 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     guests: (row.attendees ?? []).map((a) => ({ email: a.email, status: a.status })),
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
+    creatorEmail: row.creator_email ?? undefined,
   };
 }
 
