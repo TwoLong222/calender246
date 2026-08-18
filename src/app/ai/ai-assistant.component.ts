@@ -1,21 +1,22 @@
-// Widget trợ lý AI nổi góc phải màn hình. Người dùng gõ câu tiếng Việt,
-// backend (Gemini) phân tích -> hiện PREVIEW -> người dùng bấm Xác nhận thì mới
-// tạo event thật (qua CalendarStateService.saveEvent có sẵn -> đúng auth + RLS).
+// Widget trợ lý AI nổi góc phải. Người dùng gõ câu tiếng Việt, backend (Gemini)
+// phân tích ra Ý ĐỊNH (tạo/tìm/dời/xóa). Frontend TÌM event thật từ dữ liệu đã tải
+// (đúng quyền), hiện PREVIEW, người dùng bấm Xác nhận thì mới thực thi qua các
+// service có sẵn (auth + RLS). AI không bao giờ chạm thẳng database.
 
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
+import { CalendarEvent } from '../calendar/calendar.types';
 
 interface ChatMsg {
   role: 'user' | 'ai';
   text: string;
 }
-interface PendingCreate {
-  title: string;
-  startTime: string;
-  endTime: string;
-}
+type Pending =
+  | { kind: 'create'; title: string; start: Date; end: Date }
+  | { kind: 'reschedule'; event: CalendarEvent; start: Date; end: Date }
+  | { kind: 'delete'; event: CalendarEvent };
 
 @Component({
   selector: 'app-ai-assistant',
@@ -43,7 +44,7 @@ interface PendingCreate {
           @for (m of messages(); track $index) {
             <div [class]="m.role === 'user'
               ? 'ml-auto max-w-[85%] rounded-lg bg-blue-600 px-3 py-2 text-sm text-white'
-              : 'mr-auto max-w-[85%] whitespace-pre-wrap rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-800'">
+              : 'mr-auto max-w-[90%] whitespace-pre-wrap rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-800'">
               {{ m.text }}
             </div>
           }
@@ -51,13 +52,36 @@ interface PendingCreate {
             <div class="mr-auto rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-400">Đang nghĩ…</div>
           }
           @if (pending(); as p) {
-            <div class="mr-auto w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
-              <p class="mb-1 font-medium text-gray-800">Tạo sự kiện:</p>
-              <p class="text-gray-700">📌 {{ p.title }}</p>
-              <p class="text-gray-700">🕐 {{ previewTime(p) }}</p>
+            <div
+              class="mr-auto w-full rounded-lg border px-3 py-2 text-sm"
+              [class]="p.kind === 'delete' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'"
+            >
+              @switch (p.kind) {
+                @case ('create') {
+                  <p class="mb-1 font-medium text-gray-800">Tạo sự kiện:</p>
+                  <p class="text-gray-700">📌 {{ p.title }}</p>
+                  <p class="text-gray-700">🕐 {{ rangeLabel(p.start, p.end) }}</p>
+                }
+                @case ('reschedule') {
+                  <p class="mb-1 font-medium text-gray-800">Dời sự kiện:</p>
+                  <p class="text-gray-700">📌 {{ p.event.title }}</p>
+                  <p class="text-gray-700">🕐 sang {{ rangeLabel(p.start, p.end) }}</p>
+                }
+                @case ('delete') {
+                  <p class="mb-1 font-medium text-red-800">Xóa sự kiện:</p>
+                  <p class="text-gray-700">📌 {{ p.event.title }} — {{ eventLabel(p.event) }}</p>
+                }
+              }
               <div class="mt-2 flex gap-2">
-                <button type="button" (click)="confirmCreate()" class="rounded bg-blue-700 px-3 py-1 text-xs font-medium text-white hover:bg-blue-800">Xác nhận</button>
-                <button type="button" (click)="cancelCreate()" class="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100">Hủy</button>
+                <button
+                  type="button"
+                  (click)="confirm()"
+                  class="rounded px-3 py-1 text-xs font-medium text-white"
+                  [class]="pending()?.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'"
+                >
+                  Xác nhận
+                </button>
+                <button type="button" (click)="cancel()" class="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100">Hủy</button>
               </div>
             </div>
           }
@@ -68,7 +92,7 @@ interface PendingCreate {
             [(ngModel)]="input"
             (keydown.enter)="send()"
             [disabled]="loading()"
-            placeholder='VD: Mai 3h chiều họp nhóm 1 tiếng'
+            placeholder="VD: dời họp nhóm sang 4h chiều"
             class="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-600"
           />
           <button
@@ -91,10 +115,41 @@ export class AiAssistantComponent {
   open = signal(false);
   input = signal('');
   loading = signal(false);
-  pending = signal<PendingCreate | null>(null);
+  pending = signal<Pending | null>(null);
   messages = signal<ChatMsg[]>([
-    { role: 'ai', text: 'Chào bạn! Gõ kiểu "Mai 3h chiều họp nhóm 1 tiếng" để mình tạo sự kiện nhé.' },
+    {
+      role: 'ai',
+      text: 'Chào bạn! Mình có thể: tạo, tìm, dời, xóa sự kiện.\nVD: "Mai 3h chiều họp nhóm 1 tiếng", "tuần này có họp gì", "dời họp nhóm sang 4h", "xóa họp nhóm mai".',
+    },
   ]);
+
+  private push(text: string): void {
+    this.messages.update((m) => [...m, { role: 'ai', text }]);
+  }
+
+  /** Tìm event thật từ dữ liệu đã tải (đúng quyền), theo từ khóa + khoảng thời gian */
+  private findEvents(query?: string, rangeStart?: string, rangeEnd?: string): CalendarEvent[] {
+    const q = (query ?? '').trim().toLowerCase();
+    const rs = rangeStart ? new Date(rangeStart).getTime() : null;
+    const re = rangeEnd ? new Date(rangeEnd).getTime() : null;
+    return this.state
+      .events()
+      .filter((e) => {
+        const matchQ =
+          !q ||
+          e.title.toLowerCase().includes(q) ||
+          (e.description ?? '').toLowerCase().includes(q) ||
+          (e.location ?? '').toLowerCase().includes(q);
+        const t = e.start.getTime();
+        const matchRange = (rs === null || t >= rs) && (re === null || t <= re);
+        return matchQ && matchRange;
+      })
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  }
+
+  private listMsg(events: CalendarEvent[]): string {
+    return events.slice(0, 8).map((e) => `• ${e.title || '(không tiêu đề)'} — ${this.eventLabel(e)}`).join('\n');
+  }
 
   send(): void {
     const text = this.input().trim();
@@ -107,46 +162,94 @@ export class AiAssistantComponent {
     this.ai.chat(text).subscribe({
       next: (res) => {
         this.loading.set(false);
-        this.messages.update((m) => [...m, { role: 'ai', text: res.reply }]);
+
         if (res.intent === 'create_event' && res.title && res.startTime && res.endTime) {
-          this.pending.set({ title: res.title, startTime: res.startTime, endTime: res.endTime });
+          this.push(res.reply);
+          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime) });
+          return;
         }
+
+        if (res.intent === 'search_events') {
+          const found = this.findEvents(res.query, res.rangeStart, res.rangeEnd);
+          this.push(found.length ? `${res.reply}\n${this.listMsg(found)}` : `${res.reply}\n(Không tìm thấy sự kiện nào.)`);
+          return;
+        }
+
+        if (res.intent === 'reschedule_event' || res.intent === 'delete_event') {
+          const found = this.findEvents(res.query);
+          if (found.length === 0) {
+            this.push(`Không tìm thấy sự kiện "${res.query ?? ''}".`);
+            return;
+          }
+          if (found.length > 1) {
+            this.push(`Có ${found.length} sự kiện khớp:\n${this.listMsg(found)}\nBạn nói rõ hơn (ngày nào?) nhé.`);
+            return;
+          }
+          const e = found[0];
+          if (res.intent === 'reschedule_event') {
+            if (!res.newStartTime) {
+              this.push('Bạn muốn dời sang lúc nào?');
+              return;
+            }
+            const start = new Date(res.newStartTime);
+            const dur = e.end.getTime() - e.start.getTime();
+            const end = res.newEndTime ? new Date(res.newEndTime) : new Date(start.getTime() + dur);
+            this.push(res.reply);
+            this.pending.set({ kind: 'reschedule', event: e, start, end });
+          } else {
+            this.push(res.reply);
+            this.pending.set({ kind: 'delete', event: e });
+          }
+          return;
+        }
+
+        this.push(res.reply);
       },
       error: () => {
         this.loading.set(false);
-        this.messages.update((m) => [...m, { role: 'ai', text: 'Có lỗi khi gọi trợ lý. Thử lại nhé.' }]);
+        this.push('Có lỗi khi gọi trợ lý. Thử lại nhé.');
       },
     });
   }
 
-  confirmCreate(): void {
+  confirm(): void {
     const p = this.pending();
     if (!p) return;
-    this.state.saveEvent({
-      kind: 'event',
-      title: p.title,
-      description: undefined,
-      location: undefined,
-      start: new Date(p.startTime),
-      end: new Date(p.endTime),
-      isAllDay: false,
-      guests: [],
-      color: 'sky',
-    });
+    if (p.kind === 'create') {
+      this.state.saveEvent({
+        kind: 'event',
+        title: p.title,
+        description: undefined,
+        location: undefined,
+        start: p.start,
+        end: p.end,
+        isAllDay: false,
+        guests: [],
+        color: 'sky',
+      });
+      this.push(`Đã tạo "${p.title}" ✅`);
+    } else if (p.kind === 'reschedule') {
+      this.state.updateEventTimes({ ...p.event, start: p.start, end: p.end });
+      this.push(`Đã dời "${p.event.title}" ✅`);
+    } else {
+      this.state.deleteEvent(p.event.id);
+      this.push(`Đã xóa "${p.event.title}" ✅`);
+    }
     this.pending.set(null);
-    this.messages.update((m) => [...m, { role: 'ai', text: `Đã tạo sự kiện "${p.title}" ✅` }]);
   }
 
-  cancelCreate(): void {
+  cancel(): void {
     this.pending.set(null);
-    this.messages.update((m) => [...m, { role: 'ai', text: 'Ok, đã hủy.' }]);
+    this.push('Ok, đã hủy.');
   }
 
-  previewTime(p: PendingCreate): string {
-    const s = new Date(p.startTime);
-    const e = new Date(p.endTime);
-    const date = s.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' });
+  eventLabel(e: CalendarEvent): string {
+    return this.rangeLabel(e.start, e.end);
+  }
+
+  rangeLabel(start: Date, end: Date): string {
+    const date = start.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' });
     const t = (x: Date) => x.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    return `${date} · ${t(s)} – ${t(e)}`;
+    return `${date} · ${t(start)} – ${t(end)}`;
   }
 }
