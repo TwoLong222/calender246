@@ -9,6 +9,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   OnDestroy,
@@ -233,6 +234,20 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   private readonly supabase = inject(SupabaseService);
   private readonly today = new Date();
+  private clearPreviewTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    // Sau khi thả kéo: GIỮ preview (vị trí mới) cho tới khi events() thật đã cập nhật đúng
+    // vị trí đó rồi mới bỏ preview -> không có khoảnh khắc nào hiện lại chỗ cũ (kể cả kéo nhanh).
+    effect(() => {
+      const p = this.resizePreview();
+      if (!p) return;
+      const e = this.events().find((x) => x.id === p.id);
+      if (e && e.start.getTime() === p.start.getTime() && e.end.getTime() === p.end.getTime()) {
+        queueMicrotask(() => this.resizePreview.set(null));
+      }
+    });
+  }
 
   /** Chỉ CHỦ event mới được kéo/co giãn (khách được mời không sửa được — RLS chặn) */
   canEdit(e: CalendarEvent): boolean {
@@ -281,6 +296,7 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.tickTimer) clearInterval(this.tickTimer);
+    clearTimeout(this.clearPreviewTimer);
   }
 
   isToday(d: Date): boolean {
@@ -368,11 +384,19 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
     this.justDragged = true; // đã kéo -> chặn click mở popup ngay sau đó
 
-    // Cập nhật vị trí mới (optimistic) TRƯỚC, rồi mới bỏ preview -> không hiện lại chỗ cũ
     if (preview && (preview.start.getTime() !== ctx.origStart.getTime() || preview.end.getTime() !== ctx.origEnd.getTime())) {
+      // Có đổi vị trí: emit để lưu, GIỮ preview cho tới khi events() khớp (effect tự bỏ) -> không giật
       this.eventTimesChanged.emit({ ...ctx.event, start: preview.start, end: preview.end });
+      this.scheduleClearPreview();
+    } else {
+      this.resizePreview.set(null); // không đổi gì -> bỏ preview ngay
     }
-    this.resizePreview.set(null);
+  }
+
+  /** An toàn: nếu vì lý do gì events() không khớp preview (vd lưu lỗi) thì vẫn bỏ preview sau 2s */
+  private scheduleClearPreview(): void {
+    clearTimeout(this.clearPreviewTimer);
+    this.clearPreviewTimer = setTimeout(() => this.resizePreview.set(null), 2000);
   }
 
   /** Bắt đầu kéo 1 mép của sự kiện (top = đổi giờ bắt đầu, bottom = đổi giờ kết thúc) */
@@ -419,15 +443,17 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
     this.resizeCtx = null;
     (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
 
-    // Cập nhật giờ mới (optimistic) TRƯỚC khi bỏ preview -> tránh nhấp nháy về giờ cũ
     if (
       ctx &&
       preview &&
       (preview.start.getTime() !== ctx.origStart.getTime() || preview.end.getTime() !== ctx.origEnd.getTime())
     ) {
+      // Giữ preview tới khi events() khớp (effect tự bỏ) -> không nhấp nháy về giờ cũ
       this.eventTimesChanged.emit({ ...ctx.event, start: preview.start, end: preview.end });
+      this.scheduleClearPreview();
+    } else {
+      this.resizePreview.set(null);
     }
-    this.resizePreview.set(null);
   }
 
   private formatTime(d: Date): string {
