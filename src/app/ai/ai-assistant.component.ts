@@ -9,6 +9,7 @@ import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { SupabaseService } from '../auth/supabase.service';
+import { IconComponent } from '../shared/icon.component';
 
 interface ChatMsg {
   role: 'user' | 'ai';
@@ -22,23 +23,27 @@ type Pending =
 @Component({
   selector: 'app-ai-assistant',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!open()) {
       <button
         type="button"
         (click)="open.set(true)"
-        class="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-700 text-2xl shadow-lg hover:bg-blue-800"
+        class="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-700 text-white shadow-lg hover:bg-blue-800"
         aria-label="Trợ lý AI"
       >
-        🤖
+        <app-icon name="robot" class="h-7 w-7" />
       </button>
     } @else {
       <div class="fixed bottom-6 right-6 z-40 flex h-[460px] w-80 flex-col rounded-xl border border-gray-200 bg-white shadow-2xl">
         <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <span class="font-medium text-gray-800">🤖 Trợ lý lịch</span>
-          <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100">✕</button>
+          <span class="flex items-center gap-2 font-medium text-gray-800">
+            <app-icon name="robot" class="h-5 w-5 text-blue-700" /> Trợ lý lịch
+          </span>
+          <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng">
+            <app-icon name="x" class="h-4 w-4" />
+          </button>
         </div>
 
         <div class="flex-1 space-y-2 overflow-y-auto px-3 py-3">

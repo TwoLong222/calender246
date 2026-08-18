@@ -15,6 +15,7 @@ import { EventDetailPopoverComponent } from './event-detail-popover.component';
 import { TrashModalComponent } from './trash-modal.component';
 import { AiAssistantComponent } from '../ai/ai-assistant.component';
 import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
+import { IconComponent } from '../shared/icon.component';
 import { ThemeService } from '../theme.service';
 import { IcsService } from './ics.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
@@ -34,13 +35,14 @@ import { SupabaseService } from '../auth/supabase.service';
     TrashModalComponent,
     AiAssistantComponent,
     NotificationToastsComponent,
+    IconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-screen flex-col bg-white text-gray-900">
       @if (state.loadError(); as msg) {
         <div class="flex items-center justify-between bg-red-50 px-4 py-2 text-sm text-red-700">
-          <span>⚠️ {{ msg }}</span>
+          <span class="flex items-center gap-2"><app-icon name="alert" />{{ msg }}</span>
           <button type="button" (click)="state.reload()" class="rounded border border-red-300 px-2 py-0.5 hover:bg-red-100">
             Thử lại
           </button>
@@ -48,22 +50,25 @@ import { SupabaseService } from '../auth/supabase.service';
       }
       @if (state.lastSavedConflicts().length > 0) {
         <div class="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm text-amber-800">
-          <span>
-            ⚠️ Sự kiện vừa lưu bị trùng lịch với: {{ state.lastSavedConflicts().join(', ') }}
+          <span class="flex items-center gap-2">
+            <app-icon name="alert" />
+            Sự kiện vừa lưu bị trùng lịch với: {{ state.lastSavedConflicts().join(', ') }}
           </span>
-          <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded px-2 py-0.5 hover:bg-amber-100">✕</button>
+          <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded p-1 hover:bg-amber-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
       }
       @if (importMsg(); as msg) {
         <div class="flex items-center justify-between bg-gray-50 px-4 py-2 text-sm text-gray-700">
-          <span>📥 {{ msg }}</span>
-          <button type="button" (click)="importMsg.set('')" class="rounded px-2 py-0.5 hover:bg-gray-100">✕</button>
+          <span class="flex items-center gap-2"><app-icon name="inbox" />{{ msg }}</span>
+          <button type="button" (click)="importMsg.set('')" class="rounded p-1 hover:bg-gray-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
       }
 
       <!-- Top bar -->
       <header class="flex items-center gap-4 border-b border-gray-200 px-4 py-2">
-        <span class="text-lg font-medium text-gray-700">📅 Lịch</span>
+        <span class="flex items-center gap-2 text-lg font-medium text-gray-700">
+          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> Lịch
+        </span>
 
         <button
           type="button"
@@ -74,8 +79,8 @@ import { SupabaseService } from '../auth/supabase.service';
         </button>
 
         <div class="flex gap-1">
-          <button type="button" (click)="state.goPrev()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước">‹</button>
-          <button type="button" (click)="state.goNext()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Sau">›</button>
+          <button type="button" (click)="state.goPrev()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước"><app-icon name="chevron-left" /></button>
+          <button type="button" (click)="state.goNext()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Sau"><app-icon name="chevron-right" /></button>
         </div>
 
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
@@ -87,6 +92,7 @@ import { SupabaseService } from '../auth/supabase.service';
         <div class="ml-auto flex items-center gap-3">
           <!-- Ô tìm kiếm sự kiện -->
           <div class="relative">
+            <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               [value]="searchQuery()"
@@ -94,8 +100,8 @@ import { SupabaseService } from '../auth/supabase.service';
               (focus)="searchFocused.set(true)"
               (blur)="onSearchBlur()"
               (keydown.escape)="clearSearch()"
-              placeholder="🔍 Tìm sự kiện..."
-              class="w-56 rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-600"
+              placeholder="Tìm sự kiện..."
+              class="w-56 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600"
             />
             @if (searchFocused() && searchQuery().trim()) {
               <div class="absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
@@ -120,11 +126,15 @@ import { SupabaseService } from '../auth/supabase.service';
           <button
             type="button"
             (click)="theme.toggle()"
-            class="rounded-full p-1.5 text-lg hover:bg-gray-100"
+            class="rounded-full p-1.5 hover:bg-gray-100"
             [attr.aria-label]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
             [title]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
           >
-            {{ theme.isDark() ? '☀️' : '🌙' }}
+            @if (theme.isDark()) {
+              <app-icon name="sun" class="h-5 w-5 text-amber-500" />
+            } @else {
+              <app-icon name="moon" class="h-5 w-5 text-gray-600" />
+            }
           </button>
 
           <!-- Bánh răng: gom công cụ Xuất/Nhập .ics + Thùng rác -->
@@ -132,25 +142,25 @@ import { SupabaseService } from '../auth/supabase.service';
             <button
               type="button"
               (click)="settingsMenuOpen.set(!settingsMenuOpen())"
-              class="rounded-full p-1.5 text-lg hover:bg-gray-100"
+              class="rounded-full p-1.5 hover:bg-gray-100"
               title="Công cụ & cài đặt"
               aria-label="Công cụ & cài đặt"
             >
-              ⚙️
+              <app-icon name="settings" class="h-5 w-5 text-gray-600" />
             </button>
             @if (settingsMenuOpen()) {
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
               <div class="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  ⬇️ Xuất file .ics
+                  <app-icon name="download" class="h-4 w-4 text-gray-600" /> Xuất file .ics
                 </button>
                 <button type="button" (click)="fileInput.click()" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  ⬆️ Nhập file .ics
+                  <app-icon name="upload" class="h-4 w-4 text-gray-600" /> Nhập file .ics
                 </button>
                 <div class="my-1 border-t border-gray-200"></div>
                 <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  🗑️ Thùng rác
+                  <app-icon name="trash" class="h-4 w-4 text-gray-600" /> Thùng rác
                 </button>
               </div>
             }
@@ -186,7 +196,7 @@ import { SupabaseService } from '../auth/supabase.service';
               (click)="createMenuOpen.set(!createMenuOpen())"
               class="flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium shadow-sm hover:shadow"
             >
-              <span class="text-xl leading-none text-blue-700">+</span> Tạo
+              <app-icon name="plus" class="h-5 w-5 text-blue-700" /> Tạo
             </button>
 
             @if (createMenuOpen()) {

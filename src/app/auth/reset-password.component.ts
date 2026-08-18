@@ -6,16 +6,19 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SupabaseService } from './supabase.service';
+import { IconComponent } from '../shared/icon.component';
 
 @Component({
   selector: 'app-reset-password',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div class="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h1 class="mb-1 text-center text-xl font-medium text-gray-800">📅 Lịch</h1>
+        <h1 class="mb-1 flex items-center justify-center gap-2 text-center text-xl font-medium text-gray-800">
+          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> Lịch
+        </h1>
         <p class="mb-6 text-center text-sm text-gray-500">Đặt mật khẩu mới</p>
 
         @if (done()) {

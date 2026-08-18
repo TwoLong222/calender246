@@ -13,6 +13,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
+import { IconComponent } from '../shared/icon.component';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -30,7 +31,7 @@ function toTimeInputValue(d: Date): string {
 @Component({
   selector: 'app-event-form-modal',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
@@ -42,7 +43,7 @@ function toTimeInputValue(d: Date): string {
             placeholder="Thêm tiêu đề"
             class="flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
           />
-          <button type="button" (click)="close()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Đóng">✕</button>
+          <button type="button" (click)="close()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
 
         <!-- Tabs: Sự kiện / Việc cần làm / Lên lịch hẹn -->
@@ -97,7 +98,7 @@ function toTimeInputValue(d: Date): string {
 
             @if (conflicts().length > 0) {
               <div class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                ⚠️ Trùng lịch với {{ conflicts().length }} sự kiện khác:
+                <p class="flex items-center gap-2"><app-icon name="alert" class="h-4 w-4" /> Trùng lịch với {{ conflicts().length }} sự kiện khác:</p>
                 <ul class="mt-1 list-disc pl-5">
                   @for (c of conflicts(); track c.id) {
                     <li>{{ c.title || '(Không có tiêu đề)' }} — {{ formatRange(c) }}</li>
@@ -140,7 +141,7 @@ function toTimeInputValue(d: Date): string {
                     @for (g of guests(); track g.email) {
                       <li class="flex items-center justify-between rounded bg-gray-50 px-2 py-1">
                         <span>{{ g.email }}</span>
-                        <button type="button" (click)="removeGuest(g.email)" class="text-gray-400 hover:text-gray-600">✕</button>
+                        <button type="button" (click)="removeGuest(g.email)" class="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" aria-label="Bỏ khách"><app-icon name="x" class="h-3.5 w-3.5" /></button>
                       </li>
                     }
                   </ul>
@@ -154,13 +155,13 @@ function toTimeInputValue(d: Date): string {
             </div>
 
             <div class="flex items-start gap-2 text-sm">
-              <span class="w-5 pt-1.5 text-center">📝</span>
+              <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
               <textarea [(ngModel)]="description" rows="2" placeholder="Thêm mô tả" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
 
             <!-- Chọn màu cho sự kiện -->
             <div class="flex items-center gap-2 text-sm">
-              <span class="w-5 text-center">🎨</span>
+              <app-icon name="palette" class="h-4 w-4 text-gray-500" />
               <div class="flex gap-2">
                 @for (c of colorOptions; track c.name) {
                   <button
@@ -180,12 +181,12 @@ function toTimeInputValue(d: Date): string {
         @if (tab() === 'task') {
           <div class="space-y-4">
             <div class="flex items-center gap-2 text-sm">
-              <span class="w-5 text-center">🎯</span>
+              <app-icon name="target" class="h-4 w-4 text-gray-500" />
               <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
               <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1" />
             </div>
             <div class="flex items-start gap-2 text-sm">
-              <span class="w-5 pt-1.5 text-center">📝</span>
+              <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
               <textarea [(ngModel)]="description" rows="2" placeholder="Thêm mô tả" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
           </div>

@@ -7,11 +7,12 @@ import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
 import { AttendeeStatus } from './calendar.types';
+import { IconComponent } from '../shared/icon.component';
 
 @Component({
   selector: 'app-event-detail-popover',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (event(); as e) {
@@ -28,10 +29,10 @@ import { AttendeeStatus } from './calendar.types';
             <div class="flex shrink-0 gap-1">
               <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
               @if (canManage()) {
-                <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Sửa">✏️</button>
-                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Xóa">🗑️</button>
+                <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Sửa"><app-icon name="pencil" class="h-4 w-4" /></button>
+                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Xóa"><app-icon name="trash" class="h-4 w-4" /></button>
               }
-              <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Đóng">✕</button>
+              <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
             </div>
           </div>
 
@@ -45,7 +46,7 @@ import { AttendeeStatus } from './calendar.types';
             <p class="mb-2 text-sm text-gray-600">📍 {{ e.location }}</p>
           }
           @if (e.description) {
-            <p class="mb-2 text-sm text-gray-600">📝 {{ e.description }}</p>
+            <p class="mb-2 flex items-start gap-2 text-sm text-gray-600"><app-icon name="notes" class="mt-0.5 h-4 w-4 shrink-0" /><span>{{ e.description }}</span></p>
           }
 
           @if (e.guests.length > 0) {
@@ -97,7 +98,9 @@ import { AttendeeStatus } from './calendar.types';
 
           <!-- Bình luận -->
           <div class="mt-4 border-t border-gray-100 pt-3">
-            <p class="mb-2 text-xs font-medium text-gray-500">💬 Bình luận</p>
+            <p class="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+              <app-icon name="message" class="h-4 w-4" /> Bình luận
+            </p>
 
             <ul class="mb-2 max-h-40 space-y-2 overflow-y-auto">
               @for (c of comments.comments(); track c.id) {
