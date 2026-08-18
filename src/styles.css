@@ -2,6 +2,49 @@
 
 @import 'tailwindcss';
 
+/* ============================================================
+   CON TRỎ CHUỘT — mọi thứ bấm được đều hiện bàn tay (pointer)
+   khi rê chuột vào, để người dùng biết chỗ nào click được.
+   ============================================================ */
+button:not(:disabled),
+a,
+select,
+label,
+summary,
+[role='button'],
+input[type='checkbox'],
+input[type='radio'] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   HIỆU ỨNG CHUYỂN TRANG — khi đổi view (Ngày/Tuần/Tháng/Năm)
+   hoặc bấm qua ngày/tháng khác, khu vực lịch mờ dần + trượt nhẹ lên.
+   ============================================================ */
+.view-fade {
+  animation: viewFade 0.28s ease;
+}
+@keyframes viewFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Tôn trọng người dùng tắt hiệu ứng chuyển động trong hệ điều hành */
+@media (prefers-reduced-motion: reduce) {
+  .view-fade {
+    animation: none;
+  }
+}
+
 /* Bật dark mode theo class .dark trên <html> (thay vì tự theo cài đặt hệ điều hành) */
 @custom-variant dark (&:where(.dark, .dark *));
 

@@ -205,38 +205,43 @@ import { SupabaseService } from '../auth/supabase.service';
 
         <!-- Main view -->
         <main class="flex-1 overflow-hidden">
-          @switch (state.viewMode()) {
-            @case ('day') {
-              <app-time-grid-view
-                [dates]="[state.viewedDate()]"
-                [events]="state.visibleEvents()"
-                (slotClicked)="onSlotClicked($event)"
-                (eventClicked)="onEventClicked($event)"
-                (eventTimesChanged)="onEventTimesChanged($event)"
-                (dateSelected)="onDayHeaderClicked($event)"
-              />
-            }
-            @case ('week') {
-              <app-time-grid-view
-                [dates]="weekDates()"
-                [events]="state.visibleEvents()"
-                (slotClicked)="onSlotClicked($event)"
-                (eventClicked)="onEventClicked($event)"
-                (eventTimesChanged)="onEventTimesChanged($event)"
-                (dateSelected)="onDayHeaderClicked($event)"
-              />
-            }
-            @case ('month') {
-              <app-month-view
-                [viewedDate]="state.viewedDate()"
-                [events]="state.visibleEvents()"
-                (dateClicked)="onMonthDateClicked($event)"
-                (eventClicked)="onEventClicked($event)"
-              />
-            }
-            @case ('year') {
-              <app-year-view [viewedDate]="state.viewedDate()" (dateClicked)="onYearDateClicked($event)" />
-            }
+          <!-- Bọc trong @for keyed theo view+ngày: mỗi lần đổi -> DOM tạo lại -> chạy animation .view-fade -->
+          @for (key of [transitionKey()]; track key) {
+            <div class="view-fade h-full">
+              @switch (state.viewMode()) {
+                @case ('day') {
+                  <app-time-grid-view
+                    [dates]="[state.viewedDate()]"
+                    [events]="state.visibleEvents()"
+                    (slotClicked)="onSlotClicked($event)"
+                    (eventClicked)="onEventClicked($event)"
+                    (eventTimesChanged)="onEventTimesChanged($event)"
+                    (dateSelected)="onDayHeaderClicked($event)"
+                  />
+                }
+                @case ('week') {
+                  <app-time-grid-view
+                    [dates]="weekDates()"
+                    [events]="state.visibleEvents()"
+                    (slotClicked)="onSlotClicked($event)"
+                    (eventClicked)="onEventClicked($event)"
+                    (eventTimesChanged)="onEventTimesChanged($event)"
+                    (dateSelected)="onDayHeaderClicked($event)"
+                  />
+                }
+                @case ('month') {
+                  <app-month-view
+                    [viewedDate]="state.viewedDate()"
+                    [events]="state.visibleEvents()"
+                    (dateClicked)="onMonthDateClicked($event)"
+                    (eventClicked)="onEventClicked($event)"
+                  />
+                }
+                @case ('year') {
+                  <app-year-view [viewedDate]="state.viewedDate()" (dateClicked)="onYearDateClicked($event)" />
+                }
+              }
+            </div>
           }
         </main>
       </div>
@@ -352,6 +357,9 @@ export class CalendarPageComponent {
     const start = startOfWeek(this.state.viewedDate());
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   });
+
+  /** Khóa đổi mỗi khi đổi view hoặc đổi ngày đang xem -> kích hoạt lại animation chuyển trang */
+  transitionKey = computed(() => `${this.state.viewMode()}:${this.state.viewedDate().getTime()}`);
 
   headerLabel = computed(() => {
     const d = this.state.viewedDate();
