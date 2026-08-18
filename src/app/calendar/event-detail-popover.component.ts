@@ -115,10 +115,18 @@ import { AttendeeStatus } from './calendar.types';
                   } @else {
                     <p class="mt-0.5 whitespace-pre-wrap break-words text-sm text-gray-800">{{ c.content }}</p>
                     @if (isMine(c)) {
-                      <div class="mt-1 flex gap-3">
-                        <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">Sửa</button>
-                        <button type="button" (click)="deleteComment(c.id)" class="text-xs text-red-500 hover:underline">Xóa</button>
-                      </div>
+                      @if (deletingId() === c.id) {
+                        <div class="mt-1 flex items-center gap-3">
+                          <span class="text-xs text-red-700">Xóa bình luận?</span>
+                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600 hover:underline">Xóa</button>
+                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500 hover:underline">Hủy</button>
+                        </div>
+                      } @else {
+                        <div class="mt-1 flex gap-3">
+                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">Sửa</button>
+                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500 hover:underline">Xóa</button>
+                        </div>
+                      }
                     }
                   }
                 </li>
@@ -182,6 +190,7 @@ export class EventDetailPopoverComponent {
   newComment = signal('');
   editingId = signal<string | null>(null);
   editText = signal('');
+  deletingId = signal<string | null>(null);
 
   isMine(c: { userEmail: string }): boolean {
     return c.userEmail.toLowerCase() === this.comments.myEmail()?.toLowerCase();
@@ -212,8 +221,9 @@ export class EventDetailPopoverComponent {
     this.editingId.set(null);
   }
 
-  deleteComment(id: string): void {
-    if (confirm('Xóa bình luận này?')) this.comments.remove(id);
+  confirmDeleteComment(id: string): void {
+    this.comments.remove(id);
+    this.deletingId.set(null);
   }
 
   /** Trạng thái tham dự của CHÍNH user hiện tại cho event này (để tô đậm nút đang chọn) */
@@ -314,6 +324,7 @@ export class EventDetailPopoverComponent {
       } else {
         this.comments.clear();
         this.editingId.set(null);
+        this.deletingId.set(null);
         this.newComment.set('');
       }
     });
