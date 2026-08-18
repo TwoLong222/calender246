@@ -1,0 +1,26 @@
+// Hiển thị các toast nhắc lịch ở góc trên phải màn hình.
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { NotificationService } from './notification.service';
+
+@Component({
+  selector: 'app-notification-toasts',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="fixed right-4 top-4 z-50 flex flex-col gap-2">
+      @for (t of notify.toasts(); track t.id) {
+        <div class="flex w-72 items-start gap-3 rounded-lg border border-amber-200 bg-white px-4 py-3 shadow-lg">
+          <span class="text-xl leading-none">⏰</span>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-800">Sắp tới: {{ t.title }}</p>
+            <p class="text-xs text-gray-500">Bắt đầu lúc {{ t.timeLabel }}</p>
+          </div>
+          <button type="button" (click)="notify.dismiss(t.id)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Đóng">✕</button>
+        </div>
+      }
+    </div>
+  `,
+})
+export class NotificationToastsComponent {
+  protected readonly notify = inject(NotificationService);
+}

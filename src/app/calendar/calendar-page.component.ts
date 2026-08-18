@@ -13,6 +13,7 @@ import { YearViewComponent } from './year-view.component';
 import { EventFormModalComponent } from './event-form-modal.component';
 import { EventDetailPopoverComponent } from './event-detail-popover.component';
 import { AiAssistantComponent } from '../ai/ai-assistant.component';
+import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { MONTH_LABELS, addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
@@ -28,6 +29,7 @@ import { SupabaseService } from '../auth/supabase.service';
     EventFormModalComponent,
     EventDetailPopoverComponent,
     AiAssistantComponent,
+    NotificationToastsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -218,6 +220,7 @@ import { SupabaseService } from '../auth/supabase.service';
     }
 
     <app-ai-assistant />
+    <app-notification-toasts />
   `,
 })
 export class CalendarPageComponent {
