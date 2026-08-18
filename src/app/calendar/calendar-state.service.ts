@@ -6,7 +6,7 @@
 // state.saveEvent(...)) không đổi — component không cần sửa gì thêm.
 
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
+import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
 
@@ -17,6 +17,15 @@ export class CalendarStateService {
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
+
+  /** Bộ lọc hiển thị theo loại sự kiện (điều khiển bằng checkbox ở sidebar) */
+  readonly visibleKinds = signal<Record<EventKind, boolean>>({ event: true, task: true, appointment: true });
+  /** Danh sách sự kiện đã lọc theo visibleKinds — các view lịch dùng cái này */
+  readonly visibleEvents = computed(() => this.events().filter((e) => this.visibleKinds()[e.kind]));
+
+  toggleKind(kind: EventKind): void {
+    this.visibleKinds.update((v) => ({ ...v, [kind]: !v[kind] }));
+  }
 
   readonly viewMode = signal<ViewMode>('week');
   readonly viewedDate = signal<Date>(startOfDay(new Date()));
@@ -178,6 +187,18 @@ export class CalendarStateService {
       error: () => {
         this.events.set(previous); // lưu thất bại -> khôi phục giờ cũ
         this.loadError.set('Lưu sự kiện thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  /** User tự đặt trạng thái tham dự cho 1 event -> cập nhật lại danh sách khách của event đó */
+  rsvp(eventId: string, status: AttendeeStatus): void {
+    this.api.rsvp(eventId, status).subscribe({
+      next: (guests) => {
+        this.events.update((list) => list.map((e) => (e.id === eventId ? { ...e, guests } : e)));
+      },
+      error: () => {
+        this.loadError.set('Cập nhật trạng thái tham dự thất bại. Thử lại sau.');
       },
     });
   }

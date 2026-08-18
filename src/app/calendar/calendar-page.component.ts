@@ -153,11 +153,20 @@ import { SupabaseService } from '../auth/supabase.service';
           <app-mini-calendar [viewedDate]="state.viewedDate()" (dateSelected)="onMiniCalendarPick($event)" />
 
           <div class="mt-6">
-            <p class="mb-2 text-sm font-medium text-gray-700">Lịch của tôi</p>
+            <p class="mb-2 text-sm font-medium text-gray-700">Hiển thị</p>
             <ul class="space-y-1 text-sm text-gray-700">
-              <li class="flex items-center gap-2"><input type="checkbox" checked class="accent-sky-600" /> Của tôi</li>
-              <li class="flex items-center gap-2"><input type="checkbox" checked class="accent-violet-600" /> Gia đình</li>
-              <li class="flex items-center gap-2"><input type="checkbox" checked class="accent-emerald-600" /> Việc cần làm</li>
+              <li class="flex items-center gap-2">
+                <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="accent-sky-600" />
+                Sự kiện
+              </li>
+              <li class="flex items-center gap-2">
+                <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="accent-emerald-600" />
+                Việc cần làm
+              </li>
+              <li class="flex items-center gap-2">
+                <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="accent-violet-600" />
+                Lịch hẹn
+              </li>
             </ul>
           </div>
         </aside>
@@ -168,7 +177,7 @@ import { SupabaseService } from '../auth/supabase.service';
             @case ('day') {
               <app-time-grid-view
                 [dates]="[state.viewedDate()]"
-                [events]="state.events()"
+                [events]="state.visibleEvents()"
                 (slotClicked)="onSlotClicked($event)"
                 (eventClicked)="onEventClicked($event)"
                 (eventTimesChanged)="onEventTimesChanged($event)"
@@ -177,7 +186,7 @@ import { SupabaseService } from '../auth/supabase.service';
             @case ('week') {
               <app-time-grid-view
                 [dates]="weekDates()"
-                [events]="state.events()"
+                [events]="state.visibleEvents()"
                 (slotClicked)="onSlotClicked($event)"
                 (eventClicked)="onEventClicked($event)"
                 (eventTimesChanged)="onEventTimesChanged($event)"
@@ -186,7 +195,7 @@ import { SupabaseService } from '../auth/supabase.service';
             @case ('month') {
               <app-month-view
                 [viewedDate]="state.viewedDate()"
-                [events]="state.events()"
+                [events]="state.visibleEvents()"
                 (dateClicked)="onMonthDateClicked($event)"
                 (eventClicked)="onEventClicked($event)"
               />

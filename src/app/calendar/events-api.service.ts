@@ -7,7 +7,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { AttendeeStatus, CalendarEvent, EventKind } from './calendar.types';
+import { AttendeeStatus, CalendarEvent, EventKind, Guest } from './calendar.types';
 
 interface ApiAttendee {
   id: string;
@@ -110,5 +110,12 @@ export class EventsApiService {
   delete(id: string, scope?: 'series'): Observable<void> {
     const url = scope === 'series' ? `${this.base}/${id}?scope=series` : `${this.base}/${id}`;
     return this.http.delete<void>(url);
+  }
+
+  /** User tự đặt trạng thái tham dự -> trả về danh sách khách mời mới (đã cập nhật) */
+  rsvp(id: string, status: AttendeeStatus): Observable<Guest[]> {
+    return this.http
+      .post<{ attendees: ApiAttendee[] }>(`${this.base}/${id}/rsvp`, { status })
+      .pipe(map((res) => (res.attendees ?? []).map((a) => ({ email: a.email, status: a.status }))));
   }
 }

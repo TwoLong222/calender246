@@ -3,6 +3,8 @@
 
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { CalendarStateService } from './calendar-state.service';
+import { SupabaseService } from '../auth/supabase.service';
+import { AttendeeStatus } from './calendar.types';
 
 @Component({
   selector: 'app-event-detail-popover',
@@ -52,9 +54,30 @@ import { CalendarStateService } from './calendar-state.service';
 
           <div class="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3 text-sm">
             <span class="text-gray-500">Tham dự?</span>
-            <button type="button" class="rounded-full border border-gray-300 px-3 py-1 hover:bg-gray-50">Có</button>
-            <button type="button" class="rounded-full border border-gray-300 px-3 py-1 hover:bg-gray-50">Không</button>
-            <button type="button" class="rounded-full border border-gray-300 px-3 py-1 hover:bg-gray-50">Có thể</button>
+            <button
+              type="button"
+              (click)="rsvp('accepted')"
+              class="rounded-full border px-3 py-1"
+              [class]="myStatus() === 'accepted' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
+            >
+              Có
+            </button>
+            <button
+              type="button"
+              (click)="rsvp('declined')"
+              class="rounded-full border px-3 py-1"
+              [class]="myStatus() === 'declined' ? 'border-red-600 bg-red-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
+            >
+              Không
+            </button>
+            <button
+              type="button"
+              (click)="rsvp('tentative')"
+              class="rounded-full border px-3 py-1"
+              [class]="myStatus() === 'tentative' ? 'border-amber-500 bg-amber-500 text-white' : 'border-gray-300 hover:bg-gray-50'"
+            >
+              Có thể
+            </button>
           </div>
 
           <!-- Xác nhận xóa: nếu là sự kiện lặp thì cho chọn xóa riêng hoặc xóa cả chuỗi -->
@@ -83,8 +106,22 @@ import { CalendarStateService } from './calendar-state.service';
 })
 export class EventDetailPopoverComponent {
   protected readonly state = inject(CalendarStateService);
+  private readonly supabase = inject(SupabaseService);
 
   event = computed(() => this.state.selectedEvent());
+
+  /** Trạng thái tham dự của CHÍNH user hiện tại cho event này (để tô đậm nút đang chọn) */
+  myStatus = computed<AttendeeStatus | null>(() => {
+    const email = this.supabase.user()?.email?.toLowerCase();
+    const e = this.event();
+    if (!email || !e) return null;
+    return e.guests.find((g) => g.email.toLowerCase() === email)?.status ?? null;
+  });
+
+  rsvp(status: AttendeeStatus): void {
+    const e = this.event();
+    if (e) this.state.rsvp(e.id, status);
+  }
 
   dateLabel(d: Date): string {
     return d.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' });
