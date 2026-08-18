@@ -1,7 +1,8 @@
 // View "Năm": lưới 12 mini-calendar (mỗi tháng 1 ô), giống Google Calendar year view.
-// Không hiển thị event trong view này (đúng hành vi Google Calendar thật) — chỉ để định hướng nhanh.
+// Có chấm nhỏ dưới các ngày CÓ SỰ KIỆN để nhìn nhanh cả năm bận rộn thế nào.
 
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { CalendarEvent } from './calendar.types';
 import { isSameDay, MONTH_LABELS } from './date-utils';
 
 interface MiniMonthCell {
@@ -28,13 +29,22 @@ interface MiniMonthCell {
               <button
                 type="button"
                 (click)="dateClicked.emit(cell.date)"
-                class="mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px]"
+                class="relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[11px]"
                 [class.text-gray-300]="!cell.inCurrentMonth"
                 [class.text-gray-700]="cell.inCurrentMonth && !isToday(cell.date)"
                 [class.bg-blue-700]="isToday(cell.date)"
                 [class.text-white]="isToday(cell.date)"
+                [class.font-medium]="cell.inCurrentMonth && hasEvent(cell.date)"
               >
                 {{ cell.date.getDate() }}
+                <!-- Chấm nhỏ dưới ngày có sự kiện; hôm nay thì đổi thành trắng cho nổi trên nền xanh -->
+                @if (cell.inCurrentMonth && hasEvent(cell.date)) {
+                  <span
+                    class="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                    [class.bg-blue-500]="!isToday(cell.date)"
+                    [class.bg-white]="isToday(cell.date)"
+                  ></span>
+                }
               </button>
             }
           </div>
@@ -45,6 +55,7 @@ interface MiniMonthCell {
 })
 export class YearViewComponent {
   viewedDate = input.required<Date>();
+  events = input<CalendarEvent[]>([]);
   dateClicked = output<Date>();
 
   readonly MONTH_LABELS = MONTH_LABELS;
@@ -55,6 +66,31 @@ export class YearViewComponent {
     const year = this.viewedDate().getFullYear();
     return Array.from({ length: 12 }, (_, m) => new Date(year, m, 1));
   });
+
+  /** Set các ngày (yyyy-mm-dd) có ít nhất 1 sự kiện — tính 1 lần khi events đổi */
+  private readonly eventDays = computed(() => {
+    const set = new Set<string>();
+    for (const e of this.events()) {
+      const d = e.start;
+      // Với sự kiện kéo dài nhiều ngày, đánh dấu mọi ngày từ start -> end
+      const end = e.end;
+      const cur = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      while (cur <= last) {
+        set.add(this.dayKey(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return set;
+  });
+
+  hasEvent(d: Date): boolean {
+    return this.eventDays().has(this.dayKey(d));
+  }
+
+  private dayKey(d: Date): string {
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
 
   cellsFor(monthStart: Date): MiniMonthCell[] {
     const firstWeekday = monthStart.getDay();

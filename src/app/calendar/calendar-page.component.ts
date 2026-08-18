@@ -271,7 +271,7 @@ import { SupabaseService } from '../auth/supabase.service';
                   />
                 }
                 @case ('year') {
-                  <app-year-view [viewedDate]="state.viewedDate()" (dateClicked)="onYearDateClicked($event)" />
+                  <app-year-view [viewedDate]="state.viewedDate()" [events]="state.visibleEvents()" (dateClicked)="onYearDateClicked($event)" />
                 }
               }
             </div>
