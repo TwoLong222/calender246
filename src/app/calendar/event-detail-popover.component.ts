@@ -23,8 +23,11 @@ import { AttendeeStatus } from './calendar.types';
               <h3 class="font-medium text-gray-900">{{ e.title || '(Không có tiêu đề)' }}</h3>
             </div>
             <div class="flex shrink-0 gap-1">
-              <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Sửa">✏️</button>
-              <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Xóa">🗑️</button>
+              <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
+              @if (canManage()) {
+                <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Sửa">✏️</button>
+                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Xóa">🗑️</button>
+              }
               <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Đóng">✕</button>
             </div>
           </div>
@@ -131,6 +134,14 @@ export class EventDetailPopoverComponent {
     const e = this.event();
     if (e) this.state.rsvp(e.id, status);
   }
+
+  /** Chỉ người TẠO mới được sửa/xóa. Event cũ (chưa có creatorEmail) tạm cho phép (thường là của chính mình). */
+  canManage = computed<boolean>(() => {
+    const e = this.event();
+    if (!e) return false;
+    if (!e.creatorEmail) return true;
+    return e.creatorEmail.toLowerCase() === this.supabase.user()?.email?.toLowerCase();
+  });
 
   /** Số khách đã đồng ý / chưa trả lời — tóm tắt cho người tạo dễ nhìn */
   acceptedCount = computed(() => this.event()?.guests.filter((g) => g.status === 'accepted').length ?? 0);
