@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
+import { SupabaseService } from '../auth/supabase.service';
 
 interface ChatMsg {
   role: 'user' | 'ai';
@@ -111,6 +112,7 @@ type Pending =
 export class AiAssistantComponent {
   private readonly ai = inject(AiApiService);
   private readonly state = inject(CalendarStateService);
+  private readonly supabase = inject(SupabaseService);
 
   open = signal(false);
   input = signal('');
@@ -186,6 +188,11 @@ export class AiAssistantComponent {
             return;
           }
           const e = found[0];
+          // Chỉ chủ event mới được dời/xóa
+          if (e.creatorEmail && e.creatorEmail.toLowerCase() !== this.supabase.user()?.email?.toLowerCase()) {
+            this.push('Bạn chỉ có thể dời/xóa sự kiện của chính mình.');
+            return;
+          }
           if (res.intent === 'reschedule_event') {
             if (!res.newStartTime) {
               this.push('Bạn muốn dời sang lúc nào?');

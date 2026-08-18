@@ -10,6 +10,7 @@ import {
   Component,
   computed,
   ElementRef,
+  inject,
   OnDestroy,
   input,
   output,
@@ -18,6 +19,7 @@ import {
 } from '@angular/core';
 import { CalendarEvent } from './calendar.types';
 import { formatHourLabel, isSameDay, minutesSinceMidnight } from './date-utils';
+import { SupabaseService } from '../auth/supabase.service';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -229,7 +231,14 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   readonly hours = Array.from({ length: 24 }, (_, i) => i);
   readonly formatHourLabel = formatHourLabel;
 
+  private readonly supabase = inject(SupabaseService);
   private readonly today = new Date();
+
+  /** Chỉ CHỦ event mới được kéo/co giãn (khách được mời không sửa được — RLS chặn) */
+  canEdit(e: CalendarEvent): boolean {
+    if (!e.creatorEmail) return true; // event cũ chưa có creatorEmail -> tạm cho (thường của mình)
+    return e.creatorEmail.toLowerCase() === this.supabase.user()?.email?.toLowerCase();
+  }
   private readonly scrollAreaRef = viewChild<ElementRef<HTMLDivElement>>('scrollArea');
   private readonly gridRowRef = viewChild<ElementRef<HTMLDivElement>>('gridRow');
   private tickTimer?: ReturnType<typeof setInterval>;
@@ -307,6 +316,7 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   /** Bắt đầu bấm giữ trên thân event — CHƯA coi là kéo cho tới khi con trỏ dịch quá ngưỡng */
   startMove(ev: PointerEvent, event: CalendarEvent): void {
+    if (!this.canEdit(event)) return; // không phải chủ event -> không kéo (vẫn click mở chi tiết được)
     this.justDragged = false;
     (ev.target as HTMLElement).setPointerCapture(ev.pointerId);
     this.moveCtx = {
@@ -367,6 +377,7 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   /** Bắt đầu kéo 1 mép của sự kiện (top = đổi giờ bắt đầu, bottom = đổi giờ kết thúc) */
   startResize(ev: PointerEvent, event: CalendarEvent, edge: 'top' | 'bottom'): void {
+    if (!this.canEdit(event)) return; // chỉ chủ event mới co giãn được
     ev.preventDefault();
     ev.stopPropagation(); // không để lan lên nút -> tránh mở popup chi tiết
     (ev.target as HTMLElement).setPointerCapture(ev.pointerId);
