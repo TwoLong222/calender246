@@ -361,18 +361,18 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
     this.moveCtx = null;
     (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
 
-    if (!ctx) return;
-    if (!ctx.moved) {
+    if (!ctx || !ctx.moved) {
       this.resizePreview.set(null); // chỉ là click -> để (click) mở popup chi tiết
       return;
     }
 
-    this.resizePreview.set(null);
     this.justDragged = true; // đã kéo -> chặn click mở popup ngay sau đó
 
+    // Cập nhật vị trí mới (optimistic) TRƯỚC, rồi mới bỏ preview -> không hiện lại chỗ cũ
     if (preview && (preview.start.getTime() !== ctx.origStart.getTime() || preview.end.getTime() !== ctx.origEnd.getTime())) {
       this.eventTimesChanged.emit({ ...ctx.event, start: preview.start, end: preview.end });
     }
+    this.resizePreview.set(null);
   }
 
   /** Bắt đầu kéo 1 mép của sự kiện (top = đổi giờ bắt đầu, bottom = đổi giờ kết thúc) */
@@ -417,15 +417,17 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
     const ctx = this.resizeCtx;
     const preview = this.resizePreview();
     this.resizeCtx = null;
-    this.resizePreview.set(null);
     (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
 
-    if (!ctx || !preview) return;
-    // Không đổi gì -> khỏi gọi API
-    if (preview.start.getTime() === ctx.origStart.getTime() && preview.end.getTime() === ctx.origEnd.getTime()) {
-      return;
+    // Cập nhật giờ mới (optimistic) TRƯỚC khi bỏ preview -> tránh nhấp nháy về giờ cũ
+    if (
+      ctx &&
+      preview &&
+      (preview.start.getTime() !== ctx.origStart.getTime() || preview.end.getTime() !== ctx.origEnd.getTime())
+    ) {
+      this.eventTimesChanged.emit({ ...ctx.event, start: preview.start, end: preview.end });
     }
-    this.eventTimesChanged.emit({ ...ctx.event, start: preview.start, end: preview.end });
+    this.resizePreview.set(null);
   }
 
   private formatTime(d: Date): string {
