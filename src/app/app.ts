@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-
+import { ThemeService } from './theme.service';
 
 @Component({
   imports: [RouterModule],
@@ -10,4 +10,6 @@ import { RouterModule } from '@angular/router';
 })
 export class App {
   protected title = 'web';
+  // Khởi tạo theme ngay khi mở app (áp dụng cho cả trang đăng nhập)
+  private readonly theme = inject(ThemeService);
 }

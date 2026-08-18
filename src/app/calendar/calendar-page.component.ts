@@ -14,6 +14,7 @@ import { EventFormModalComponent } from './event-form-modal.component';
 import { EventDetailPopoverComponent } from './event-detail-popover.component';
 import { AiAssistantComponent } from '../ai/ai-assistant.component';
 import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
+import { ThemeService } from '../theme.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { MONTH_LABELS, addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
@@ -106,6 +107,16 @@ import { SupabaseService } from '../auth/supabase.service';
               </div>
             }
           </div>
+
+          <button
+            type="button"
+            (click)="theme.toggle()"
+            class="rounded-full p-1.5 text-lg hover:bg-gray-100"
+            [attr.aria-label]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
+            [title]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
+          >
+            {{ theme.isDark() ? '☀️' : '🌙' }}
+          </button>
 
           <select
             class="rounded border border-gray-300 px-2 py-1.5 text-sm"
@@ -226,6 +237,7 @@ import { SupabaseService } from '../auth/supabase.service';
 export class CalendarPageComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly supabase = inject(SupabaseService);
+  protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
 
