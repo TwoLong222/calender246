@@ -27,6 +27,7 @@ interface ApiEvent {
   color: string;
   series_id: string | null;
   creator_email?: string | null;
+  deleted_at?: string | null;
   attendees?: ApiAttendee[];
 }
 
@@ -70,6 +71,7 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,
+    deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
   };
 }
 
@@ -112,6 +114,21 @@ export class EventsApiService {
   delete(id: string, scope?: 'series'): Observable<void> {
     const url = scope === 'series' ? `${this.base}/${id}?scope=series` : `${this.base}/${id}`;
     return this.http.delete<void>(url);
+  }
+
+  /** Lấy danh sách sự kiện trong thùng rác */
+  listTrash(): Observable<CalendarEvent[]> {
+    return this.http.get<ApiEvent[]>(`${this.base}/trash`).pipe(map((rows) => rows.map(fromApiEvent)));
+  }
+
+  /** Khôi phục 1 sự kiện từ thùng rác */
+  restore(id: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/${id}/restore`, {});
+  }
+
+  /** Xóa vĩnh viễn 1 sự kiện trong thùng rác */
+  purge(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${id}/purge`);
   }
 
   /** User tự đặt trạng thái tham dự -> trả về danh sách khách mời mới (đã cập nhật) */

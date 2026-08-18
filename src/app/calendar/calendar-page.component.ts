@@ -12,6 +12,7 @@ import { MonthViewComponent } from './month-view.component';
 import { YearViewComponent } from './year-view.component';
 import { EventFormModalComponent } from './event-form-modal.component';
 import { EventDetailPopoverComponent } from './event-detail-popover.component';
+import { TrashModalComponent } from './trash-modal.component';
 import { AiAssistantComponent } from '../ai/ai-assistant.component';
 import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
 import { ThemeService } from '../theme.service';
@@ -30,6 +31,7 @@ import { SupabaseService } from '../auth/supabase.service';
     YearViewComponent,
     EventFormModalComponent,
     EventDetailPopoverComponent,
+    TrashModalComponent,
     AiAssistantComponent,
     NotificationToastsComponent,
   ],
@@ -201,6 +203,12 @@ import { SupabaseService } from '../auth/supabase.service';
               }
             </div>
           </div>
+
+          <div class="mt-6">
+            <button type="button" (click)="state.openTrash()" class="flex w-full items-center gap-2 rounded border border-gray-300 px-3 py-1.5 text-left text-sm hover:bg-gray-50">
+              🗑️ Thùng rác
+            </button>
+          </div>
         </aside>
 
         <!-- Main view -->
@@ -252,6 +260,9 @@ import { SupabaseService } from '../auth/supabase.service';
     }
     @if (state.selectedEventId()) {
       <app-event-detail-popover />
+    }
+    @if (state.isTrashOpen()) {
+      <app-trash-modal />
     }
 
     <app-ai-assistant />

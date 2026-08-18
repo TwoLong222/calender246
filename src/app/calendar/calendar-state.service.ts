@@ -20,6 +20,11 @@ export class CalendarStateService {
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
 
+  /** Thùng rác: các sự kiện đã xóa (xóa mềm) — chỉ tải khi mở modal thùng rác */
+  readonly trashedEvents = signal<CalendarEvent[]>([]);
+  readonly isTrashOpen = signal(false);
+  readonly isTrashLoading = signal(false);
+
   /** Bộ lọc hiển thị theo loại sự kiện (điều khiển bằng checkbox ở sidebar) */
   readonly visibleKinds = signal<Record<EventKind, boolean>>({ event: true, task: true, appointment: true });
   /** Danh sách sự kiện đã lọc theo visibleKinds — các view lịch dùng cái này */
@@ -271,6 +276,58 @@ export class CalendarStateService {
       },
       error: () => {
         this.loadError.set('Xóa sự kiện thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  // ===================== THÙNG RÁC =====================
+
+  /** Mở modal thùng rác và tải danh sách sự kiện đã xóa */
+  openTrash(): void {
+    this.isTrashOpen.set(true);
+    this.loadTrash();
+  }
+
+  closeTrash(): void {
+    this.isTrashOpen.set(false);
+  }
+
+  loadTrash(): void {
+    this.isTrashLoading.set(true);
+    this.api.listTrash().subscribe({
+      next: (list) => {
+        this.trashedEvents.set(list);
+        this.isTrashLoading.set(false);
+      },
+      error: () => {
+        this.loadError.set('Không tải được thùng rác. Thử lại sau.');
+        this.isTrashLoading.set(false);
+      },
+    });
+  }
+
+  /** Khôi phục 1 sự kiện từ thùng rác -> quay lại lịch */
+  restoreFromTrash(id: string): void {
+    this.markLocalChange();
+    this.api.restore(id).subscribe({
+      next: () => {
+        this.trashedEvents.update((list) => list.filter((e) => e.id !== id));
+        this.reload(); // tải lại lịch để thấy sự kiện vừa khôi phục
+      },
+      error: () => {
+        this.loadError.set('Khôi phục thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  /** Xóa vĩnh viễn 1 sự kiện trong thùng rác (không khôi phục được) */
+  purgeFromTrash(id: string): void {
+    this.api.purge(id).subscribe({
+      next: () => {
+        this.trashedEvents.update((list) => list.filter((e) => e.id !== id));
+      },
+      error: () => {
+        this.loadError.set('Xóa vĩnh viễn thất bại. Thử lại sau.');
       },
     });
   }
