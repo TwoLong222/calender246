@@ -50,7 +50,9 @@ export class NotificationService {
     const timeLabel = e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const toastId = `${e.id}:${Date.now()}`;
     this.toasts.update((t) => [...t, { id: toastId, title: e.title || '(không tiêu đề)', timeLabel }]);
-    setTimeout(() => this.dismiss(toastId), 12_000); // tự ẩn sau 12s
+    setTimeout(() => this.dismiss(toastId), 15_000); // tự ẩn sau 15s
+
+    this.playBeep();
 
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
@@ -58,6 +60,34 @@ export class NotificationService {
       } catch {
         /* một số trình duyệt yêu cầu ServiceWorker cho Notification — bỏ qua nếu lỗi */
       }
+    }
+  }
+
+  /** Kêu 2 tiếng bíp bằng Web Audio (không cần file âm thanh) */
+  private playBeep(): void {
+    try {
+      const Ctx = window.AudioContext ?? (window as any).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      ctx.resume?.();
+      const beep = (at: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.2);
+        osc.start(ctx.currentTime + at);
+        osc.stop(ctx.currentTime + at + 0.22);
+      };
+      beep(0);
+      beep(0.28);
+      setTimeout(() => ctx.close(), 800);
+    } catch {
+      /* trình duyệt chặn âm thanh khi chưa có tương tác -> bỏ qua */
     }
   }
 
