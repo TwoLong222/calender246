@@ -45,6 +45,7 @@ export class CalendarStateService {
   readonly editingEvent = computed(() => this.events().find((e) => e.id === this.editingEventId()) ?? null);
 
   private reloadTimer?: ReturnType<typeof setTimeout>;
+  private lastLocalChangeAt = 0;
 
   constructor() {
     this.reload();
@@ -66,7 +67,17 @@ export class CalendarStateService {
 
   private scheduleReload(): void {
     clearTimeout(this.reloadTimer);
-    this.reloadTimer = setTimeout(() => this.reload(), 400);
+    this.reloadTimer = setTimeout(() => {
+      // Nếu vừa TỰ thay đổi (tạo/sửa/kéo/xóa) thì optimistic đã đúng rồi -> bỏ qua reload
+      // để tránh nó tải lại và "giật" event về chỗ cũ. Thay đổi của NGƯỜI KHÁC vẫn reload bình thường.
+      if (Date.now() - this.lastLocalChangeAt < 1500) return;
+      this.reload();
+    }, 400);
+  }
+
+  /** Đánh dấu mốc user vừa tự thay đổi -> để scheduleReload bỏ qua reload realtime của chính mình */
+  private markLocalChange(): void {
+    this.lastLocalChangeAt = Date.now();
   }
 
   /** Gọi lại API lấy danh sách sự kiện mới nhất — dùng lúc khởi động và có thể gọi lại thủ công nếu cần */
@@ -168,6 +179,7 @@ export class CalendarStateService {
   }
 
   saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }, recurrence?: RecurrenceOptions): void {
+    this.markLocalChange();
     const { id, ...rest } = draft;
     const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
 
@@ -196,6 +208,7 @@ export class CalendarStateService {
    * đổi giờ trên UI NGAY (khỏi giật về chỗ cũ trong lúc chờ API), nếu API lỗi thì trả lại giờ cũ.
    */
   updateEventTimes(event: CalendarEvent): void {
+    this.markLocalChange();
     const { id, ...rest } = event;
     const previous = this.events();
 
@@ -216,6 +229,7 @@ export class CalendarStateService {
 
   /** User tự đặt trạng thái tham dự cho 1 event -> cập nhật lại danh sách khách của event đó */
   rsvp(eventId: string, status: AttendeeStatus): void {
+    this.markLocalChange();
     this.api.rsvp(eventId, status).subscribe({
       next: (guests) => {
         this.events.update((list) => list.map((e) => (e.id === eventId ? { ...e, guests } : e)));
@@ -227,6 +241,7 @@ export class CalendarStateService {
   }
 
   deleteEvent(id: string, scope?: 'series'): void {
+    this.markLocalChange();
     this.api.delete(id, scope).subscribe({
       next: () => {
         if (scope === 'series') {
