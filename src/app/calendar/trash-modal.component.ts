@@ -14,12 +14,12 @@ import { IconComponent } from '../shared/icon.component';
   template: `
     <!-- Nền mờ: bấm ra ngoài để đóng -->
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      class="modal-backdrop-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       (click)="state.closeTrash()"
     >
       <!-- Thẻ modal: chặn click lan ra nền -->
       <div
-        class="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+        class="modal-card-in flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-xl"
         (click)="$event.stopPropagation()"
       >
         <header class="flex items-center justify-between border-b border-gray-200 px-5 py-3">

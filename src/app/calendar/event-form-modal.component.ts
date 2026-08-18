@@ -34,8 +34,8 @@ function toTimeInputValue(d: Date): string {
   imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
-      <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+    <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
+      <div class="modal-card-in w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
         <div class="mb-3 flex items-start justify-between gap-4">
           <input
             type="text"
@@ -123,7 +123,7 @@ function toTimeInputValue(d: Date): string {
                   </div>
                   <!-- Gợi ý các email đã từng mời (autocomplete) -->
                   @if (guestSuggestions().length > 0) {
-                    <div class="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                    <div class="popup-in absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
                       @for (s of guestSuggestions(); track s) {
                         <button
                           type="button"

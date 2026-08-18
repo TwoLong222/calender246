@@ -104,7 +104,7 @@ import { SupabaseService } from '../auth/supabase.service';
               class="w-56 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600"
             />
             @if (searchFocused() && searchQuery().trim()) {
-              <div class="absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 @if (searchResults().length === 0) {
                   <p class="px-3 py-2 text-sm text-gray-400">Không tìm thấy sự kiện nào.</p>
                 } @else {
@@ -151,7 +151,7 @@ import { SupabaseService } from '../auth/supabase.service';
             @if (settingsMenuOpen()) {
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
-              <div class="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="download" class="h-4 w-4 text-gray-600" /> Xuất file .ics
                 </button>
@@ -200,7 +200,7 @@ import { SupabaseService } from '../auth/supabase.service';
             </button>
 
             @if (createMenuOpen()) {
-              <div class="absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="popup-in absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button type="button" (click)="openCreate('event')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
                   Sự kiện
                 </button>

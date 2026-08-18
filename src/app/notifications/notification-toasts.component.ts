@@ -11,7 +11,7 @@ import { IconComponent } from '../shared/icon.component';
   template: `
     <div class="fixed right-4 top-4 z-50 flex flex-col gap-2">
       @for (t of notify.toasts(); track t.id) {
-        <div class="flex w-72 items-start gap-3 rounded-lg border border-amber-200 bg-white px-4 py-3 shadow-lg">
+        <div class="toast-in flex w-72 items-start gap-3 rounded-lg border border-amber-200 bg-white px-4 py-3 shadow-lg">
           <app-icon name="alarm" class="h-6 w-6 shrink-0 text-amber-500" />
           <div class="flex-1">
             <p class="text-sm font-medium text-gray-800">Sắp tới: {{ t.title }}</p>

@@ -18,7 +18,7 @@ import { IconComponent } from '../shared/icon.component';
     @if (event(); as e) {
       <div class="fixed inset-0 z-30" (click)="state.closeDetail()">
         <div
-          class="absolute left-1/2 top-24 w-80 -translate-x-1/2 rounded-xl bg-white p-4 shadow-2xl"
+          class="popup-in absolute left-1/2 top-24 w-80 -translate-x-1/2 rounded-xl bg-white p-4 shadow-2xl"
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">

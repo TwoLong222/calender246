@@ -36,7 +36,7 @@ type Pending =
         <app-icon name="robot" class="h-7 w-7" />
       </button>
     } @else {
-      <div class="fixed bottom-6 right-6 z-40 flex h-[460px] w-80 flex-col rounded-xl border border-gray-200 bg-white shadow-2xl">
+      <div class="popup-in fixed bottom-6 right-6 z-40 flex h-[460px] w-80 flex-col rounded-xl border border-gray-200 bg-white shadow-2xl">
         <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
           <span class="flex items-center gap-2 font-medium text-gray-800">
             <app-icon name="robot" class="h-5 w-5 text-blue-700" /> Trợ lý lịch

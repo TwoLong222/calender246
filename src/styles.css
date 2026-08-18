@@ -38,9 +38,74 @@ button:disabled {
   }
 }
 
+/* ============================================================
+   POPUP / DROPDOWN — mờ dần + trượt nhẹ xuống khi hiện ra.
+   Dùng cho các menu nhỏ (tìm kiếm, ⚙️ bánh răng, nút Tạo,
+   gợi ý email khách...) — cảm giác mượt hơn "đùng cái xuất hiện".
+   ============================================================ */
+.popup-in {
+  transform-origin: top;
+  animation: popupIn 0.15s ease-out;
+}
+@keyframes popupIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   MODAL — bóng lớn hiện giữa màn hình: nền mờ dần + thẻ zoom vào.
+   ============================================================ */
+.modal-backdrop-in {
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-card-in {
+  animation: modalCardIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ============================================================
+   TOAST — trượt vào từ bên phải (thông báo nhắc lịch góc trên).
+   ============================================================ */
+.toast-in {
+  animation: toastIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Tôn trọng người dùng tắt hiệu ứng chuyển động trong hệ điều hành */
 @media (prefers-reduced-motion: reduce) {
-  .view-fade {
+  .view-fade,
+  .popup-in,
+  .modal-backdrop-in,
+  .modal-card-in,
+  .toast-in {
     animation: none;
   }
 }
