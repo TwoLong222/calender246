@@ -49,4 +49,16 @@ export class SupabaseService {
   signOut() {
     return this.client.auth.signOut();
   }
+
+  /** Gửi email chứa link đặt lại mật khẩu — link trỏ về trang /reset-password của app */
+  resetPasswordForEmail(email: string) {
+    return this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+  }
+
+  /** Đặt mật khẩu mới cho user đang trong phiên khôi phục (sau khi bấm link trong email) */
+  updatePassword(newPassword: string) {
+    return this.client.auth.updateUser({ password: newPassword });
+  }
 }

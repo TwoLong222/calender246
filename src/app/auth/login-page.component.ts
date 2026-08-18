@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SupabaseService } from './supabase.service';
 
-type Mode = 'signin' | 'signup';
+type Mode = 'signin' | 'signup' | 'forgot';
 
 /** Dịch vài lỗi phổ biến của Supabase Auth sang tiếng Việt cho dễ hiểu */
 function translateAuthError(message: string): string {
@@ -28,29 +28,31 @@ function translateAuthError(message: string): string {
       <div class="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h1 class="mb-1 text-center text-xl font-medium text-gray-800">📅 Lịch</h1>
         <p class="mb-6 text-center text-sm text-gray-500">
-          {{ mode() === 'signin' ? 'Đăng nhập để tiếp tục' : 'Tạo tài khoản mới' }}
+          {{ mode() === 'signin' ? 'Đăng nhập để tiếp tục' : mode() === 'signup' ? 'Tạo tài khoản mới' : 'Đặt lại mật khẩu' }}
         </p>
 
-        <div class="mb-4 flex rounded-lg bg-gray-100 p-1 text-sm">
-          <button
-            type="button"
-            (click)="mode.set('signin')"
-            class="flex-1 rounded-md py-1.5"
-            [class.bg-white]="mode() === 'signin'"
-            [class.shadow]="mode() === 'signin'"
-          >
-            Đăng nhập
-          </button>
-          <button
-            type="button"
-            (click)="mode.set('signup')"
-            class="flex-1 rounded-md py-1.5"
-            [class.bg-white]="mode() === 'signup'"
-            [class.shadow]="mode() === 'signup'"
-          >
-            Đăng ký
-          </button>
-        </div>
+        @if (mode() !== 'forgot') {
+          <div class="mb-4 flex rounded-lg bg-gray-100 p-1 text-sm">
+            <button
+              type="button"
+              (click)="switchMode('signin')"
+              class="flex-1 rounded-md py-1.5"
+              [class.bg-white]="mode() === 'signin'"
+              [class.shadow]="mode() === 'signin'"
+            >
+              Đăng nhập
+            </button>
+            <button
+              type="button"
+              (click)="switchMode('signup')"
+              class="flex-1 rounded-md py-1.5"
+              [class.bg-white]="mode() === 'signup'"
+              [class.shadow]="mode() === 'signup'"
+            >
+              Đăng ký
+            </button>
+          </div>
+        }
 
         <form (submit)="submit($event)" class="space-y-3">
           <div>
@@ -64,18 +66,47 @@ function translateAuthError(message: string): string {
               placeholder="ban@example.com"
             />
           </div>
-          <div>
-            <label class="mb-1 block text-xs text-gray-500">Mật khẩu</label>
-            <input
-              type="password"
-              required
-              minlength="6"
-              [(ngModel)]="password"
-              name="password"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-              placeholder="Tối thiểu 6 ký tự"
-            />
-          </div>
+          @if (mode() !== 'forgot') {
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">Mật khẩu</label>
+              <input
+                type="password"
+                required
+                minlength="6"
+                [(ngModel)]="password"
+                name="password"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                placeholder="Tối thiểu 6 ký tự"
+              />
+            </div>
+          }
+
+          @if (mode() === 'signup') {
+            <div>
+              <label class="mb-1 block text-xs text-gray-500">Xác nhận mật khẩu</label>
+              <input
+                type="password"
+                required
+                minlength="6"
+                [(ngModel)]="confirmPassword"
+                name="confirmPassword"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                placeholder="Nhập lại mật khẩu"
+              />
+            </div>
+          }
+
+          @if (mode() === 'signin') {
+            <div class="text-right">
+              <button type="button" (click)="switchMode('forgot')" class="text-xs text-blue-700 hover:underline">Quên mật khẩu?</button>
+            </div>
+          }
+
+          @if (mode() === 'forgot' && resetSent()) {
+            <p class="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+              Đã gửi email đặt lại mật khẩu. Kiểm tra hộp thư (cả Spam) rồi bấm link trong đó.
+            </p>
+          }
 
           @if (errorMessage()) {
             <p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{{ errorMessage() }}</p>
@@ -86,23 +117,31 @@ function translateAuthError(message: string): string {
             [disabled]="isLoading()"
             class="w-full rounded-md bg-blue-700 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
           >
-            {{ isLoading() ? 'Đang xử lý...' : mode() === 'signin' ? 'Đăng nhập' : 'Đăng ký' }}
+            {{ isLoading() ? 'Đang xử lý...' : mode() === 'signin' ? 'Đăng nhập' : mode() === 'signup' ? 'Đăng ký' : 'Gửi link đặt lại' }}
           </button>
+
+          @if (mode() === 'forgot') {
+            <button type="button" (click)="switchMode('signin')" class="w-full text-center text-xs text-gray-500 hover:underline">
+              ← Quay lại đăng nhập
+            </button>
+          }
         </form>
 
-        <div class="my-4 flex items-center gap-2 text-xs text-gray-400">
-          <span class="h-px flex-1 bg-gray-200"></span>
-          hoặc
-          <span class="h-px flex-1 bg-gray-200"></span>
-        </div>
+        @if (mode() !== 'forgot') {
+          <div class="my-4 flex items-center gap-2 text-xs text-gray-400">
+            <span class="h-px flex-1 bg-gray-200"></span>
+            hoặc
+            <span class="h-px flex-1 bg-gray-200"></span>
+          </div>
 
-        <button
-          type="button"
-          (click)="loginWithGoogle()"
-          class="w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Đăng nhập bằng Google
-        </button>
+          <button
+            type="button"
+            (click)="loginWithGoogle()"
+            class="w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Đăng nhập bằng Google
+          </button>
+        }
       </div>
     </div>
   `,
@@ -114,16 +153,50 @@ export class LoginPageComponent {
   mode = signal<Mode>('signin');
   email = signal('');
   password = signal('');
+  confirmPassword = signal('');
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
+  /** true khi đã gửi email đặt lại mật khẩu (hiện thông báo thành công) */
+  resetSent = signal(false);
+
+  /** Đổi chế độ (đăng nhập / đăng ký / quên mật khẩu) và xóa thông báo cũ */
+  switchMode(m: Mode): void {
+    this.mode.set(m);
+    this.errorMessage.set(null);
+    this.resetSent.set(false);
+  }
 
   async submit(event: Event): Promise<void> {
     event.preventDefault();
     this.errorMessage.set(null);
-    this.isLoading.set(true);
 
     const email = this.email().trim();
     const password = this.password();
+
+    // Chế độ QUÊN MẬT KHẨU: gửi email đặt lại rồi dừng
+    if (this.mode() === 'forgot') {
+      if (!email) {
+        this.errorMessage.set('Hãy nhập email.');
+        return;
+      }
+      this.isLoading.set(true);
+      const { error } = await this.supabase.resetPasswordForEmail(email);
+      this.isLoading.set(false);
+      if (error) {
+        this.errorMessage.set(translateAuthError(error.message));
+        return;
+      }
+      this.resetSent.set(true);
+      return;
+    }
+
+    // Khi đăng ký: kiểm tra 2 ô mật khẩu khớp nhau trước khi gọi API
+    if (this.mode() === 'signup' && password !== this.confirmPassword()) {
+      this.errorMessage.set('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
+    this.isLoading.set(true);
 
     const { error } =
       this.mode() === 'signin'
