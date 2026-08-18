@@ -46,6 +46,8 @@ export class CalendarStateService {
 
   private reloadTimer?: ReturnType<typeof setTimeout>;
   private lastLocalChangeAt = 0;
+  /** "Ghim" vị trí event vừa kéo trong ~2.5s: dù reload trả dữ liệu cũ vẫn giữ vị trí mới -> không giật */
+  private readonly recentlyMoved = new Map<string, { start: Date; end: Date; until: number }>();
 
   constructor() {
     this.reload();
@@ -80,13 +82,24 @@ export class CalendarStateService {
     this.lastLocalChangeAt = Date.now();
   }
 
+  /** Giữ nguyên giờ của các event vừa kéo (ghim) khi áp danh sách mới tải về */
+  private applyPins(list: CalendarEvent[]): CalendarEvent[] {
+    const now = Date.now();
+    for (const [id, p] of this.recentlyMoved) if (p.until < now) this.recentlyMoved.delete(id);
+    if (this.recentlyMoved.size === 0) return list;
+    return list.map((e) => {
+      const p = this.recentlyMoved.get(e.id);
+      return p ? { ...e, start: p.start, end: p.end } : e;
+    });
+  }
+
   /** Gọi lại API lấy danh sách sự kiện mới nhất — dùng lúc khởi động và có thể gọi lại thủ công nếu cần */
   reload(): void {
     this.isLoading.set(true);
     this.loadError.set(null);
     this.api.list().subscribe({
       next: (events) => {
-        this.events.set(events);
+        this.events.set(this.applyPins(events));
         this.isLoading.set(false);
       },
       error: () => {
@@ -212,6 +225,9 @@ export class CalendarStateService {
     const { id, ...rest } = event;
     const previous = this.events();
 
+    // Ghim vị trí vừa kéo trong 2.5s -> mọi reload trong lúc đó vẫn giữ đúng chỗ (không giật)
+    this.recentlyMoved.set(id, { start: event.start, end: event.end, until: Date.now() + 2500 });
+
     // Cập nhật ngay trên giao diện
     this.events.update((list) => list.map((e) => (e.id === id ? event : e)));
 
@@ -221,6 +237,7 @@ export class CalendarStateService {
         this.lastSavedConflicts.set(conflictTitles);
       },
       error: () => {
+        this.recentlyMoved.delete(id);
         this.events.set(previous); // lưu thất bại -> khôi phục giờ cũ
         this.loadError.set('Lưu sự kiện thất bại. Thử lại sau.');
       },
