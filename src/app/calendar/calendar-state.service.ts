@@ -182,10 +182,15 @@ export class CalendarStateService {
     });
   }
 
-  deleteEvent(id: string): void {
-    this.api.delete(id).subscribe({
+  deleteEvent(id: string, scope?: 'series'): void {
+    this.api.delete(id, scope).subscribe({
       next: () => {
-        this.events.update((list) => list.filter((e) => e.id !== id));
+        if (scope === 'series') {
+          // Xóa cả chuỗi -> nhiều event bị xóa, tải lại danh sách cho chắc
+          this.reload();
+        } else {
+          this.events.update((list) => list.filter((e) => e.id !== id));
+        }
         this.selectedEventId.set(null);
       },
       error: () => {

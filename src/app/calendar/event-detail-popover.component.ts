@@ -1,7 +1,7 @@
 // Popover chi tiết sự kiện — khớp bố cục hình 7: tiêu đề, thời gian, danh sách khách
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { CalendarStateService } from './calendar-state.service';
 
 @Component({
@@ -22,7 +22,7 @@ import { CalendarStateService } from './calendar-state.service';
             </div>
             <div class="flex shrink-0 gap-1">
               <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Sửa">✏️</button>
-              <button type="button" (click)="remove()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Xóa">🗑️</button>
+              <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Xóa">🗑️</button>
               <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Đóng">✕</button>
             </div>
           </div>
@@ -56,6 +56,26 @@ import { CalendarStateService } from './calendar-state.service';
             <button type="button" class="rounded-full border border-gray-300 px-3 py-1 hover:bg-gray-50">Không</button>
             <button type="button" class="rounded-full border border-gray-300 px-3 py-1 hover:bg-gray-50">Có thể</button>
           </div>
+
+          <!-- Xác nhận xóa: nếu là sự kiện lặp thì cho chọn xóa riêng hoặc xóa cả chuỗi -->
+          @if (confirmingDelete()) {
+            <div class="mt-3 rounded-md bg-red-50 p-3 text-sm">
+              <p class="mb-2 text-red-800">Xóa sự kiện này?</p>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" (click)="doDelete()" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">
+                  Xóa sự kiện này
+                </button>
+                @if (e.seriesId) {
+                  <button type="button" (click)="doDelete('series')" class="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-800">
+                    Xóa cả chuỗi lặp
+                  </button>
+                }
+                <button type="button" (click)="confirmingDelete.set(false)" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-100">
+                  Hủy
+                </button>
+              </div>
+            </div>
+          }
         </div>
       </div>
     }
@@ -100,10 +120,20 @@ export class EventDetailPopoverComponent {
     if (e) this.state.openEditForm(e);
   }
 
-  remove(): void {
+  /** Đang hiện menu xác nhận xóa (riêng cái này / cả chuỗi) hay không */
+  readonly confirmingDelete = signal(false);
+
+  constructor() {
+    // Đổi sang event khác thì tắt menu xác nhận xóa (tránh bấm nhầm sang event mới)
+    effect(() => {
+      this.state.selectedEventId();
+      this.confirmingDelete.set(false);
+    });
+  }
+
+  doDelete(scope?: 'series'): void {
     const e = this.event();
-    if (e && confirm(`Xóa sự kiện "${e.title}"?`)) {
-      this.state.deleteEvent(e.id);
-    }
+    if (e) this.state.deleteEvent(e.id, scope);
+    this.confirmingDelete.set(false);
   }
 }

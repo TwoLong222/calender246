@@ -28,4 +28,6 @@ export interface CalendarEvent {
   guests: Guest[];
   /** Tên màu Tailwind dùng để tô sự kiện, vd: 'sky' | 'violet' | 'emerald' | 'rose' | 'amber' */
   color: string;
+  /** Nếu là 1 mắt trong chuỗi lặp -> các occurrence cùng chuỗi có chung seriesId; null nếu không lặp */
+  seriesId?: string | null;
 }

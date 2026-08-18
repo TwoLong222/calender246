@@ -25,6 +25,7 @@ interface ApiEvent {
   is_all_day: boolean;
   kind: EventKind;
   color: string;
+  series_id: string | null;
   attendees?: ApiAttendee[];
 }
 
@@ -66,6 +67,7 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     isAllDay: row.is_all_day,
     guests: (row.attendees ?? []).map((a) => ({ email: a.email, status: a.status })),
     color: row.color ?? 'sky',
+    seriesId: row.series_id ?? null,
   };
 }
 
@@ -105,7 +107,8 @@ export class EventsApiService {
     );
   }
 
-  delete(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/${id}`);
+  delete(id: string, scope?: 'series'): Observable<void> {
+    const url = scope === 'series' ? `${this.base}/${id}?scope=series` : `${this.base}/${id}`;
+    return this.http.delete<void>(url);
   }
 }
