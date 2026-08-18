@@ -54,6 +54,12 @@ import { SupabaseService } from '../auth/supabase.service';
           <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded px-2 py-0.5 hover:bg-amber-100">✕</button>
         </div>
       }
+      @if (importMsg(); as msg) {
+        <div class="flex items-center justify-between bg-gray-50 px-4 py-2 text-sm text-gray-700">
+          <span>📥 {{ msg }}</span>
+          <button type="button" (click)="importMsg.set('')" class="rounded px-2 py-0.5 hover:bg-gray-100">✕</button>
+        </div>
+      }
 
       <!-- Top bar -->
       <header class="flex items-center gap-4 border-b border-gray-200 px-4 py-2">
@@ -120,6 +126,36 @@ import { SupabaseService } from '../auth/supabase.service';
           >
             {{ theme.isDark() ? '☀️' : '🌙' }}
           </button>
+
+          <!-- Bánh răng: gom công cụ Xuất/Nhập .ics + Thùng rác -->
+          <div class="relative">
+            <button
+              type="button"
+              (click)="settingsMenuOpen.set(!settingsMenuOpen())"
+              class="rounded-full p-1.5 text-lg hover:bg-gray-100"
+              title="Công cụ & cài đặt"
+              aria-label="Công cụ & cài đặt"
+            >
+              ⚙️
+            </button>
+            @if (settingsMenuOpen()) {
+              <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
+              <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
+              <div class="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  ⬇️ Xuất file .ics
+                </button>
+                <button type="button" (click)="fileInput.click()" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  ⬆️ Nhập file .ics
+                </button>
+                <div class="my-1 border-t border-gray-200"></div>
+                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  🗑️ Thùng rác
+                </button>
+              </div>
+            }
+            <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
+          </div>
 
           <select
             class="rounded border border-gray-300 px-2 py-1.5 text-sm"
@@ -188,27 +224,6 @@ import { SupabaseService } from '../auth/supabase.service';
             </ul>
           </div>
 
-          <div class="mt-6">
-            <p class="mb-2 text-sm font-medium text-gray-700">Nhập / Xuất</p>
-            <div class="flex flex-col gap-2">
-              <button type="button" (click)="onExport()" class="rounded border border-gray-300 px-3 py-1.5 text-left text-sm hover:bg-gray-50">
-                ⬇️ Xuất file .ics
-              </button>
-              <button type="button" (click)="fileInput.click()" class="rounded border border-gray-300 px-3 py-1.5 text-left text-sm hover:bg-gray-50">
-                ⬆️ Nhập file .ics
-              </button>
-              <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event)" />
-              @if (importMsg()) {
-                <p class="text-xs text-gray-500">{{ importMsg() }}</p>
-              }
-            </div>
-          </div>
-
-          <div class="mt-6">
-            <button type="button" (click)="state.openTrash()" class="flex w-full items-center gap-2 rounded border border-gray-300 px-3 py-1.5 text-left text-sm hover:bg-gray-50">
-              🗑️ Thùng rác
-            </button>
-          </div>
         </aside>
 
         <!-- Main view -->
@@ -276,6 +291,7 @@ export class CalendarPageComponent {
   private readonly ics = inject(IcsService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
+  protected readonly settingsMenuOpen = signal(false);
   protected readonly importMsg = signal('');
 
   onExport(): void {
