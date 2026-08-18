@@ -40,12 +40,17 @@ import { AttendeeStatus } from './calendar.types';
 
           @if (e.guests.length > 0) {
             <div class="mt-3 border-t border-gray-100 pt-3">
-              <p class="mb-1 text-xs text-gray-400">{{ e.guests.length }} khách</p>
+              <p class="mb-1 text-xs text-gray-400">
+                {{ e.guests.length }} khách · {{ acceptedCount() }} đồng ý, {{ pendingCount() }} chưa trả lời
+              </p>
               <ul class="space-y-1">
                 @for (g of e.guests; track g.email) {
-                  <li class="flex items-center gap-2 text-sm text-gray-700">
-                    <span [class]="statusDotClass(g.status)"></span>
-                    {{ g.email }}
+                  <li class="flex items-center justify-between gap-2 text-sm text-gray-700">
+                    <span class="flex items-center gap-2 truncate">
+                      <span [class]="statusDotClass(g.status)"></span>
+                      <span class="truncate">{{ g.email }}</span>
+                    </span>
+                    <span class="shrink-0 text-xs font-medium" [class]="statusTextClass(g.status)">{{ statusLabel(g.status) }}</span>
                   </li>
                 }
               </ul>
@@ -121,6 +126,31 @@ export class EventDetailPopoverComponent {
   rsvp(status: AttendeeStatus): void {
     const e = this.event();
     if (e) this.state.rsvp(e.id, status);
+  }
+
+  /** Số khách đã đồng ý / chưa trả lời — tóm tắt cho người tạo dễ nhìn */
+  acceptedCount = computed(() => this.event()?.guests.filter((g) => g.status === 'accepted').length ?? 0);
+  pendingCount = computed(() => this.event()?.guests.filter((g) => g.status === 'needsAction').length ?? 0);
+
+  /** Nhãn tiếng Việt cho trạng thái RSVP của từng khách */
+  statusLabel(status: string): string {
+    const map: Record<string, string> = {
+      accepted: 'Đồng ý',
+      declined: 'Từ chối',
+      tentative: 'Có thể',
+      needsAction: 'Chưa trả lời',
+    };
+    return map[status] ?? 'Chưa trả lời';
+  }
+
+  statusTextClass(status: string): string {
+    const map: Record<string, string> = {
+      accepted: 'text-emerald-600',
+      declined: 'text-red-600',
+      tentative: 'text-amber-600',
+      needsAction: 'text-gray-400',
+    };
+    return map[status] ?? 'text-gray-400';
   }
 
   dateLabel(d: Date): string {
