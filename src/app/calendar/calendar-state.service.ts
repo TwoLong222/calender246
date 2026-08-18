@@ -9,10 +9,12 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
+import { SupabaseService } from '../auth/supabase.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
+  private readonly supabase = inject(SupabaseService);
 
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
@@ -42,8 +44,29 @@ export class CalendarStateService {
   readonly selectedEvent = computed(() => this.events().find((e) => e.id === this.selectedEventId()) ?? null);
   readonly editingEvent = computed(() => this.events().find((e) => e.id === this.editingEventId()) ?? null);
 
+  private reloadTimer?: ReturnType<typeof setTimeout>;
+
   constructor() {
     this.reload();
+    this.subscribeRealtime();
+  }
+
+  /**
+   * Lắng nghe REALTIME: mỗi khi bảng events / event_attendees thay đổi (ai đó tạo/sửa/xóa/mời),
+   * tự tải lại danh sách -> lịch cập nhật ngay không cần reload trang.
+   * Gom nhiều thay đổi liên tiếp (vd tạo event lặp) vào 1 lần tải bằng debounce ~400ms.
+   */
+  private subscribeRealtime(): void {
+    this.supabase.client
+      .channel('calendar-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => this.scheduleReload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees' }, () => this.scheduleReload())
+      .subscribe();
+  }
+
+  private scheduleReload(): void {
+    clearTimeout(this.reloadTimer);
+    this.reloadTimer = setTimeout(() => this.reload(), 400);
   }
 
   /** Gọi lại API lấy danh sách sự kiện mới nhất — dùng lúc khởi động và có thể gọi lại thủ công nếu cần */
