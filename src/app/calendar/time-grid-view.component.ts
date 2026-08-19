@@ -137,7 +137,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
           <div class="w-14 shrink-0">
             @for (hour of hours; track hour) {
               <div class="relative" [style.height.px]="HOUR_HEIGHT">
-                <span class="absolute -top-2 right-2 text-[11px] text-gray-400">{{ formatHourLabel(hour, settings.is24h()) }}</span>
+                <span class="absolute -top-2 right-2 text-[11px] font-semibold text-gray-600">{{ formatHourLabel(hour, settings.is24h()) }}</span>
               </div>
             }
           </div>

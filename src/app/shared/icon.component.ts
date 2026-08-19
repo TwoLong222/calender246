@@ -16,7 +16,7 @@ export type IconName =
   | 'alert' | 'x' | 'chevron-left' | 'chevron-right' | 'plus' | 'pencil'
   | 'notes' | 'target' | 'palette' | 'message' | 'send'
   | 'user' | 'world' | 'bell' | 'mail' | 'shield' | 'dots' | 'logout'
-  | 'lock' | 'eye' | 'eye-off' | 'adjustments';
+  | 'lock' | 'eye' | 'eye-off' | 'adjustments' | 'menu';
 
 @Component({
   selector: 'app-icon',
@@ -180,6 +180,9 @@ export type IconName =
           <circle cx="12" cy="16" r="2" />
           <circle cx="18" cy="7" r="2" />
           <path d="M6 4v4 M6 12v8 M12 4v10 M12 18v2 M18 4v1 M18 9v11" />
+        }
+        @case ('menu') {
+          <path d="M4 6h16 M4 12h16 M4 18h16" />
         }
       }
     </svg>

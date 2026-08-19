@@ -17,6 +17,7 @@ import { environment } from '../../environments/environment';
 import { IconComponent, IconName } from '../shared/icon.component';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from './settings.service';
+import { TranslateService } from '../i18n/translate.service';
 import { COMMON_TIMEZONES } from './settings.types';
 
 type Section =
@@ -38,12 +39,11 @@ type Section =
     <div class="min-h-screen bg-gray-50 text-gray-800">
       <!-- Header -->
       <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
-        <a routerLink="/" class="tap rounded-full p-1.5 hover:bg-gray-100" title="Quay lại lịch" aria-label="Quay lại lịch">
-          <app-icon name="arrow-back" class="h-5 w-5 text-gray-600" />
+        <a routerLink="/" class="tap flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100" title="Quay lại lịch" aria-label="Quay lại lịch">
+          <app-icon name="arrow-back" class="h-5 w-5" /> {{ tr.t('settings.back') }}
         </a>
-        <app-icon name="settings" class="h-5 w-5 text-blue-600" />
-        <h1 class="text-lg font-medium">Cài đặt</h1>
-        @if (settings.saving()) { <span class="ml-2 text-xs text-gray-400">Đang lưu…</span> }
+        <h1 class="text-lg font-medium">{{ tr.t('settings.title') }}</h1>
+        @if (settings.saving()) { <span class="ml-2 text-xs text-gray-400">{{ tr.t('settings.saving') }}</span> }
         @if (settings.error(); as err) { <span class="ml-2 text-xs text-red-600">{{ err }}</span> }
       </header>
 
@@ -59,7 +59,7 @@ type Section =
               [class.text-blue-700]="section() === s.id"
               [class.font-medium]="section() === s.id"
             >
-              <app-icon [name]="s.icon" class="h-4 w-4" /> <span class="whitespace-nowrap">{{ s.label }}</span>
+              <app-icon [name]="s.icon" class="h-4 w-4" /> <span class="whitespace-nowrap">{{ tr.t('sec.' + s.id) }}</span>
             </button>
           }
         </nav>
@@ -309,6 +309,7 @@ type Section =
 })
 export class SettingsPageComponent {
   protected readonly settings = inject(SettingsService);
+  protected readonly tr = inject(TranslateService);
   private readonly supabase = inject(SupabaseService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);

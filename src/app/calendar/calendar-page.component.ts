@@ -22,6 +22,7 @@ import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { MONTH_LABELS, addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 @Component({
   selector: 'app-calendar-page',
@@ -68,17 +69,24 @@ import { SettingsService } from '../settings/settings.service';
 
       <!-- Top bar -->
       <header class="flex items-center gap-4 border-b border-gray-200 px-4 py-2">
+        <button
+          type="button"
+          (click)="sidebarOpen.set(!sidebarOpen())"
+          class="tap rounded-full p-1.5 hover:bg-gray-100"
+          aria-label="Ẩn/hiện thanh bên"
+          title="Ẩn/hiện thanh bên"
+        >
+          <app-icon name="menu" class="h-5 w-5 text-gray-600" />
+        </button>
         <span class="flex items-center gap-2 text-lg font-medium text-gray-700">
-          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> Lịch
+          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> {{ tr.t('nav.calendar') }}
         </span>
 
         <button
           type="button"
           (click)="state.goToday()"
           class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-        >
-          Hôm nay
-        </button>
+        >{{ tr.t('nav.today') }}</button>
 
         <div class="flex gap-1">
           <button type="button" (click)="state.goPrev()" class="tap rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước"><app-icon name="chevron-left" /></button>
@@ -155,17 +163,17 @@ import { SettingsService } from '../settings/settings.service';
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
               <div class="popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="download" class="h-4 w-4 text-gray-600" /> Xuất file .ics
+                  <app-icon name="download" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.export') }}
                 </button>
                 <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="upload" class="h-4 w-4 text-gray-600" /> Nhập file .ics
+                  <app-icon name="upload" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.import') }}
                 </button>
                 <div class="my-1 border-t border-gray-200"></div>
                 <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="trash" class="h-4 w-4 text-gray-600" /> Thùng rác
+                  <app-icon name="trash" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.trash') }}
                 </button>
                 <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="settings" class="h-4 w-4 text-gray-600" /> Cài đặt
+                  <app-icon name="settings" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.settings') }}
                 </a>
               </div>
             }
@@ -193,7 +201,8 @@ import { SettingsService } from '../settings/settings.service';
       </header>
 
       <div class="flex flex-1 overflow-hidden">
-        <!-- Sidebar -->
+        <!-- Sidebar (ẩn/hiện bằng nút 3 gạch ở header) -->
+        @if (sidebarOpen()) {
         <aside class="w-64 shrink-0 overflow-y-auto border-r border-gray-200 p-4">
           <div class="relative mb-4">
             <button
@@ -201,7 +210,7 @@ import { SettingsService } from '../settings/settings.service';
               (click)="createMenuOpen.set(!createMenuOpen())"
               class="flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium shadow-sm hover:shadow"
             >
-              <app-icon name="plus" class="h-5 w-5 text-blue-700" /> Tạo
+              <app-icon name="plus" class="h-5 w-5 text-blue-700" /> {{ tr.t('nav.create') }}
             </button>
 
             @if (createMenuOpen()) {
@@ -240,6 +249,7 @@ import { SettingsService } from '../settings/settings.service';
           </div>
 
         </aside>
+        }
 
         <!-- Main view -->
         <main class="flex-1 overflow-hidden">
@@ -306,9 +316,11 @@ export class CalendarPageComponent {
   protected readonly supabase = inject(SupabaseService);
   protected readonly theme = inject(ThemeService);
   protected readonly settings = inject(SettingsService);
+  protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
+  protected readonly sidebarOpen = signal(true);
   protected readonly settingsMenuOpen = signal(false);
   protected readonly importMsg = signal('');
 
