@@ -96,7 +96,7 @@ import { TranslateService } from '../i18n/translate.service';
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
 
         @if (state.isLoading()) {
-          <span class="text-xs text-gray-400">Đang tải...</span>
+          <span class="text-xs text-gray-400">{{ tr.t('nav.loading') }}</span>
         }
 
         <div class="ml-auto flex items-center gap-3">
@@ -110,7 +110,7 @@ import { TranslateService } from '../i18n/translate.service';
               (focus)="searchFocused.set(true)"
               (blur)="onSearchBlur()"
               (keydown.escape)="clearSearch()"
-              placeholder="Tìm sự kiện..."
+              [placeholder]="tr.t('nav.search')"
               class="w-56 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600"
             />
             @if (searchFocused() && searchQuery().trim()) {
@@ -185,10 +185,10 @@ import { TranslateService } from '../i18n/translate.service';
             [value]="state.viewMode()"
             (change)="onViewModeChange($event)"
           >
-            <option value="day">Ngày</option>
-            <option value="week">Tuần</option>
-            <option value="month">Tháng</option>
-            <option value="year">Năm</option>
+            <option value="day">{{ tr.t('view.day') }}</option>
+            <option value="week">{{ tr.t('view.week') }}</option>
+            <option value="month">{{ tr.t('view.month') }}</option>
+            <option value="year">{{ tr.t('view.year') }}</option>
           </select>
 
           @if (supabase.user(); as user) {
@@ -216,13 +216,13 @@ import { TranslateService } from '../i18n/translate.service';
             @if (createMenuOpen()) {
               <div class="popup-in absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button type="button" (click)="openCreate('event')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  Sự kiện
+                  {{ tr.t('kind.event') }}
                 </button>
                 <button type="button" (click)="openCreate('task')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  Việc cần làm
+                  {{ tr.t('kind.task') }}
                 </button>
                 <button type="button" (click)="openCreate('appointment')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  Lên lịch hẹn
+                  {{ tr.t('kind.appointment') }}
                 </button>
               </div>
             }
@@ -231,19 +231,19 @@ import { TranslateService } from '../i18n/translate.service';
           <app-mini-calendar [viewedDate]="state.viewedDate()" (dateSelected)="onMiniCalendarPick($event)" />
 
           <div class="mt-6">
-            <p class="mb-2 text-sm font-medium text-gray-700">Hiển thị</p>
+            <p class="mb-2 text-sm font-medium text-gray-700">{{ tr.t('nav.show') }}</p>
             <ul class="space-y-1 text-sm text-gray-700">
               <li class="flex items-center gap-2">
                 <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="accent-sky-600" />
-                Sự kiện
+                {{ tr.t('kind.event') }}
               </li>
               <li class="flex items-center gap-2">
                 <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="accent-emerald-600" />
-                Việc cần làm
+                {{ tr.t('kind.task') }}
               </li>
               <li class="flex items-center gap-2">
                 <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="accent-violet-600" />
-                Lịch hẹn
+                {{ tr.t('kind.appointment') }}
               </li>
             </ul>
           </div>
