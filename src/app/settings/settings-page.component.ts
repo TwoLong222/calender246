@@ -14,7 +14,7 @@ import { Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { IconComponent } from '../shared/icon.component';
+import { IconComponent, IconName } from '../shared/icon.component';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from './settings.service';
 import { COMMON_TIMEZONES } from './settings.types';
@@ -38,7 +38,7 @@ type Section =
     <div class="min-h-screen bg-gray-50 text-gray-800">
       <!-- Header -->
       <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
-        <a routerLink="/" class="rounded-full p-1.5 hover:bg-gray-100" title="Quay lại lịch" aria-label="Quay lại lịch">
+        <a routerLink="/" class="tap rounded-full p-1.5 hover:bg-gray-100" title="Quay lại lịch" aria-label="Quay lại lịch">
           <app-icon name="arrow-back" class="h-5 w-5 text-gray-600" />
         </a>
         <app-icon name="settings" class="h-5 w-5 text-blue-600" />
@@ -54,12 +54,12 @@ type Section =
             <button
               type="button"
               (click)="section.set(s.id)"
-              class="flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-100"
+              class="tap flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-100"
               [class.bg-blue-50]="section() === s.id"
               [class.text-blue-700]="section() === s.id"
               [class.font-medium]="section() === s.id"
             >
-              <span>{{ s.emoji }}</span> <span class="whitespace-nowrap">{{ s.label }}</span>
+              <app-icon [name]="s.icon" class="h-4 w-4" /> <span class="whitespace-nowrap">{{ s.label }}</span>
             </button>
           }
         </nav>
@@ -74,7 +74,7 @@ type Section =
                 <label class="mb-1 block text-sm text-gray-600">Tên hiển thị</label>
                 <div class="mb-4 flex gap-2">
                   <input [(ngModel)]="displayName" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                  <button type="button" (click)="saveProfile()" class="rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Lưu</button>
+                  <button type="button" (click)="saveProfile()" class="tap rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Lưu</button>
                 </div>
                 <label class="mb-1 block text-sm text-gray-600">Email</label>
                 <input [value]="email()" disabled class="mb-4 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
@@ -88,7 +88,7 @@ type Section =
                   <input type="password" [(ngModel)]="curPw" placeholder="Mật khẩu hiện tại" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <input type="password" [(ngModel)]="newPw" placeholder="Mật khẩu mới (≥ 6 ký tự)" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <input type="password" [(ngModel)]="confirmPw" placeholder="Xác nhận mật khẩu mới" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                  <button type="button" (click)="changePassword()" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Đổi mật khẩu</button>
+                  <button type="button" (click)="changePassword()" class="tap rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Đổi mật khẩu</button>
                   @if (pwMsg(); as m) { <p class="mt-2 text-xs" [class.text-green-700]="pwOk()" [class.text-red-600]="!pwOk()">{{ m }}</p> }
                 </section>
               } @else {
@@ -100,7 +100,7 @@ type Section =
               <section class="rounded-lg border border-red-200 bg-red-50 p-5">
                 <h2 class="mb-1 text-base font-semibold text-red-700">Vùng nguy hiểm</h2>
                 <p class="mb-3 text-sm text-red-700">Xoá tài khoản sẽ xoá vĩnh viễn toàn bộ lịch, sự kiện và cài đặt của bạn. Không thể hoàn tác.</p>
-                <button type="button" (click)="confirmDelete.set(true)" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Xoá tài khoản</button>
+                <button type="button" (click)="confirmDelete.set(true)" class="tap rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Xoá tài khoản</button>
               </section>
             }
 
@@ -299,7 +299,7 @@ type Section =
             <input [(ngModel)]="deleteConfirmText" placeholder="DELETE" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
             <div class="flex justify-end gap-2">
               <button type="button" (click)="confirmDelete.set(false)" class="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">Huỷ</button>
-              <button type="button" [disabled]="deleteConfirmText() !== 'DELETE' || deleting()" (click)="deleteAccount()" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">{{ deleting() ? 'Đang xoá…' : 'Xoá vĩnh viễn' }}</button>
+              <button type="button" [disabled]="deleteConfirmText() !== 'DELETE' || deleting()" (click)="deleteAccount()" class="tap rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">{{ deleting() ? 'Đang xoá…' : 'Xoá vĩnh viễn' }}</button>
             </div>
           </div>
         </div>
@@ -319,15 +319,15 @@ export class SettingsPageComponent {
 
   protected readonly s = this.settings.settings;
 
-  protected readonly sections: { id: Section; label: string; emoji: string }[] = [
-    { id: 'account', label: 'Tài khoản', emoji: '👤' },
-    { id: 'general', label: 'Chung', emoji: '🌍' },
-    { id: 'calendar', label: 'Lịch', emoji: '📅' },
-    { id: 'notifications', label: 'Thông báo', emoji: '🔔' },
-    { id: 'appearance', label: 'Giao diện', emoji: '🎨' },
-    { id: 'privacy', label: 'Riêng tư & Bảo mật', emoji: '🔐' },
-    { id: 'email', label: 'Email', emoji: '📧' },
-    { id: 'ai', label: 'Trợ lý AI', emoji: '🤖' },
+  protected readonly sections: { id: Section; label: string; icon: IconName }[] = [
+    { id: 'account', label: 'Tài khoản', icon: 'user' },
+    { id: 'general', label: 'Chung', icon: 'world' },
+    { id: 'calendar', label: 'Lịch', icon: 'calendar' },
+    { id: 'notifications', label: 'Thông báo', icon: 'bell' },
+    { id: 'appearance', label: 'Giao diện', icon: 'palette' },
+    { id: 'privacy', label: 'Riêng tư & Bảo mật', icon: 'shield' },
+    { id: 'email', label: 'Email', icon: 'mail' },
+    { id: 'ai', label: 'Trợ lý AI', icon: 'robot' },
   ];
 
   protected readonly themes = [

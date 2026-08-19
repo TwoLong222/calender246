@@ -14,7 +14,9 @@ export type IconName =
   | 'trash' | 'settings' | 'moon' | 'sun' | 'search' | 'calendar' | 'robot'
   | 'download' | 'upload' | 'inbox' | 'alarm' | 'arrow-back' | 'check'
   | 'alert' | 'x' | 'chevron-left' | 'chevron-right' | 'plus' | 'pencil'
-  | 'notes' | 'target' | 'palette' | 'message' | 'send';
+  | 'notes' | 'target' | 'palette' | 'message' | 'send'
+  | 'user' | 'world' | 'bell' | 'mail' | 'shield' | 'dots' | 'logout'
+  | 'lock' | 'eye' | 'eye-off' | 'adjustments';
 
 @Component({
   selector: 'app-icon',
@@ -129,6 +131,55 @@ export type IconName =
         }
         @case ('send') {
           <path d="M10 14l11 -11 M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" />
+        }
+        @case ('user') {
+          <circle cx="12" cy="7" r="4" />
+          <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+        }
+        @case ('world') {
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3.6 9h16.8 M3.6 15h16.8 M11.5 3a17 17 0 0 0 0 18 M12.5 3a17 17 0 0 1 0 18" />
+        }
+        @case ('bell') {
+          <path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" />
+          <path d="M9 17v1a3 3 0 0 0 6 0v-1" />
+        }
+        @case ('mail') {
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M3 7l9 6l9 -6" />
+        }
+        @case ('shield') {
+          <path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" />
+          <path d="M12 11v2" />
+          <circle cx="12" cy="11" r="0.5" />
+        }
+        @case ('dots') {
+          <circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none" />
+        }
+        @case ('logout') {
+          <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" />
+          <path d="M9 12h12l-3 -3 M18 15l3 -3" />
+        }
+        @case ('lock') {
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11v-4a4 4 0 0 1 8 0v4" />
+        }
+        @case ('eye') {
+          <circle cx="12" cy="12" r="2" />
+          <path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />
+        }
+        @case ('eye-off') {
+          <path d="M10.585 10.587a2 2 0 0 0 2.829 2.828" />
+          <path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-4 0 -7.333 -2.333 -10 -7c1.407 -2.463 3 -4.246 4.777 -5.349m2.24 -1.71a9.533 9.533 0 0 1 2.983 -.474c4 0 7.333 2.333 10 7c-.778 1.361 -1.612 2.524 -2.503 3.489" />
+          <path d="M3 3l18 18" />
+        }
+        @case ('adjustments') {
+          <circle cx="6" cy="10" r="2" />
+          <circle cx="12" cy="16" r="2" />
+          <circle cx="18" cy="7" r="2" />
+          <path d="M6 4v4 M6 12v8 M12 4v10 M12 18v2 M18 4v1 M18 9v11" />
         }
       }
     </svg>

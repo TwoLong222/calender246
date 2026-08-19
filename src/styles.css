@@ -21,6 +21,40 @@ button:disabled {
 }
 
 /* ============================================================
+   TƯƠNG TÁC MƯỢT — nút/link/ô chọn đổi màu & nhấn có phản hồi.
+   Chỉ transition thuộc tính an toàn (không phá kéo-thả sự kiện).
+   Thêm class "tap" để có hiệu ứng "nhấn xuống" cho nút.
+   ============================================================ */
+button,
+a,
+select,
+summary,
+[role='button'],
+input[type='checkbox'],
+input[type='radio'] {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.1s ease;
+}
+.tap:active {
+  transform: scale(0.96);
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  select,
+  [role='button'],
+  .tap:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ============================================================
    HIỆU ỨNG CHUYỂN TRANG — khi đổi view (Ngày/Tuần/Tháng/Năm)
    hoặc bấm qua ngày/tháng khác, khu vực lịch mờ dần + trượt nhẹ lên.
    ============================================================ */

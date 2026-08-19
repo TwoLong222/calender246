@@ -81,8 +81,8 @@ import { SettingsService } from '../settings/settings.service';
         </button>
 
         <div class="flex gap-1">
-          <button type="button" (click)="state.goPrev()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước"><app-icon name="chevron-left" /></button>
-          <button type="button" (click)="state.goNext()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Sau"><app-icon name="chevron-right" /></button>
+          <button type="button" (click)="state.goPrev()" class="tap rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước"><app-icon name="chevron-left" /></button>
+          <button type="button" (click)="state.goNext()" class="tap rounded-full p-1.5 hover:bg-gray-100" aria-label="Sau"><app-icon name="chevron-right" /></button>
         </div>
 
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
@@ -128,7 +128,7 @@ import { SettingsService } from '../settings/settings.service';
           <button
             type="button"
             (click)="theme.toggle()"
-            class="rounded-full p-1.5 hover:bg-gray-100"
+            class="tap rounded-full p-1.5 hover:bg-gray-100"
             [attr.aria-label]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
             [title]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
           >
@@ -144,27 +144,27 @@ import { SettingsService } from '../settings/settings.service';
             <button
               type="button"
               (click)="settingsMenuOpen.set(!settingsMenuOpen())"
-              class="rounded-full p-1.5 hover:bg-gray-100"
+              class="tap rounded-full p-1.5 hover:bg-gray-100"
               title="Công cụ & cài đặt"
               aria-label="Công cụ & cài đặt"
             >
-              <app-icon name="settings" class="h-5 w-5 text-gray-600" />
+              <app-icon name="dots" class="h-5 w-5 text-gray-600" />
             </button>
             @if (settingsMenuOpen()) {
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
               <div class="popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="download" class="h-4 w-4 text-gray-600" /> Xuất file .ics
                 </button>
-                <button type="button" (click)="fileInput.click()" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="upload" class="h-4 w-4 text-gray-600" /> Nhập file .ics
                 </button>
                 <div class="my-1 border-t border-gray-200"></div>
-                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="trash" class="h-4 w-4 text-gray-600" /> Thùng rác
                 </button>
-                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="settings" class="h-4 w-4 text-gray-600" /> Cài đặt
                 </a>
               </div>
