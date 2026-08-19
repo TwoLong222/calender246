@@ -295,7 +295,9 @@ import { SettingsService } from '../settings/settings.service';
       <app-trash-modal />
     }
 
-    <app-ai-assistant />
+    @if (settings.settings().ai_settings.enabled) {
+      <app-ai-assistant />
+    }
     <app-notification-toasts />
   `,
 })
