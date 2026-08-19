@@ -77,6 +77,21 @@ const DICT: Record<Lang, Record<string, string>> = {
     'del.title': 'Xoá tài khoản?',
     'del.body': 'Hành động này xoá vĩnh viễn tài khoản và toàn bộ dữ liệu. Không thể hoàn tác. Gõ',
     'del.bodyEnd': 'để xác nhận.', 'del.cancel': 'Huỷ', 'del.confirm': 'Xoá vĩnh viễn', 'del.deleting': 'Đang xoá…',
+    // Login
+    'login.sub.signin': 'Đăng nhập để tiếp tục', 'login.sub.signup': 'Tạo tài khoản mới', 'login.sub.forgot': 'Đặt lại mật khẩu',
+    'login.signin': 'Đăng nhập', 'login.signup': 'Đăng ký', 'login.email': 'Email', 'login.password': 'Mật khẩu',
+    'login.min6': 'Tối thiểu 6 ký tự', 'login.confirmPw': 'Xác nhận mật khẩu', 'login.reenter': 'Nhập lại mật khẩu',
+    'login.forgot': 'Quên mật khẩu?', 'login.resetSent': 'Đã gửi email đặt lại mật khẩu. Kiểm tra hộp thư (cả Spam) rồi bấm link trong đó.',
+    'login.processing': 'Đang xử lý...', 'login.sendReset': 'Gửi link đặt lại', 'login.back': '← Quay lại đăng nhập',
+    'login.or': 'hoặc', 'login.google': 'Đăng nhập bằng Google', 'login.enterEmail': 'Hãy nhập email.',
+    'login.pwMismatch': 'Mật khẩu xác nhận không khớp.',
+    'login.err.invalid': 'Email hoặc mật khẩu không đúng.', 'login.err.registered': 'Email này đã được đăng ký, hãy chuyển sang tab Đăng nhập.', 'login.err.pw6': 'Mật khẩu cần tối thiểu 6 ký tự.',
+    // Trash
+    'trash.empty': 'Thùng rác trống.', 'trash.desc': 'Sự kiện đã xóa được giữ ở đây. Bạn có thể khôi phục hoặc xóa vĩnh viễn.',
+    'trash.confirmQ': 'Xóa hẳn?', 'trash.delete': 'Xóa', 'trash.restore': 'Khôi phục', 'trash.purge': 'Xóa vĩnh viễn', 'trash.deletedAt': 'đã xóa',
+    // Toast + common
+    'toast.upcoming': 'Sắp tới', 'toast.startsAt': 'Bắt đầu lúc',
+    'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
   },
   en: {
     'nav.calendar': 'Calendar', 'nav.today': 'Today', 'nav.create': 'Create',
@@ -135,6 +150,18 @@ const DICT: Record<Lang, Record<string, string>> = {
     'del.title': 'Delete account?',
     'del.body': 'This permanently deletes your account and all data. This cannot be undone. Type',
     'del.bodyEnd': 'to confirm.', 'del.cancel': 'Cancel', 'del.confirm': 'Delete permanently', 'del.deleting': 'Deleting…',
+    'login.sub.signin': 'Sign in to continue', 'login.sub.signup': 'Create a new account', 'login.sub.forgot': 'Reset password',
+    'login.signin': 'Sign in', 'login.signup': 'Sign up', 'login.email': 'Email', 'login.password': 'Password',
+    'login.min6': 'At least 6 characters', 'login.confirmPw': 'Confirm password', 'login.reenter': 'Re-enter password',
+    'login.forgot': 'Forgot password?', 'login.resetSent': 'Password reset email sent. Check your inbox (and Spam) and click the link.',
+    'login.processing': 'Processing...', 'login.sendReset': 'Send reset link', 'login.back': '← Back to sign in',
+    'login.or': 'or', 'login.google': 'Sign in with Google', 'login.enterEmail': 'Please enter your email.',
+    'login.pwMismatch': 'Password confirmation does not match.',
+    'login.err.invalid': 'Incorrect email or password.', 'login.err.registered': 'This email is already registered — switch to the Sign in tab.', 'login.err.pw6': 'Password must be at least 6 characters.',
+    'trash.empty': 'Trash is empty.', 'trash.desc': 'Deleted events are kept here. You can restore them or delete permanently.',
+    'trash.confirmQ': 'Delete for good?', 'trash.delete': 'Delete', 'trash.restore': 'Restore', 'trash.purge': 'Delete permanently', 'trash.deletedAt': 'deleted',
+    'toast.upcoming': 'Upcoming', 'toast.startsAt': 'Starts at',
+    'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
   },
 };
 
