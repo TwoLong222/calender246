@@ -21,6 +21,7 @@ import {
 import { CalendarEvent } from './calendar.types';
 import { formatHourLabel, isSameDay, minutesSinceMidnight } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
+import { SettingsService } from '../settings/settings.service';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -136,7 +137,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
           <div class="w-14 shrink-0">
             @for (hour of hours; track hour) {
               <div class="relative" [style.height.px]="HOUR_HEIGHT">
-                <span class="absolute -top-2 right-2 text-[11px] text-gray-400">{{ formatHourLabel(hour) }}</span>
+                <span class="absolute -top-2 right-2 text-[11px] text-gray-400">{{ formatHourLabel(hour, settings.is24h()) }}</span>
               </div>
             }
           </div>
@@ -152,8 +153,8 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                 ></div>
               }
 
-              <!-- Vạch đỏ: giờ hiện tại -->
-              @if (isToday(date)) {
+              <!-- Vạch đỏ: giờ hiện tại (có thể tắt trong Cài đặt) -->
+              @if (isToday(date) && settings.settings().show_current_time) {
                 <div
                   class="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
                   [style.top.px]="nowOffset()"
@@ -240,6 +241,7 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   readonly formatHourLabel = formatHourLabel;
 
   private readonly supabase = inject(SupabaseService);
+  protected readonly settings = inject(SettingsService);
   private readonly today = new Date();
   private clearPreviewTimer?: ReturnType<typeof setTimeout>;
 
@@ -464,11 +466,8 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   private formatTime(d: Date): string {
-    let h = d.getHours();
-    const m = d.getMinutes();
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${h}${m ? ':' + m.toString().padStart(2, '0') : ''}${ampm}`;
+    // Theo cài đặt định dạng giờ (12h/24h) + timezone của người dùng.
+    return this.settings.formatTime(d);
   }
 
   formatRange(e: CalendarEvent): string {

@@ -21,6 +21,7 @@ import { IcsService } from './ics.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { MONTH_LABELS, addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Component({
   selector: 'app-calendar-page',
@@ -302,6 +303,7 @@ export class CalendarPageComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly supabase = inject(SupabaseService);
   protected readonly theme = inject(ThemeService);
+  protected readonly settings = inject(SettingsService);
   private readonly ics = inject(IcsService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
@@ -395,8 +397,12 @@ export class CalendarPageComponent {
   }
 
   weekDates = computed(() => {
-    const start = startOfWeek(this.state.viewedDate());
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    const start = startOfWeek(this.state.viewedDate(), this.settings.weekStartsOn());
+    const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    // Ẩn cuối tuần trong view Tuần nếu người dùng tắt "Hiện cuối tuần".
+    return this.settings.settings().show_weekends
+      ? days
+      : days.filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
   });
 
   /** Khóa đổi mỗi khi đổi view hoặc đổi ngày đang xem -> kích hoạt lại animation chuyển trang */

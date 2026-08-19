@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
+import { SettingsService } from '../settings/settings.service';
 import { AttendeeStatus } from './calendar.types';
 import { IconComponent } from '../shared/icon.component';
 
@@ -186,6 +187,7 @@ export class EventDetailPopoverComponent {
   protected readonly state = inject(CalendarStateService);
   private readonly supabase = inject(SupabaseService);
   protected readonly comments = inject(CommentsService);
+  private readonly settings = inject(SettingsService);
 
   event = computed(() => this.state.selectedEvent());
 
@@ -280,7 +282,8 @@ export class EventDetailPopoverComponent {
   }
 
   timeLabel(d: Date): string {
-    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    // Theo cài đặt định dạng giờ (12h/24h) + timezone của người dùng.
+    return this.settings.formatTime(d);
   }
 
   dotClass(color: string): string {
