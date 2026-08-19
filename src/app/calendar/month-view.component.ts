@@ -1,8 +1,9 @@
 // View "Tháng": lưới 6 hàng x 7 cột, mỗi ô ngày hiển thị tối đa vài sự kiện dạng chip.
 
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { CalendarEvent } from './calendar.types';
 import { isSameDay, startOfMonth } from './date-utils';
+import { HolidaysService } from './holidays.service';
 
 interface MonthCell {
   date: Date;

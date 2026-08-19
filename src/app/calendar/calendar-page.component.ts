@@ -4,7 +4,7 @@
 // và cảnh báo trùng lịch do SERVER xác nhận sau khi lưu (lastSavedConflicts).
 
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { MiniCalendarComponent } from './mini-calendar.component';
 import { TimeGridViewComponent } from './time-grid-view.component';
@@ -36,6 +36,7 @@ import { SupabaseService } from '../auth/supabase.service';
     AiAssistantComponent,
     NotificationToastsComponent,
     IconComponent,
+    RouterLink,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -162,6 +163,9 @@ import { SupabaseService } from '../auth/supabase.service';
                 <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="trash" class="h-4 w-4 text-gray-600" /> Thùng rác
                 </button>
+                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="settings" class="h-4 w-4 text-gray-600" /> Cài đặt
+                </a>
               </div>
             }
             <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
@@ -410,7 +414,7 @@ export class CalendarPageComponent {
   }
 
   onMiniCalendarPick(date: Date): void {
-    this.state.selectDate(date);
+    this.state.selectDate(date, true);
   }
 
   onMonthDateClicked(date: Date): void {

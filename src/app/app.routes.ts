@@ -4,10 +4,12 @@ import { AuthCallbackComponent } from './auth/auth-callback.component';
 import { authGuard } from './auth/auth.guard';
 import { LoginPageComponent } from './auth/login-page.component';
 import { ResetPasswordComponent } from './auth/reset-password.component';
+import { SettingsPageComponent } from './settings/settings-page.component';
 
 export const appRoutes: Routes = [
   { path: 'login', component: LoginPageComponent },
   { path: 'auth/callback', component: AuthCallbackComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
+  { path: 'settings', component: SettingsPageComponent, canActivate: [authGuard] },
   { path: '', component: CalendarPageComponent, canActivate: [authGuard] },
 ];
