@@ -201,9 +201,11 @@ import { TranslateService } from '../i18n/translate.service';
       </header>
 
       <div class="flex flex-1 overflow-hidden">
-        <!-- Sidebar (ẩn/hiện bằng nút 3 gạch ở header) -->
-        @if (sidebarOpen()) {
-        <aside class="w-64 shrink-0 overflow-y-auto border-r border-gray-200 p-4">
+        <!-- Sidebar (trượt mượt khi ẩn/hiện bằng nút 3 gạch ở header) -->
+        <aside
+          class="sidebar-panel shrink-0 overflow-y-auto border-r border-gray-200"
+          [class.sidebar-collapsed]="!sidebarOpen()"
+        >
           <div class="relative mb-4">
             <button
               type="button"
@@ -249,7 +251,6 @@ import { TranslateService } from '../i18n/translate.service';
           </div>
 
         </aside>
-        }
 
         <!-- Main view -->
         <main class="flex-1 overflow-hidden">

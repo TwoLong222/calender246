@@ -43,6 +43,32 @@ input[type='radio'] {
 .tap:active {
   transform: scale(0.96);
 }
+
+/* ============================================================
+   SIDEBAR TRÁI — trượt mượt khi ẩn/hiện (nút 3 gạch).
+   Giữ phần tử trong DOM, animate chiều rộng thay vì thêm/xóa.
+   ============================================================ */
+.sidebar-panel {
+  width: 16rem; /* = w-64 */
+  padding: 1rem; /* = p-4 */
+  overflow-x: hidden;
+  transition:
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+}
+.sidebar-collapsed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  border-right-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-panel {
+    transition: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   button,
   a,
