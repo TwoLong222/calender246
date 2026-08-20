@@ -27,6 +27,7 @@ interface ApiEvent {
   color: string;
   series_id: string | null;
   creator_email?: string | null;
+  reminder_minutes?: number | null;
   deleted_at?: string | null;
   attendees?: ApiAttendee[];
 }
@@ -53,6 +54,7 @@ function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
     // "Lên lịch hẹn" (appointment) chưa có bảng riêng ở backend -> tạm lưu như "event" thường
     kind: (e.kind === 'appointment' ? 'event' : e.kind) as 'event' | 'task',
     color: e.color,
+    reminderMinutes: e.reminderMinutes ?? null,
     guestEmails: e.guests.map((g) => g.email),
   };
 }
@@ -71,6 +73,7 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,
+    reminderMinutes: row.reminder_minutes ?? null,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
   };
 }

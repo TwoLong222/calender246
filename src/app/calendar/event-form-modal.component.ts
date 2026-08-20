@@ -15,6 +15,7 @@ import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
+import { SettingsService } from '../settings/settings.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -174,6 +175,20 @@ function toTimeInputValue(d: Date): string {
                 }
               </div>
             </div>
+
+            <!-- Nhắc trước giờ bắt đầu -->
+            <div class="flex items-center gap-2 text-sm">
+              <app-icon name="bell" class="h-4 w-4 text-gray-500" />
+              <select [ngModel]="reminderStr()" (ngModelChange)="setReminder($event)" class="rounded border border-gray-300 px-2 py-1">
+                <option value="none">{{ tr.t('notif.none') }}</option>
+                <option value="5">5 {{ tr.t('notif.min') }}</option>
+                <option value="10">10 {{ tr.t('notif.min') }}</option>
+                <option value="15">15 {{ tr.t('notif.min') }}</option>
+                <option value="30">30 {{ tr.t('notif.min') }}</option>
+                <option value="60">{{ tr.t('notif.hour') }}</option>
+                <option value="1440">{{ tr.t('notif.day') }}</option>
+              </select>
+            </div>
           </div>
         }
 
@@ -219,6 +234,16 @@ function toTimeInputValue(d: Date): string {
 export class EventFormModalComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly tr = inject(TranslateService);
+  private readonly settings = inject(SettingsService);
+
+  reminderMinutes = signal<number | null>(null);
+  reminderStr(): string {
+    const r = this.reminderMinutes();
+    return r == null ? 'none' : String(r);
+  }
+  setReminder(v: string): void {
+    this.reminderMinutes.set(v === 'none' ? null : +v);
+  }
 
   readonly tabs: { key: EventKind; label: string }[] = [
     { key: 'event', label: 'Sự kiện' },
@@ -274,6 +299,7 @@ export class EventFormModalComponent {
         this.description.set(editing.description ?? '');
         this.guests.set(editing.guests);
         this.color.set(editing.color ?? 'sky');
+        this.reminderMinutes.set(editing.reminderMinutes ?? null);
       } else {
         const start = this.state.formInitialStart();
         const end = new Date(start.getTime() + 60 * 60_000);
@@ -290,6 +316,8 @@ export class EventFormModalComponent {
         this.color.set('sky');
         this.repeat.set('none');
         this.repeatCount.set(4);
+        // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới.
+        this.reminderMinutes.set(this.settings.settings().default_reminder);
       }
       this.guestEmailDraft.set('');
     });
@@ -375,6 +403,7 @@ export class EventFormModalComponent {
         isAllDay: this.isAllDay(),
         guests: this.guests(),
         color: this.color(),
+        reminderMinutes: this.reminderMinutes(),
       },
       recurrence,
     );
