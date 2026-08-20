@@ -18,6 +18,7 @@ import { IconComponent, IconName } from '../shared/icon.component';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from './settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
 
 type Section =
@@ -239,9 +240,29 @@ type Section =
                     <option value="public">{{ tr.t('priv.public') }}</option>
                   </select>
                 </div>
-                <div class="flex items-center justify-between border-t border-gray-200 pt-3 text-sm">
-                  <div><p class="font-medium">{{ tr.t('priv.booking') }}</p><p class="text-xs text-gray-400">{{ tr.t('priv.status') }}: {{ tr.t('priv.disabled') }}</p></div>
-                  <span class="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500">{{ tr.t('priv.comingSoon') }}</span>
+                <div class="space-y-3 border-t border-gray-200 pt-3 text-sm">
+                  <label class="flex items-center justify-between">
+                    <span class="font-medium">{{ tr.t('booking.enable') }}</span>
+                    <input type="checkbox" [checked]="bookingPage()?.enabled" (change)="setBooking({ enabled: !bookingPage()?.enabled })" class="accent-blue-600" />
+                  </label>
+                  @if (bookingPage()?.enabled) {
+                    <div>
+                      <label class="mb-1 block text-gray-600">{{ tr.t('booking.duration') }}</label>
+                      <select [ngModel]="bookingPage()?.duration_minutes" (ngModelChange)="setBooking({ duration_minutes: +$event })" class="w-full rounded-md border border-gray-300 px-3 py-2">
+                        <option [ngValue]="15">15 {{ tr.t('booking.min') }}</option>
+                        <option [ngValue]="30">30 {{ tr.t('booking.min') }}</option>
+                        <option [ngValue]="60">60 {{ tr.t('booking.min') }}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
+                      <div class="flex gap-2">
+                        <input [value]="bookingLink()" readonly class="flex-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
+                        <button type="button" (click)="copyBookingLink()" class="tap rounded-md border border-gray-300 px-3 text-sm hover:bg-gray-50">{{ bookingCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
+                        <a [href]="bookingLink()" target="_blank" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ tr.t('booking.open') }}</a>
+                      </div>
+                    </div>
+                  }
                 </div>
                 <div class="border-t border-gray-200 pt-3 text-sm">
                   <p class="mb-1 font-medium">{{ tr.t('priv.sessions') }}</p>
@@ -308,6 +329,27 @@ export class SettingsPageComponent {
   private readonly supabase = inject(SupabaseService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly bookingApi = inject(BookingApiService);
+
+  protected readonly bookingPage = signal<BookingPage | null>(null);
+  protected readonly bookingCopied = signal(false);
+  protected bookingLink(): string {
+    const p = this.bookingPage();
+    return p ? `${window.location.origin}/book/${p.slug}` : '';
+  }
+  protected setBooking(patch: Partial<BookingPage>): void {
+    const prev = this.bookingPage();
+    if (prev) this.bookingPage.set({ ...prev, ...patch });
+    this.bookingApi.updateMyPage(patch).subscribe({
+      next: (p) => this.bookingPage.set(p),
+      error: () => { if (prev) this.bookingPage.set(prev); },
+    });
+  }
+  protected copyBookingLink(): void {
+    navigator.clipboard?.writeText(this.bookingLink());
+    this.bookingCopied.set(true);
+    setTimeout(() => this.bookingCopied.set(false), 1500);
+  }
 
   protected readonly section = signal<Section>('general');
   protected readonly now = new Date();
@@ -359,6 +401,10 @@ export class SettingsPageComponent {
 
   constructor() {
     if (!this.settings.loaded()) void this.settings.load();
+    this.bookingApi.getMyPage().subscribe({
+      next: (p) => this.bookingPage.set(p),
+      error: () => {},
+    });
   }
 
   protected set(patch: Parameters<SettingsService['update']>[0]): void {
