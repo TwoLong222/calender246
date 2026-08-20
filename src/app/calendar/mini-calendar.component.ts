@@ -3,8 +3,9 @@
 // Chấm xanh NHẠT = ngày đang được xem ở view chính (viewedDate), nếu khác hôm nay.
 
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import { MONTH_LABELS, addMonths, isSameDay, orderedWeekdayLabels, startOfMonth } from './date-utils';
+import { addMonths, isSameDay, startOfMonth } from './date-utils';
 import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 interface DayCell {
   date: Date;
@@ -19,7 +20,7 @@ interface DayCell {
     <div class="select-none text-sm">
       <div class="mb-2 flex items-center justify-between px-1">
         <span class="font-medium text-gray-700">
-          {{ MONTH_LABELS[displayMonth().getMonth()] }}, {{ displayMonth().getFullYear() }}
+          {{ tr.monthLong(displayMonth().getMonth()) }}, {{ displayMonth().getFullYear() }}
         </span>
         <div class="flex gap-1">
           <button type="button" (click)="prevMonth()" class="rounded-full p-1 hover:bg-gray-100" aria-label="Tháng trước">
@@ -63,8 +64,8 @@ export class MiniCalendarComponent {
   dateSelected = output<Date>();
 
   private readonly settings = inject(SettingsService);
-  readonly weekdayLabels = computed(() => orderedWeekdayLabels(this.settings.weekStartsOn()));
-  readonly MONTH_LABELS = MONTH_LABELS;
+  protected readonly tr = inject(TranslateService);
+  readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
 
   /** Tháng đang hiển thị trong mini calendar (có thể lệch khỏi viewedDate nếu user tự bấm mũi tên) */

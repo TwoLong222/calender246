@@ -224,4 +224,19 @@ export class TranslateService {
     const l = this.lang();
     return DICT[l]?.[key] ?? DICT.vi[key] ?? key;
   }
+
+  /** Tên tháng đầy đủ theo ngôn ngữ (vd 'Tháng 8' / 'August'). */
+  monthLong(monthIndex: number): string {
+    const loc = this.lang() === 'en' ? 'en-US' : 'vi-VN';
+    const s = new Intl.DateTimeFormat(loc, { month: 'long' }).format(
+      new Date(2000, monthIndex, 1),
+    );
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  /** Nhãn thứ ngắn (CN/T2… hoặc Sun/Mon…), xoay theo ngày bắt đầu tuần. */
+  orderedWeekdays(weekStartsOn = 0): string[] {
+    const base = [0, 1, 2, 3, 4, 5, 6].map((i) => this.t('wd.' + i));
+    return [...base.slice(weekStartsOn), ...base.slice(0, weekStartsOn)];
+  }
 }

@@ -2,9 +2,10 @@
 
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { CalendarEvent } from './calendar.types';
-import { isSameDay, orderedWeekdayLabels, startOfMonth } from './date-utils';
+import { isSameDay, startOfMonth } from './date-utils';
 import { HolidaysService } from './holidays.service';
 import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 interface MonthCell {
   date: Date;
@@ -71,7 +72,8 @@ export class MonthViewComponent {
   eventClicked = output<CalendarEvent>();
 
   private readonly settings = inject(SettingsService);
-  readonly weekdayLabels = computed(() => orderedWeekdayLabels(this.settings.weekStartsOn()));
+  private readonly tr = inject(TranslateService);
+  readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
 
   cells = computed<MonthCell[]>(() => {

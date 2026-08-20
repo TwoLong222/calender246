@@ -19,7 +19,7 @@ import { IconComponent } from '../shared/icon.component';
 import { ThemeService } from '../theme.service';
 import { IcsService } from './ics.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
-import { MONTH_LABELS, addDays, startOfWeek } from './date-utils';
+import { addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
@@ -194,8 +194,8 @@ import { TranslateService } from '../i18n/translate.service';
           @if (supabase.user(); as user) {
             <span class="text-sm text-gray-500">{{ user.email }}</span>
           }
-          <button type="button" (click)="logout()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-            Đăng xuất
+          <button type="button" (click)="logout()" class="tap rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
+            {{ tr.t('priv.logout') }}
           </button>
         </div>
       </header>
@@ -425,7 +425,7 @@ export class CalendarPageComponent {
   headerLabel = computed(() => {
     const d = this.state.viewedDate();
     if (this.state.viewMode() === 'year') return `${d.getFullYear()}`;
-    return `${MONTH_LABELS[d.getMonth()]}, ${d.getFullYear()}`;
+    return `${this.tr.monthLong(d.getMonth())}, ${d.getFullYear()}`;
   });
 
   onViewModeChange(event: Event): void {

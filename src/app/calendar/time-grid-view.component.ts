@@ -22,6 +22,7 @@ import { CalendarEvent } from './calendar.types';
 import { formatHourLabel, isSameDay, minutesSinceMidnight } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -242,6 +243,7 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   private readonly supabase = inject(SupabaseService);
   protected readonly settings = inject(SettingsService);
+  protected readonly tr = inject(TranslateService);
   private readonly today = new Date();
   private clearPreviewTimer?: ReturnType<typeof setTimeout>;
 
@@ -313,7 +315,7 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   weekdayLabel(d: Date): string {
-    return ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][d.getDay()];
+    return this.tr.t('wd.' + d.getDay());
   }
 
   positionedEvents(date: Date): LayoutedEvent[] {

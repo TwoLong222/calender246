@@ -1,9 +1,11 @@
 // View "Năm": lưới 12 mini-calendar (mỗi tháng 1 ô), giống Google Calendar year view.
 // Có chấm nhỏ dưới các ngày CÓ SỰ KIỆN để nhìn nhanh cả năm bận rộn thế nào.
 
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { CalendarEvent } from './calendar.types';
-import { isSameDay, MONTH_LABELS } from './date-utils';
+import { isSameDay } from './date-utils';
+import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 interface MiniMonthCell {
   date: Date;
@@ -18,9 +20,9 @@ interface MiniMonthCell {
     <div class="grid h-full grid-cols-4 gap-6 overflow-y-auto p-4">
       @for (month of months(); track month.getTime()) {
         <div>
-          <div class="mb-2 text-center text-sm font-medium text-gray-700">{{ MONTH_LABELS[month.getMonth()] }}</div>
+          <div class="mb-2 text-center text-sm font-medium text-gray-700">{{ tr.monthLong(month.getMonth()) }}</div>
           <div class="grid grid-cols-7 gap-y-1 text-center text-[10px] text-gray-400">
-            @for (label of weekdayLabels; track label) {
+            @for (label of weekdayLabels(); track label) {
               <span>{{ label }}</span>
             }
           </div>
@@ -58,8 +60,9 @@ export class YearViewComponent {
   events = input<CalendarEvent[]>([]);
   dateClicked = output<Date>();
 
-  readonly MONTH_LABELS = MONTH_LABELS;
-  readonly weekdayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  protected readonly tr = inject(TranslateService);
+  private readonly settings = inject(SettingsService);
+  readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
 
   months = computed(() => {
@@ -94,11 +97,12 @@ export class YearViewComponent {
 
   cellsFor(monthStart: Date): MiniMonthCell[] {
     const firstWeekday = monthStart.getDay();
+    const leading = (firstWeekday - this.settings.weekStartsOn() + 7) % 7;
     const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
     const daysInPrevMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0).getDate();
 
     const cells: MiniMonthCell[] = [];
-    for (let i = firstWeekday - 1; i >= 0; i--) {
+    for (let i = leading - 1; i >= 0; i--) {
       cells.push({
         date: new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, daysInPrevMonth - i),
         inCurrentMonth: false,
