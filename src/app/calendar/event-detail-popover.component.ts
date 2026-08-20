@@ -7,6 +7,7 @@ import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
 import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 import { AttendeeStatus } from './calendar.types';
 import { IconComponent } from '../shared/icon.component';
 
@@ -25,22 +26,22 @@ import { IconComponent } from '../shared/icon.component';
           <div class="mb-2 flex items-start justify-between gap-2">
             <div class="flex items-center gap-2">
               <span class="h-3 w-3 rounded-full" [class]="dotClass(e.color)"></span>
-              <h3 class="font-medium text-gray-900">{{ e.title || '(Không có tiêu đề)' }}</h3>
+              <h3 class="font-medium text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
             </div>
             <div class="flex shrink-0 gap-1">
               <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
               @if (canManage()) {
-                <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Sửa"><app-icon name="pencil" class="h-4 w-4" /></button>
-                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Xóa"><app-icon name="trash" class="h-4 w-4" /></button>
+                <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.edit')"><app-icon name="pencil" class="h-4 w-4" /></button>
+                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
               }
-              <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
+              <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
             </div>
           </div>
 
           <p class="mb-2 text-sm text-gray-600">{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</p>
 
           @if (e.creatorEmail) {
-            <p class="mb-2 text-sm text-gray-600">👤 Người tạo: {{ e.creatorEmail }}</p>
+            <p class="mb-2 text-sm text-gray-600">👤 {{ tr.t('detail.creator') }}: {{ e.creatorEmail }}</p>
           }
 
           @if (e.location) {
@@ -53,7 +54,7 @@ import { IconComponent } from '../shared/icon.component';
           @if (e.guests.length > 0) {
             <div class="mt-3 border-t border-gray-100 pt-3">
               <p class="mb-1 text-xs text-gray-400">
-                {{ e.guests.length }} khách · {{ acceptedCount() }} đồng ý, {{ pendingCount() }} chưa trả lời
+                {{ e.guests.length }} {{ tr.t('detail.guests') }} · {{ acceptedCount() }} {{ tr.t('detail.accepted') }}, {{ pendingCount() }} {{ tr.t('detail.pending') }}
               </p>
               <ul class="space-y-1">
                 @for (g of e.guests; track g.email) {
@@ -70,14 +71,14 @@ import { IconComponent } from '../shared/icon.component';
           }
 
           <div class="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3 text-sm">
-            <span class="text-gray-500">Tham dự?</span>
+            <span class="text-gray-500">{{ tr.t('detail.attend') }}</span>
             <button
               type="button"
               (click)="rsvp('accepted')"
               class="rounded-full border px-3 py-1"
               [class]="myStatus() === 'accepted' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
-              Có
+              {{ tr.t('rsvp.yes') }}
             </button>
             <button
               type="button"
@@ -85,7 +86,7 @@ import { IconComponent } from '../shared/icon.component';
               class="rounded-full border px-3 py-1"
               [class]="myStatus() === 'declined' ? 'border-red-600 bg-red-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
-              Không
+              {{ tr.t('rsvp.no') }}
             </button>
             <button
               type="button"
@@ -93,14 +94,14 @@ import { IconComponent } from '../shared/icon.component';
               class="rounded-full border px-3 py-1"
               [class]="myStatus() === 'tentative' ? 'border-amber-500 bg-amber-500 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
-              Có thể
+              {{ tr.t('rsvp.maybe') }}
             </button>
           </div>
 
           <!-- Bình luận -->
           <div class="mt-4 border-t border-gray-100 pt-3">
             <p class="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
-              <app-icon name="message" class="h-4 w-4" /> Bình luận
+              <app-icon name="message" class="h-4 w-4" /> {{ tr.t('detail.comments') }}
             </p>
 
             <ul class="mb-2 max-h-40 space-y-2 overflow-y-auto">
@@ -113,22 +114,22 @@ import { IconComponent } from '../shared/icon.component';
                   @if (editingId() === c.id) {
                     <textarea [(ngModel)]="editText" rows="2" class="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"></textarea>
                     <div class="mt-1 flex gap-3">
-                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700 hover:underline">Lưu</button>
-                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500 hover:underline">Hủy</button>
+                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700 hover:underline">{{ tr.t('form.save') }}</button>
+                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
                     </div>
                   } @else {
                     <p class="mt-0.5 whitespace-pre-wrap break-words text-sm text-gray-800">{{ c.content }}</p>
                     @if (isMine(c)) {
                       @if (deletingId() === c.id) {
                         <div class="mt-1 flex items-center gap-3">
-                          <span class="text-xs text-red-700">Xóa bình luận?</span>
-                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600 hover:underline">Xóa</button>
-                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500 hover:underline">Hủy</button>
+                          <span class="text-xs text-red-700">{{ tr.t('detail.delComment') }}</span>
+                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600 hover:underline">{{ tr.t('detail.delete') }}</button>
+                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
                         </div>
                       } @else {
                         <div class="mt-1 flex gap-3">
-                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">Sửa</button>
-                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500 hover:underline">Xóa</button>
+                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">{{ tr.t('detail.edit') }}</button>
+                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500 hover:underline">{{ tr.t('detail.delete') }}</button>
                         </div>
                       }
                     }
@@ -136,7 +137,7 @@ import { IconComponent } from '../shared/icon.component';
                 </li>
               } @empty {
                 @if (!comments.loading()) {
-                  <li class="text-xs text-gray-400">Chưa có bình luận nào.</li>
+                  <li class="text-xs text-gray-400">{{ tr.t('detail.noComments') }}</li>
                 }
               }
             </ul>
@@ -145,7 +146,7 @@ import { IconComponent } from '../shared/icon.component';
               <textarea
                 [(ngModel)]="newComment"
                 rows="1"
-                placeholder="Viết bình luận..."
+                [placeholder]="tr.t('detail.writeComment')"
                 class="flex-1 resize-none rounded border border-gray-300 px-2 py-1 text-sm"
               ></textarea>
               <button
@@ -153,8 +154,7 @@ import { IconComponent } from '../shared/icon.component';
                 (click)="sendComment()"
                 [disabled]="!newComment().trim()"
                 class="shrink-0 self-start rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-40"
-              >
-                Gửi
+              >{{ tr.t('detail.send') }}
               </button>
             </div>
           </div>
@@ -162,18 +162,17 @@ import { IconComponent } from '../shared/icon.component';
           <!-- Xác nhận xóa: nếu là sự kiện lặp thì cho chọn xóa riêng hoặc xóa cả chuỗi -->
           @if (confirmingDelete()) {
             <div class="mt-3 rounded-md bg-red-50 p-3 text-sm">
-              <p class="mb-2 text-red-800">Xóa sự kiện này?</p>
+              <p class="mb-2 text-red-800">{{ tr.t('detail.deleteEvent') }}</p>
               <div class="flex flex-wrap gap-2">
-                <button type="button" (click)="doDelete()" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">
-                  Xóa sự kiện này
+                <button type="button" (click)="doDelete()" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">{{ tr.t('detail.deleteThis') }}
                 </button>
                 @if (e.seriesId) {
                   <button type="button" (click)="doDelete('series')" class="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-800">
-                    Xóa cả chuỗi lặp
+                    {{ tr.t('detail.deleteSeries') }}
                   </button>
                 }
                 <button type="button" (click)="confirmingDelete.set(false)" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-100">
-                  Hủy
+                  {{ tr.t('del.cancel') }}
                 </button>
               </div>
             </div>
@@ -188,6 +187,7 @@ export class EventDetailPopoverComponent {
   private readonly supabase = inject(SupabaseService);
   protected readonly comments = inject(CommentsService);
   private readonly settings = inject(SettingsService);
+  protected readonly tr = inject(TranslateService);
 
   event = computed(() => this.state.selectedEvent());
 
@@ -256,15 +256,10 @@ export class EventDetailPopoverComponent {
   acceptedCount = computed(() => this.event()?.guests.filter((g) => g.status === 'accepted').length ?? 0);
   pendingCount = computed(() => this.event()?.guests.filter((g) => g.status === 'needsAction').length ?? 0);
 
-  /** Nhãn tiếng Việt cho trạng thái RSVP của từng khách */
+  /** Nhãn trạng thái RSVP theo ngôn ngữ hiện tại. */
   statusLabel(status: string): string {
-    const map: Record<string, string> = {
-      accepted: 'Đồng ý',
-      declined: 'Từ chối',
-      tentative: 'Có thể',
-      needsAction: 'Chưa trả lời',
-    };
-    return map[status] ?? 'Chưa trả lời';
+    const valid = ['accepted', 'declined', 'tentative', 'needsAction'];
+    return this.tr.t('rsvp.' + (valid.includes(status) ? status : 'needsAction'));
   }
 
   statusTextClass(status: string): string {
@@ -278,7 +273,8 @@ export class EventDetailPopoverComponent {
   }
 
   dateLabel(d: Date): string {
-    return d.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' });
+    const loc = this.tr.lang() === 'en' ? 'en-GB' : 'vi-VN';
+    return d.toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'numeric' });
   }
 
   timeLabel(d: Date): string {

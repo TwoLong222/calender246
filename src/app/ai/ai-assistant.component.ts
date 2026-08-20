@@ -10,6 +10,7 @@ import { CalendarStateService } from '../calendar/calendar-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { SupabaseService } from '../auth/supabase.service';
 import { IconComponent } from '../shared/icon.component';
+import { TranslateService } from '../i18n/translate.service';
 
 interface ChatMsg {
   role: 'user' | 'ai';
@@ -41,7 +42,7 @@ type Pending =
         type="button"
         (click)="open.set(true)"
         class="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-700 text-white shadow-lg hover:bg-blue-800"
-        aria-label="Trợ lý AI"
+        [attr.aria-label]="tr.t('sec.ai')"
       >
         <app-icon name="robot" class="h-7 w-7" />
       </button>
@@ -49,9 +50,9 @@ type Pending =
       <div class="popup-in fixed bottom-6 right-6 z-40 flex h-[460px] w-80 flex-col rounded-xl border border-gray-200 bg-white shadow-2xl">
         <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
           <span class="flex items-center gap-2 font-medium text-gray-800">
-            <app-icon name="robot" class="h-5 w-5 text-blue-700" /> Trợ lý lịch
+            <app-icon name="robot" class="h-5 w-5 text-blue-700" /> {{ tr.t('ai.title') }}
           </span>
-          <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng">
+          <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
             <app-icon name="x" class="h-4 w-4" />
           </button>
         </div>
@@ -65,7 +66,7 @@ type Pending =
             </div>
           }
           @if (loading()) {
-            <div class="mr-auto rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-400">Đang nghĩ…</div>
+            <div class="mr-auto rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-400">{{ tr.t('ai.thinking') }}</div>
           }
           @if (pending(); as p) {
             <div
@@ -74,24 +75,24 @@ type Pending =
             >
               @switch (p.kind) {
                 @case ('create') {
-                  <p class="mb-1 font-medium text-gray-800">Tạo sự kiện:</p>
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.createEvent') }}</p>
                   <p class="text-gray-700">📌 {{ p.title }}</p>
                   <p class="text-gray-700">🕐 {{ rangeLabel(p.start, p.end) }}</p>
                 }
                 @case ('plan') {
-                  <p class="mb-1 font-medium text-gray-800">Gợi ý kế hoạch: {{ p.title }}</p>
-                  <p class="mb-1 text-xs text-gray-600">Tìm thấy {{ p.slots.length }}/{{ p.requestedCount }} khung giờ trống:</p>
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.planSuggest') }} {{ p.title }}</p>
+                  <p class="mb-1 text-xs text-gray-600">{{ tr.t('ai.foundA') }} {{ p.slots.length }}/{{ p.requestedCount }} {{ tr.t('ai.foundB') }}</p>
                   @for (slot of p.slots; track slot.start.getTime()) {
                     <p class="text-gray-700">🕐 {{ rangeLabel(slot.start, slot.end) }}</p>
                   }
                 }
                 @case ('reschedule') {
-                  <p class="mb-1 font-medium text-gray-800">Dời sự kiện:</p>
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.reschedule') }}</p>
                   <p class="text-gray-700">📌 {{ p.event.title }}</p>
-                  <p class="text-gray-700">🕐 sang {{ rangeLabel(p.start, p.end) }}</p>
+                  <p class="text-gray-700">🕐 {{ tr.t('ai.to') }} {{ rangeLabel(p.start, p.end) }}</p>
                 }
                 @case ('delete') {
-                  <p class="mb-1 font-medium text-red-800">Xóa sự kiện:</p>
+                  <p class="mb-1 font-medium text-red-800">{{ tr.t('ai.deleteEvent') }}</p>
                   <p class="text-gray-700">📌 {{ p.event.title }} — {{ eventLabel(p.event) }}</p>
                 }
               }
@@ -101,10 +102,8 @@ type Pending =
                   (click)="confirm()"
                   class="rounded px-3 py-1 text-xs font-medium text-white"
                   [class]="pending()?.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'"
-                >
-                  Xác nhận
-                </button>
-                <button type="button" (click)="cancel()" class="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100">Hủy</button>
+                >{{ tr.t('ai.confirm') }}</button>
+                <button type="button" (click)="cancel()" class="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
               </div>
             </div>
           }
@@ -115,7 +114,7 @@ type Pending =
             [(ngModel)]="input"
             (keydown.enter)="send()"
             [disabled]="loading()"
-            placeholder="VD: dời họp nhóm sang 4h chiều"
+            [placeholder]="tr.t('ai.placeholder')"
             class="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-600"
           />
           <button
@@ -123,9 +122,7 @@ type Pending =
             (click)="send()"
             [disabled]="loading() || !input().trim()"
             class="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-40"
-          >
-            Gửi
-          </button>
+          >{{ tr.t('ai.send') }}</button>
         </div>
       </div>
     }
@@ -135,6 +132,7 @@ export class AiAssistantComponent {
   private readonly ai = inject(AiApiService);
   private readonly state = inject(CalendarStateService);
   private readonly supabase = inject(SupabaseService);
+  protected readonly tr = inject(TranslateService);
 
   open = signal(false);
   input = signal('');
@@ -143,7 +141,7 @@ export class AiAssistantComponent {
   messages = signal<ChatMsg[]>([
     {
       role: 'ai',
-      text: 'Chào bạn! Mình có thể: tạo, tìm, dời, xóa sự kiện.\nVD: "Mai 3h chiều họp nhóm 1 tiếng", "tuần này có họp gì", "dời họp nhóm sang 4h", "xóa họp nhóm mai".',
+      text: this.tr.t('ai.greeting'),
     },
   ]);
 
@@ -393,7 +391,7 @@ export class AiAssistantComponent {
       },
       error: () => {
         this.loading.set(false);
-        this.push('Có lỗi khi gọi trợ lý. Thử lại nhé.');
+        this.push(this.tr.t('ai.msg.error'));
       },
     });
   }
@@ -413,7 +411,7 @@ export class AiAssistantComponent {
         guests: [],
         color: 'sky',
       });
-      this.push(`Đã tạo "${p.title}" ✅`);
+      this.push(`${this.tr.t('ai.msg.created')} "${p.title}" ✅`);
     } else if (p.kind === 'plan') {
       for (const slot of p.slots) {
         this.state.saveEvent({
@@ -428,20 +426,20 @@ export class AiAssistantComponent {
           color: 'emerald',
         });
       }
-      this.push(`Đã thêm ${p.slots.length} phiên "${p.title}" vào lịch ✅`);
+      this.push(`${this.tr.t('ai.msg.addedSessions')} ${p.slots.length} ${this.tr.t('ai.msg.sessions')} "${p.title}" ✅`);
     } else if (p.kind === 'reschedule') {
       this.state.updateEventTimes({ ...p.event, start: p.start, end: p.end });
-      this.push(`Đã dời "${p.event.title}" ✅`);
+      this.push(`${this.tr.t('ai.msg.moved')} "${p.event.title}" ✅`);
     } else {
       this.state.deleteEvent(p.event.id);
-      this.push(`Đã xóa "${p.event.title}" ✅`);
+      this.push(`${this.tr.t('ai.msg.deleted')} "${p.event.title}" ✅`);
     }
     this.pending.set(null);
   }
 
   cancel(): void {
     this.pending.set(null);
-    this.push('Ok, đã hủy.');
+    this.push(this.tr.t('ai.msg.cancelled'));
   }
 
   eventLabel(e: CalendarEvent): string {

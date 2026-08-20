@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
+import { TranslateService } from '../i18n/translate.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -40,10 +41,10 @@ function toTimeInputValue(d: Date): string {
           <input
             type="text"
             [(ngModel)]="title"
-            placeholder="Thêm tiêu đề"
+            [placeholder]="tr.t('form.addTitle')"
             class="flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
           />
-          <button type="button" (click)="close()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
+          <button type="button" (click)="close()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
 
         <!-- Tabs: Sự kiện / Việc cần làm / Lên lịch hẹn -->
@@ -57,7 +58,7 @@ function toTimeInputValue(d: Date): string {
               [class.text-blue-800]="tab() === t.key"
               [class.text-gray-600]="tab() !== t.key"
             >
-              {{ t.label }}
+              {{ tr.t('kind.' + t.key) }}
             </button>
           }
         </div>
@@ -74,8 +75,7 @@ function toTimeInputValue(d: Date): string {
               <input type="time" [(ngModel)]="endTime" class="rounded border border-gray-300 px-2 py-1" [disabled]="isAllDay()" />
             </div>
             <label class="flex items-center gap-2 pl-7 text-sm text-gray-600">
-              <input type="checkbox" [(ngModel)]="isAllDay" />
-              Cả ngày
+              <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
             </label>
 
             <!-- Lặp lại: chỉ cho tạo mới (sửa 1 event trong chuỗi lặp phức tạp -> để sau) -->
@@ -83,25 +83,25 @@ function toTimeInputValue(d: Date): string {
               <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
                 <span>🔁</span>
                 <select [(ngModel)]="repeat" class="rounded border border-gray-300 px-2 py-1">
-                  <option value="none">Không lặp</option>
-                  <option value="daily">Hàng ngày</option>
-                  <option value="weekly">Hàng tuần</option>
-                  <option value="monthly">Hàng tháng</option>
+                  <option value="none">{{ tr.t('form.noRepeat') }}</option>
+                  <option value="daily">{{ tr.t('form.daily') }}</option>
+                  <option value="weekly">{{ tr.t('form.weekly') }}</option>
+                  <option value="monthly">{{ tr.t('form.monthly') }}</option>
                 </select>
                 @if (repeat() !== 'none') {
                   <span>×</span>
                   <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="w-16 rounded border border-gray-300 px-2 py-1" />
-                  <span>lần</span>
+                  <span>{{ tr.t('form.times') }}</span>
                 }
               </div>
             }
 
             @if (conflicts().length > 0) {
               <div class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                <p class="flex items-center gap-2"><app-icon name="alert" class="h-4 w-4" /> Trùng lịch với {{ conflicts().length }} sự kiện khác:</p>
+                <p class="flex items-center gap-2"><app-icon name="alert" class="h-4 w-4" /> {{ tr.t('form.conflictA') }} {{ conflicts().length }} {{ tr.t('form.conflictB') }}</p>
                 <ul class="mt-1 list-disc pl-5">
                   @for (c of conflicts(); track c.id) {
-                    <li>{{ c.title || '(Không có tiêu đề)' }} — {{ formatRange(c) }}</li>
+                    <li>{{ c.title || tr.t('common.untitled') }} — {{ formatRange(c) }}</li>
                   }
                 </ul>
               </div>
@@ -116,10 +116,10 @@ function toTimeInputValue(d: Date): string {
                       type="email"
                       [(ngModel)]="guestEmailDraft"
                       (keydown.enter)="addGuest()"
-                      placeholder="Thêm khách bằng email"
+                      [placeholder]="tr.t('form.addGuest')"
                       class="flex-1 rounded border border-gray-300 px-2 py-1"
                     />
-                    <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">Thêm</button>
+                    <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">{{ tr.t('form.add') }}</button>
                   </div>
                   <!-- Gợi ý các email đã từng mời (autocomplete) -->
                   @if (guestSuggestions().length > 0) {
@@ -141,7 +141,7 @@ function toTimeInputValue(d: Date): string {
                     @for (g of guests(); track g.email) {
                       <li class="flex items-center justify-between rounded bg-gray-50 px-2 py-1">
                         <span>{{ g.email }}</span>
-                        <button type="button" (click)="removeGuest(g.email)" class="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" aria-label="Bỏ khách"><app-icon name="x" class="h-3.5 w-3.5" /></button>
+                        <button type="button" (click)="removeGuest(g.email)" class="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
                       </li>
                     }
                   </ul>
@@ -151,12 +151,12 @@ function toTimeInputValue(d: Date): string {
 
             <div class="flex items-center gap-2 text-sm">
               <span class="w-5 text-center">📍</span>
-              <input type="text" [(ngModel)]="location" placeholder="Thêm vị trí" class="flex-1 rounded border border-gray-300 px-2 py-1" />
+              <input type="text" [(ngModel)]="location" [placeholder]="tr.t('form.addLocation')" class="flex-1 rounded border border-gray-300 px-2 py-1" />
             </div>
 
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="2" placeholder="Thêm mô tả" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="2" [placeholder]="tr.t('form.addDesc')" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
 
             <!-- Chọn màu cho sự kiện -->
@@ -167,8 +167,8 @@ function toTimeInputValue(d: Date): string {
                   <button
                     type="button"
                     (click)="color.set(c.name)"
-                    [title]="c.label"
-                    [attr.aria-label]="c.label"
+                    [title]="tr.t('color.' + c.name)"
+                    [attr.aria-label]="tr.t('color.' + c.name)"
                     [class]="c.class + ' h-6 w-6 rounded-full ' + (color() === c.name ? 'ring-2 ring-gray-800 ring-offset-1' : '')"
                   ></button>
                 }
@@ -187,7 +187,7 @@ function toTimeInputValue(d: Date): string {
             </div>
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="2" placeholder="Thêm mô tả" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="2" [placeholder]="tr.t('form.addDesc')" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
           </div>
         }
@@ -195,23 +195,21 @@ function toTimeInputValue(d: Date): string {
         <!-- Tab: Lên lịch hẹn (stub — cần trang đặt lịch công khai riêng, để Giai đoạn 2) -->
         @if (tab() === 'appointment') {
           <div class="rounded-md bg-gray-50 p-4 text-sm text-gray-600">
-            Tạo một trang đặt lịch hẹn mà bạn có thể chia sẻ với người khác để họ tự đặt lịch với bạn.
+            {{ tr.t('form.apptDesc') }}
             <p class="mt-2 text-xs text-gray-400">
-              (Tính năng này cần một trang đặt lịch công khai riêng, sẽ làm ở giai đoạn sau khi có backend thật.)
+              {{ tr.t('form.apptNote') }}
             </p>
           </div>
         }
 
         <div class="mt-6 flex justify-end gap-2">
-          <button type="button" (click)="close()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">Hủy</button>
+          <button type="button" (click)="close()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
           @if (tab() !== 'appointment') {
             <button
               type="button"
               (click)="save()"
               class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-            >
-              Lưu
-            </button>
+            >{{ tr.t('form.save') }}</button>
           }
         </div>
       </div>
@@ -220,6 +218,7 @@ function toTimeInputValue(d: Date): string {
 })
 export class EventFormModalComponent {
   protected readonly state = inject(CalendarStateService);
+  protected readonly tr = inject(TranslateService);
 
   readonly tabs: { key: EventKind; label: string }[] = [
     { key: 'event', label: 'Sự kiện' },
