@@ -19,6 +19,7 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from './settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
+import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
 
 type Section =
@@ -270,6 +271,31 @@ type Section =
                   <button type="button" (click)="logout()" class="tap rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ tr.t('priv.logout') }}</button>
                   <button type="button" (click)="logoutAll()" class="tap ml-2 rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ tr.t('priv.logoutAll') }}</button>
                 </div>
+
+                <!-- Chia sẻ lịch -->
+                <div class="border-t border-gray-200 pt-3 text-sm">
+                  <p class="mb-1 font-medium">{{ tr.t('share.title') }}</p>
+                  <p class="mb-3 text-xs text-gray-400">{{ tr.t('share.desc') }}</p>
+                  <div class="flex flex-wrap gap-2">
+                    <input type="email" [ngModel]="shareEmail()" (ngModelChange)="shareEmail.set($event)" [placeholder]="tr.t('share.email')" class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2" />
+                    <select [ngModel]="shareRole()" (ngModelChange)="shareRole.set($event)" class="rounded-md border border-gray-300 px-2 py-2">
+                      <option value="viewer">{{ tr.t('share.viewer') }}</option>
+                      <option value="editor">{{ tr.t('share.editor') }}</option>
+                    </select>
+                    <button type="button" (click)="addMember()" class="tap rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">{{ tr.t('share.add') }}</button>
+                  </div>
+                  @if (shareError()) { <p class="mt-1 text-xs text-red-600">{{ shareError() }}</p> }
+                  <ul class="mt-3 space-y-1">
+                    @for (m of members(); track m.member_email) {
+                      <li class="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5">
+                        <span class="truncate">{{ m.member_email }} <span class="ml-1 text-xs text-gray-400">· {{ m.role === 'editor' ? tr.t('share.editor') : tr.t('share.viewer') }}</span></span>
+                        <button type="button" (click)="removeMember(m.member_email)" class="tap rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+                      </li>
+                    } @empty {
+                      <li class="text-xs text-gray-400">{{ tr.t('share.none') }}</li>
+                    }
+                  </ul>
+                </div>
               </section>
             }
 
@@ -351,6 +377,29 @@ export class SettingsPageComponent {
     setTimeout(() => this.bookingCopied.set(false), 1500);
   }
 
+  // ---- Chia sẻ lịch ----
+  private readonly sharingApi = inject(SharingApiService);
+  protected readonly members = signal<CalendarMember[]>([]);
+  protected readonly shareEmail = signal('');
+  protected readonly shareRole = signal<'viewer' | 'editor'>('viewer');
+  protected readonly shareError = signal('');
+
+  private loadMembers(): void {
+    this.sharingApi.getMembers().subscribe({ next: (m) => this.members.set(m), error: () => {} });
+  }
+  protected addMember(): void {
+    const email = this.shareEmail().trim();
+    if (!email) return;
+    this.shareError.set('');
+    this.sharingApi.addMember(email, this.shareRole()).subscribe({
+      next: () => { this.shareEmail.set(''); this.loadMembers(); },
+      error: (e) => this.shareError.set(e?.error?.message ?? 'Chia sẻ thất bại.'),
+    });
+  }
+  protected removeMember(email: string): void {
+    this.sharingApi.removeMember(email).subscribe({ next: () => this.loadMembers(), error: () => {} });
+  }
+
   protected readonly section = signal<Section>('general');
   protected readonly now = new Date();
   protected readonly timezones = COMMON_TIMEZONES;
@@ -405,6 +454,7 @@ export class SettingsPageComponent {
       next: (p) => this.bookingPage.set(p),
       error: () => {},
     });
+    this.loadMembers();
   }
 
   protected set(patch: Parameters<SettingsService['update']>[0]): void {
