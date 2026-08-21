@@ -29,6 +29,7 @@ interface ApiEvent {
   series_id: string | null;
   creator_email?: string | null;
   reminder_minutes?: number | null;
+  completed?: boolean;
   deleted_at?: string | null;
   attendees?: ApiAttendee[];
 }
@@ -76,6 +77,7 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     creatorEmail: row.creator_email ?? undefined,
     calendarId: row.calendar_id ?? undefined,
     reminderMinutes: row.reminder_minutes ?? null,
+    completed: row.completed ?? false,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
   };
 }
@@ -114,6 +116,13 @@ export class EventsApiService {
         conflictTitles: res.conflicts.map((c) => c.title),
       })),
     );
+  }
+
+  /** PATCH gọn chỉ đổi trạng thái hoàn thành của task. */
+  setCompleted(id: string, completed: boolean): Observable<CalendarEvent> {
+    return this.http
+      .patch<MutationResponse>(`${this.base}/${id}`, { completed })
+      .pipe(map((res) => fromApiEvent(res.event)));
   }
 
   delete(id: string, scope?: 'series'): Observable<void> {

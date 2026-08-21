@@ -299,6 +299,20 @@ export class CalendarStateService {
     });
   }
 
+  /** Đánh dấu task hoàn thành / chưa (cập nhật lạc quan). */
+  setTaskCompleted(id: string, completed: boolean): void {
+    this.markLocalChange();
+    const previous = this.events();
+    this.events.update((list) => list.map((e) => (e.id === id ? { ...e, completed } : e)));
+    this.api.setCompleted(id, completed).subscribe({
+      next: (saved) => this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e))),
+      error: () => {
+        this.events.set(previous);
+        this.loadError.set('Cập nhật trạng thái task thất bại. Thử lại sau.');
+      },
+    });
+  }
+
   deleteEvent(id: string, scope?: 'series'): void {
     this.markLocalChange();
     this.api.delete(id, scope).subscribe({

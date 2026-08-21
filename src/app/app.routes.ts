@@ -6,6 +6,7 @@ import { LoginPageComponent } from './auth/login-page.component';
 import { ResetPasswordComponent } from './auth/reset-password.component';
 import { SettingsPageComponent } from './settings/settings-page.component';
 import { PublicBookingComponent } from './booking/public-booking.component';
+import { TaskListComponent } from './calendar/task-list.component';
 
 export const appRoutes: Routes = [
   { path: 'login', component: LoginPageComponent },
@@ -13,5 +14,6 @@ export const appRoutes: Routes = [
   { path: 'reset-password', component: ResetPasswordComponent },
   { path: 'book/:slug', component: PublicBookingComponent },
   { path: 'settings', component: SettingsPageComponent, canActivate: [authGuard] },
+  { path: 'tasks', component: TaskListComponent, canActivate: [authGuard] },
   { path: '', component: CalendarPageComponent, canActivate: [authGuard] },
 ];

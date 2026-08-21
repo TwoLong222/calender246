@@ -36,6 +36,8 @@ export interface CalendarEvent {
   calendarId?: string;
   /** Nhắc trước bao nhiêu phút; null = không nhắc */
   reminderMinutes?: number | null;
+  /** Task đã hoàn thành (chỉ dùng cho kind='task') */
+  completed?: boolean;
   /** Thời điểm bị đưa vào thùng rác (chỉ có ở sự kiện trong thùng rác); null = chưa xóa */
   deletedAt?: Date | null;
 }
