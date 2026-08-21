@@ -1,11 +1,12 @@
-// HolidaysService: danh sách ngày lễ Việt Nam (2025-2029).
-// - Ngày lễ Dương lịch (cố định): hardcode theo tháng/ngày.
-// - Ngày lễ Âm lịch (Tết Nguyên đán, Giỗ Tổ, Phật Đản, Trung thu): hardcode
-//   trước ngày Dương lịch tương ứng cho các năm 2025-2029 (Âm→Dương phức tạp,
-//   không muốn kéo cả thư viện lịch âm cho đúng nhu cầu demo).
+// HolidaysService: ngày lễ Việt Nam — tính ĐỘNG cho mọi năm.
+// - Lễ Dương lịch (cố định): theo tháng/ngày.
+// - Lễ Âm lịch (Tết, Giỗ Tổ, Phật Đản, Trung thu...): đổi ngày Dương -> Âm bằng
+//   bộ chuyển đổi lunar.util rồi so ngày/tháng Âm. Không còn bảng tra cứng, đúng
+//   cho mọi năm (không giới hạn 2025-2029 như bản cũ).
 // - "isPublic" = ngày nghỉ chính thức (Bộ luật Lao động 2019).
 
 import { Injectable } from '@angular/core';
+import { solarToLunar } from '../lunar/lunar.util';
 
 export interface Holiday {
   name: string;
@@ -28,38 +29,29 @@ const FIXED_SOLAR: { month: number; day: number; name: string; isPublic: boolean
   { month: 12, day: 25, name: 'Giáng sinh', isPublic: false },
 ];
 
-/** Ngày lễ theo lịch Âm — bảng tra sẵn Dương lịch cho từng năm (yyyy-mm-dd) */
-const LUNAR_TO_SOLAR: Record<string, string[]> = {
-  // Tết Nguyên đán (mùng 1 Tết): thường nghỉ 5 ngày quanh đó
-  'Tết Nguyên đán': [
-    '2025-01-29', '2026-02-17', '2027-02-06', '2028-01-26', '2029-02-13',
-  ],
-  // Giỗ Tổ Hùng Vương (10/3 Âm)
-  'Giỗ Tổ Hùng Vương': [
-    '2025-04-07', '2026-04-26', '2027-04-16', '2028-04-04', '2029-04-23',
-  ],
-  // Phật Đản (15/4 Âm)
-  'Lễ Phật Đản': [
-    '2025-05-12', '2026-05-31', '2027-05-20', '2028-05-08', '2029-05-27',
-  ],
-  // Tết Trung thu (15/8 Âm)
-  'Tết Trung thu': [
-    '2025-10-06', '2026-09-25', '2027-09-15', '2028-10-03', '2029-09-22',
-  ],
-};
+/** Ngày lễ theo lịch ÂM — xác định bằng NGÀY/THÁNG âm lịch (đúng cho mọi năm) */
+const LUNAR_HOLIDAYS: { day: number; month: number; name: string; isPublic: boolean }[] = [
+  { day: 1, month: 1, name: 'Tết Nguyên đán', isPublic: true },
+  { day: 2, month: 1, name: 'Mùng 2 Tết', isPublic: true },
+  { day: 3, month: 1, name: 'Mùng 3 Tết', isPublic: true },
+  { day: 15, month: 1, name: 'Tết Nguyên tiêu (Rằm tháng Giêng)', isPublic: false },
+  { day: 10, month: 3, name: 'Giỗ Tổ Hùng Vương', isPublic: true },
+  { day: 15, month: 4, name: 'Lễ Phật Đản', isPublic: false },
+  { day: 5, month: 5, name: 'Tết Đoan Ngọ', isPublic: false },
+  { day: 15, month: 7, name: 'Lễ Vu Lan', isPublic: false },
+  { day: 15, month: 8, name: 'Tết Trung thu', isPublic: false },
+  { day: 23, month: 12, name: 'Ông Công Ông Táo', isPublic: false },
+];
 
 @Injectable({ providedIn: 'root' })
 export class HolidaysService {
-  /** Trả về ngày lễ (nếu có) cho ngày bất kỳ; null nếu không phải lễ */
+  /** Trả về ngày lễ (nếu có) cho ngày bất kỳ; null nếu không phải lễ. Ưu tiên lễ Âm. */
   get(d: Date): Holiday | null {
-    // Ưu tiên lễ Âm lịch (Tết, Giỗ Tổ...) vì thường quan trọng hơn
-    const key = this.dayKey(d);
-    for (const [name, dates] of Object.entries(LUNAR_TO_SOLAR)) {
-      if (dates.includes(key)) {
-        return { name, isPublic: name === 'Tết Nguyên đán' || name === 'Giỗ Tổ Hùng Vương' };
-      }
+    const lunar = solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
+    if (!lunar.leap) {
+      const h = LUNAR_HOLIDAYS.find((x) => x.day === lunar.day && x.month === lunar.month);
+      if (h) return { name: h.name, isPublic: h.isPublic };
     }
-    // Sau đó check lễ Dương
     const m = d.getMonth() + 1;
     const day = d.getDate();
     const found = FIXED_SOLAR.find((h) => h.month === m && h.day === day);
@@ -71,14 +63,8 @@ export class HolidaysService {
     return this.get(d) !== null;
   }
 
-  /** Ngày lễ chính thức (được nghỉ) — dùng để tô đậm hơn/màu đỏ */
+  /** Ngày lễ chính thức (được nghỉ) — dùng để tô đậm/màu đỏ */
   isPublic(d: Date): boolean {
     return this.get(d)?.isPublic === true;
-  }
-
-  private dayKey(d: Date): string {
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${m}-${day}`;
   }
 }
