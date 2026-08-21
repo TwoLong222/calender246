@@ -21,6 +21,7 @@ import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
+import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
 
 type Section =
   | 'account'
@@ -229,6 +230,62 @@ type Section =
                   </label>
                 }
               </section>
+
+              <!-- Bộ build màu nhấn của lịch -->
+              <section class="mt-4 rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+                <div>
+                  <h2 class="text-base font-semibold">{{ tr.t('theme.accent') }}</h2>
+                  <p class="mt-0.5 text-xs text-gray-500">{{ tr.t('theme.accentHint') }}</p>
+                </div>
+
+                <!-- Preset màu -->
+                <div class="flex flex-wrap gap-2">
+                  @for (p of accentPresets; track p.id) {
+                    <button
+                      type="button"
+                      (click)="themeBuilder.setPreset(p.id)"
+                      [title]="p.name"
+                      class="tap relative h-9 w-9 rounded-full border-2 transition"
+                      [style.background-color]="p.palette[600]"
+                      [class.border-gray-900]="themeBuilder.accentId() === p.id"
+                      [class.border-transparent]="themeBuilder.accentId() !== p.id"
+                    >
+                      @if (themeBuilder.accentId() === p.id) {
+                        <span class="absolute inset-0 flex items-center justify-center text-white">
+                          <app-icon name="check" class="h-4 w-4" />
+                        </span>
+                      }
+                    </button>
+                  }
+                </div>
+
+                <!-- Màu tùy chỉnh -->
+                <label class="flex items-center gap-3 text-sm">
+                  <span class="text-gray-700">{{ tr.t('theme.custom') }}</span>
+                  <input
+                    type="color"
+                    [value]="themeBuilder.customBase()"
+                    (input)="onCustomAccent($event)"
+                    class="h-9 w-14 cursor-pointer rounded border border-gray-300 bg-white p-0.5"
+                  />
+                  <span class="font-mono text-xs text-gray-500">{{ themeBuilder.customBase() }}</span>
+                </label>
+
+                <!-- Xem trước -->
+                <div class="rounded-lg border border-gray-200 p-3">
+                  <p class="mb-2 text-xs text-gray-500">{{ tr.t('theme.preview') }}</p>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm text-white">21</span>
+                    <button type="button" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">{{ tr.t('form.save') }}</button>
+                    <span class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700">{{ tr.t('theme.accent') }}</span>
+                    <a class="text-sm text-blue-600 hover:underline">{{ tr.t('theme.custom') }}</a>
+                  </div>
+                </div>
+
+                <button type="button" (click)="themeBuilder.reset()" class="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                  {{ tr.t('theme.reset') }}
+                </button>
+              </section>
             }
 
             @case ('privacy') {
@@ -418,6 +475,13 @@ export class SettingsPageComponent {
   ];
 
   protected readonly themes = ['light', 'dark', 'system'] as const;
+  protected readonly themeBuilder = inject(ThemeBuilderService);
+  protected readonly accentPresets = ACCENT_PRESETS;
+  /** Đổi màu nhấn tùy chỉnh từ ô chọn màu. */
+  protected onCustomAccent(ev: Event): void {
+    const value = (ev.target as HTMLInputElement).value;
+    this.themeBuilder.setCustom(value);
+  }
   protected readonly weekdays = [1, 2, 3, 4, 5, 6, 0];
   protected readonly emailKeys = [
     'event_invitation', 'event_updated', 'event_cancelled', 'event_reminder',
