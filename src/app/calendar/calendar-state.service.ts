@@ -6,17 +6,33 @@
 // state.saveEvent(...)) không đổi — component không cần sửa gì thêm.
 
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
+import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
+import { SupabaseService } from '../auth/supabase.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
+  private readonly supabase = inject(SupabaseService);
 
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
+
+  /** Thùng rác: các sự kiện đã xóa (xóa mềm) — chỉ tải khi mở modal thùng rác */
+  readonly trashedEvents = signal<CalendarEvent[]>([]);
+  readonly isTrashOpen = signal(false);
+  readonly isTrashLoading = signal(false);
+
+  /** Bộ lọc hiển thị theo loại sự kiện (điều khiển bằng checkbox ở sidebar) */
+  readonly visibleKinds = signal<Record<EventKind, boolean>>({ event: true, task: true, appointment: true });
+  /** Danh sách sự kiện đã lọc theo visibleKinds — các view lịch dùng cái này */
+  readonly visibleEvents = computed(() => this.events().filter((e) => this.visibleKinds()[e.kind]));
+
+  toggleKind(kind: EventKind): void {
+    this.visibleKinds.update((v) => ({ ...v, [kind]: !v[kind] }));
+  }
 
   readonly viewMode = signal<ViewMode>('week');
   readonly viewedDate = signal<Date>(startOfDay(new Date()));
@@ -33,8 +49,53 @@ export class CalendarStateService {
   readonly selectedEvent = computed(() => this.events().find((e) => e.id === this.selectedEventId()) ?? null);
   readonly editingEvent = computed(() => this.events().find((e) => e.id === this.editingEventId()) ?? null);
 
+  private reloadTimer?: ReturnType<typeof setTimeout>;
+  private lastLocalChangeAt = 0;
+  /** "Ghim" vị trí event vừa kéo trong ~2.5s: dù reload trả dữ liệu cũ vẫn giữ vị trí mới -> không giật */
+  private readonly recentlyMoved = new Map<string, { start: Date; end: Date; until: number }>();
+
   constructor() {
     this.reload();
+    this.subscribeRealtime();
+  }
+
+  /**
+   * Lắng nghe REALTIME: mỗi khi bảng events / event_attendees thay đổi (ai đó tạo/sửa/xóa/mời),
+   * tự tải lại danh sách -> lịch cập nhật ngay không cần reload trang.
+   * Gom nhiều thay đổi liên tiếp (vd tạo event lặp) vào 1 lần tải bằng debounce ~400ms.
+   */
+  private subscribeRealtime(): void {
+    this.supabase.client
+      .channel('calendar-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => this.scheduleReload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees' }, () => this.scheduleReload())
+      .subscribe();
+  }
+
+  private scheduleReload(): void {
+    clearTimeout(this.reloadTimer);
+    this.reloadTimer = setTimeout(() => {
+      // Nếu vừa TỰ thay đổi (tạo/sửa/kéo/xóa) thì optimistic đã đúng rồi -> bỏ qua reload
+      // để tránh nó tải lại và "giật" event về chỗ cũ. Thay đổi của NGƯỜI KHÁC vẫn reload bình thường.
+      if (Date.now() - this.lastLocalChangeAt < 1500) return;
+      this.reload();
+    }, 400);
+  }
+
+  /** Đánh dấu mốc user vừa tự thay đổi -> để scheduleReload bỏ qua reload realtime của chính mình */
+  private markLocalChange(): void {
+    this.lastLocalChangeAt = Date.now();
+  }
+
+  /** Giữ nguyên giờ của các event vừa kéo (ghim) khi áp danh sách mới tải về */
+  private applyPins(list: CalendarEvent[]): CalendarEvent[] {
+    const now = Date.now();
+    for (const [id, p] of this.recentlyMoved) if (p.until < now) this.recentlyMoved.delete(id);
+    if (this.recentlyMoved.size === 0) return list;
+    return list.map((e) => {
+      const p = this.recentlyMoved.get(e.id);
+      return p ? { ...e, start: p.start, end: p.end } : e;
+    });
   }
 
   /** Gọi lại API lấy danh sách sự kiện mới nhất — dùng lúc khởi động và có thể gọi lại thủ công nếu cần */
@@ -43,7 +104,7 @@ export class CalendarStateService {
     this.loadError.set(null);
     this.api.list().subscribe({
       next: (events) => {
-        this.events.set(events);
+        this.events.set(this.applyPins(events));
         this.isLoading.set(false);
       },
       error: () => {
@@ -136,6 +197,7 @@ export class CalendarStateService {
   }
 
   saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }, recurrence?: RecurrenceOptions): void {
+    this.markLocalChange();
     const { id, ...rest } = draft;
     const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
 
@@ -164,8 +226,12 @@ export class CalendarStateService {
    * đổi giờ trên UI NGAY (khỏi giật về chỗ cũ trong lúc chờ API), nếu API lỗi thì trả lại giờ cũ.
    */
   updateEventTimes(event: CalendarEvent): void {
+    this.markLocalChange();
     const { id, ...rest } = event;
     const previous = this.events();
+
+    // Ghim vị trí vừa kéo trong 2.5s -> mọi reload trong lúc đó vẫn giữ đúng chỗ (không giật)
+    this.recentlyMoved.set(id, { start: event.start, end: event.end, until: Date.now() + 2500 });
 
     // Cập nhật ngay trên giao diện
     this.events.update((list) => list.map((e) => (e.id === id ? event : e)));
@@ -176,20 +242,92 @@ export class CalendarStateService {
         this.lastSavedConflicts.set(conflictTitles);
       },
       error: () => {
+        this.recentlyMoved.delete(id);
         this.events.set(previous); // lưu thất bại -> khôi phục giờ cũ
         this.loadError.set('Lưu sự kiện thất bại. Thử lại sau.');
       },
     });
   }
 
-  deleteEvent(id: string): void {
-    this.api.delete(id).subscribe({
+  /** User tự đặt trạng thái tham dự cho 1 event -> cập nhật lại danh sách khách của event đó */
+  rsvp(eventId: string, status: AttendeeStatus): void {
+    this.markLocalChange();
+    this.api.rsvp(eventId, status).subscribe({
+      next: (guests) => {
+        this.events.update((list) => list.map((e) => (e.id === eventId ? { ...e, guests } : e)));
+      },
+      error: () => {
+        this.loadError.set('Cập nhật trạng thái tham dự thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  deleteEvent(id: string, scope?: 'series'): void {
+    this.markLocalChange();
+    this.api.delete(id, scope).subscribe({
       next: () => {
-        this.events.update((list) => list.filter((e) => e.id !== id));
+        if (scope === 'series') {
+          // Xóa cả chuỗi -> nhiều event bị xóa, tải lại danh sách cho chắc
+          this.reload();
+        } else {
+          this.events.update((list) => list.filter((e) => e.id !== id));
+        }
         this.selectedEventId.set(null);
       },
       error: () => {
         this.loadError.set('Xóa sự kiện thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  // ===================== THÙNG RÁC =====================
+
+  /** Mở modal thùng rác và tải danh sách sự kiện đã xóa */
+  openTrash(): void {
+    this.isTrashOpen.set(true);
+    this.loadTrash();
+  }
+
+  closeTrash(): void {
+    this.isTrashOpen.set(false);
+  }
+
+  loadTrash(): void {
+    this.isTrashLoading.set(true);
+    this.api.listTrash().subscribe({
+      next: (list) => {
+        this.trashedEvents.set(list);
+        this.isTrashLoading.set(false);
+      },
+      error: () => {
+        this.loadError.set('Không tải được thùng rác. Thử lại sau.');
+        this.isTrashLoading.set(false);
+      },
+    });
+  }
+
+  /** Khôi phục 1 sự kiện từ thùng rác -> quay lại lịch */
+  restoreFromTrash(id: string): void {
+    this.markLocalChange();
+    this.api.restore(id).subscribe({
+      next: () => {
+        this.trashedEvents.update((list) => list.filter((e) => e.id !== id));
+        this.reload(); // tải lại lịch để thấy sự kiện vừa khôi phục
+      },
+      error: () => {
+        this.loadError.set('Khôi phục thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  /** Xóa vĩnh viễn 1 sự kiện trong thùng rác (không khôi phục được) */
+  purgeFromTrash(id: string): void {
+    this.api.purge(id).subscribe({
+      next: () => {
+        this.trashedEvents.update((list) => list.filter((e) => e.id !== id));
+      },
+      error: () => {
+        this.loadError.set('Xóa vĩnh viễn thất bại. Thử lại sau.');
       },
     });
   }

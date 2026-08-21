@@ -1,8 +1,11 @@
 // View "Tháng": lưới 6 hàng x 7 cột, mỗi ô ngày hiển thị tối đa vài sự kiện dạng chip.
 
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { CalendarEvent } from './calendar.types';
 import { isSameDay, startOfMonth } from './date-utils';
+import { HolidaysService } from './holidays.service';
+import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 interface MonthCell {
   date: Date;
@@ -18,7 +21,7 @@ const MAX_CHIPS_PER_CELL = 3;
   template: `
     <div class="flex h-full flex-col">
       <div class="grid grid-cols-7 border-b border-gray-200 text-center text-xs font-medium uppercase text-gray-500">
-        @for (label of weekdayLabels; track label) {
+        @for (label of weekdayLabels(); track label) {
           <div class="py-2">{{ label }}</div>
         }
       </div>
@@ -68,17 +71,21 @@ export class MonthViewComponent {
   dateClicked = output<Date>();
   eventClicked = output<CalendarEvent>();
 
-  readonly weekdayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  private readonly settings = inject(SettingsService);
+  private readonly tr = inject(TranslateService);
+  readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
 
   cells = computed<MonthCell[]>(() => {
     const monthStart = startOfMonth(this.viewedDate());
     const firstWeekday = monthStart.getDay();
+    // Số ô "tràn" của tháng trước, tính theo ngày bắt đầu tuần (0=CN, 1=T2).
+    const leading = (firstWeekday - this.settings.weekStartsOn() + 7) % 7;
     const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
     const daysInPrevMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0).getDate();
 
     const cells: MonthCell[] = [];
-    for (let i = firstWeekday - 1; i >= 0; i--) {
+    for (let i = leading - 1; i >= 0; i--) {
       cells.push({
         date: new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, daysInPrevMonth - i),
         inCurrentMonth: false,

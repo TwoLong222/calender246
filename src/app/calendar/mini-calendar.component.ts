@@ -2,8 +2,10 @@
 // Chấm xanh ĐẬM = hôm nay (theo giờ hệ thống máy).
 // Chấm xanh NHẠT = ngày đang được xem ở view chính (viewedDate), nếu khác hôm nay.
 
-import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
-import { WEEKDAY_LABELS, MONTH_LABELS, addMonths, isSameDay, startOfMonth } from './date-utils';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { addMonths, isSameDay, startOfMonth } from './date-utils';
+import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 interface DayCell {
   date: Date;
@@ -18,7 +20,7 @@ interface DayCell {
     <div class="select-none text-sm">
       <div class="mb-2 flex items-center justify-between px-1">
         <span class="font-medium text-gray-700">
-          {{ MONTH_LABELS[displayMonth().getMonth()] }}, {{ displayMonth().getFullYear() }}
+          {{ tr.monthLong(displayMonth().getMonth()) }}, {{ displayMonth().getFullYear() }}
         </span>
         <div class="flex gap-1">
           <button type="button" (click)="prevMonth()" class="rounded-full p-1 hover:bg-gray-100" aria-label="Tháng trước">
@@ -31,7 +33,7 @@ interface DayCell {
       </div>
 
       <div class="grid grid-cols-7 text-center text-[11px] text-gray-400">
-        @for (label of WEEKDAY_LABELS; track label) {
+        @for (label of weekdayLabels(); track label) {
           <span class="py-1">{{ label }}</span>
         }
       </div>
@@ -61,8 +63,9 @@ export class MiniCalendarComponent {
   viewedDate = input.required<Date>();
   dateSelected = output<Date>();
 
-  readonly WEEKDAY_LABELS = WEEKDAY_LABELS;
-  readonly MONTH_LABELS = MONTH_LABELS;
+  private readonly settings = inject(SettingsService);
+  protected readonly tr = inject(TranslateService);
+  readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
 
   /** Tháng đang hiển thị trong mini calendar (có thể lệch khỏi viewedDate nếu user tự bấm mũi tên) */
@@ -78,11 +81,12 @@ export class MiniCalendarComponent {
   cells(): DayCell[] {
     const monthStart = this.displayMonth();
     const firstWeekday = monthStart.getDay(); // 0 = Chủ nhật
+    const leading = (firstWeekday - this.settings.weekStartsOn() + 7) % 7;
     const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
     const daysInPrevMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0).getDate();
 
     const cells: DayCell[] = [];
-    for (let i = firstWeekday - 1; i >= 0; i--) {
+    for (let i = leading - 1; i >= 0; i--) {
       cells.push({
         date: new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, daysInPrevMonth - i),
         inCurrentMonth: false,

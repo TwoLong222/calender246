@@ -1,1 +1,224 @@
-@import "tailwindcss";
+/* You can add global styles to this file, and also import other style files */
+
+@import 'tailwindcss';
+
+/* ============================================================
+   CON TRỎ CHUỘT — mọi thứ bấm được đều hiện bàn tay (pointer)
+   khi rê chuột vào, để người dùng biết chỗ nào click được.
+   ============================================================ */
+button:not(:disabled),
+a,
+select,
+label,
+summary,
+[role='button'],
+input[type='checkbox'],
+input[type='radio'] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   TƯƠNG TÁC MƯỢT — nút/link/ô chọn đổi màu & nhấn có phản hồi.
+   Chỉ transition thuộc tính an toàn (không phá kéo-thả sự kiện).
+   Thêm class "tap" để có hiệu ứng "nhấn xuống" cho nút.
+   ============================================================ */
+button,
+a,
+select,
+summary,
+[role='button'],
+input[type='checkbox'],
+input[type='radio'] {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.1s ease;
+}
+.tap:active {
+  transform: scale(0.96);
+}
+
+/* ============================================================
+   SIDEBAR TRÁI — trượt mượt khi ẩn/hiện (nút 3 gạch).
+   Giữ phần tử trong DOM, animate chiều rộng thay vì thêm/xóa.
+   ============================================================ */
+.sidebar-panel {
+  width: 16rem; /* = w-64 */
+  padding: 1rem; /* = p-4 */
+  overflow-x: hidden;
+  transition:
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+}
+.sidebar-collapsed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  border-right-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-panel {
+    transition: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  select,
+  [role='button'],
+  .tap:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ============================================================
+   HIỆU ỨNG CHUYỂN TRANG — khi đổi view (Ngày/Tuần/Tháng/Năm)
+   hoặc bấm qua ngày/tháng khác, khu vực lịch mờ dần + trượt nhẹ lên.
+   ============================================================ */
+.view-fade {
+  animation: viewFade 0.28s ease;
+}
+@keyframes viewFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   POPUP / DROPDOWN — mờ dần + trượt nhẹ xuống khi hiện ra.
+   Dùng cho các menu nhỏ (tìm kiếm, ⚙️ bánh răng, nút Tạo,
+   gợi ý email khách...) — cảm giác mượt hơn "đùng cái xuất hiện".
+   ============================================================ */
+.popup-in {
+  transform-origin: top;
+  animation: popupIn 0.15s ease-out;
+}
+@keyframes popupIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   MODAL — bóng lớn hiện giữa màn hình: nền mờ dần + thẻ zoom vào.
+   ============================================================ */
+.modal-backdrop-in {
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-card-in {
+  animation: modalCardIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ============================================================
+   TOAST — trượt vào từ bên phải (thông báo nhắc lịch góc trên).
+   ============================================================ */
+.toast-in {
+  animation: toastIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Tôn trọng người dùng tắt hiệu ứng chuyển động trong hệ điều hành */
+@media (prefers-reduced-motion: reduce) {
+  .view-fade,
+  .popup-in,
+  .modal-backdrop-in,
+  .modal-card-in,
+  .toast-in {
+    animation: none;
+  }
+}
+
+/* Bật dark mode theo class .dark trên <html> (thay vì tự theo cài đặt hệ điều hành) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   DARK MODE — ghi đè các màu TRUNG TÍNH (trắng/xám) dùng khắp app.
+   Cách này phủ toàn bộ màn hình chỉ trong 1 chỗ, giữ nguyên màu
+   của event/nút (bg-sky-600, bg-blue-700...) vì không đụng tới chúng.
+   ============================================================ */
+.dark body { background-color: #0b1220; color: #e5e7eb; }
+
+/* Nền */
+.dark .bg-white { background-color: #111a2e; }
+.dark .bg-gray-50 { background-color: #0f1729; }
+.dark .bg-gray-100 { background-color: #1e293b; }
+
+/* Chữ */
+.dark .text-gray-900 { color: #f1f5f9; }
+.dark .text-gray-800 { color: #e2e8f0; }
+.dark .text-gray-700 { color: #cbd5e1; }
+.dark .text-gray-600 { color: #b4c0d3; }
+.dark .text-gray-500 { color: #94a3b8; }
+.dark .text-gray-400 { color: #6b7a90; }
+
+/* Viền */
+.dark .border-white { border-color: #111a2e; }
+.dark .border-gray-100 { border-color: #1e293b; }
+.dark .border-gray-200 { border-color: #273244; }
+.dark .border-gray-300 { border-color: #374151; }
+
+/* Hover nền xám */
+.dark .hover\:bg-gray-50:hover { background-color: #1e293b; }
+.dark .hover\:bg-gray-100:hover { background-color: #273244; }
+
+/* Ô nhập liệu */
+.dark input,
+.dark select,
+.dark textarea { background-color: #0f1729; color: #e5e7eb; }
+.dark input::placeholder,
+.dark textarea::placeholder { color: #64748b; }
+.dark select option { background-color: #111a2e; color: #e5e7eb; }
+
+/* Banner/preview nền màu nhạt -> tối lại + chữ sáng hơn cho dễ đọc */
+.dark .bg-red-50 { background-color: #3a1518; }
+.dark .text-red-700, .dark .text-red-800 { color: #fca5a5; }
+.dark .bg-amber-50 { background-color: #3a2c10; }
+.dark .text-amber-800 { color: #fcd34d; }
+.dark .bg-blue-50 { background-color: #16233f; }
+.dark .bg-green-50 { background-color: #123528; }
+.dark .text-green-700 { color: #86efac; }
+.dark .border-amber-200 { border-color: #4a3a12; }
+.dark .border-blue-200 { border-color: #1e3a5f; }
+.dark .border-red-200 { border-color: #4a1d20; }
