@@ -107,7 +107,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
     // Event form
     'form.addTitle': 'Thêm tiêu đề', 'form.noRepeat': 'Không lặp', 'form.daily': 'Hàng ngày',
-    'form.weekly': 'Hàng tuần', 'form.monthly': 'Hàng tháng', 'form.times': 'lần',
+    'form.weekly': 'Hàng tuần', 'form.monthly': 'Hàng tháng', 'form.times': 'lần', 'form.every': 'mỗi',
     'form.conflictA': 'Trùng lịch với', 'form.conflictB': 'sự kiện khác:',
     'form.addGuest': 'Thêm khách bằng email', 'form.add': 'Thêm', 'form.removeGuest': 'Bỏ khách',
     'form.addLocation': 'Thêm vị trí', 'form.addDesc': 'Thêm mô tả', 'form.save': 'Lưu',
@@ -216,7 +216,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'toast.upcoming': 'Upcoming', 'toast.startsAt': 'Starts at',
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
     'form.addTitle': 'Add title', 'form.noRepeat': "Doesn't repeat", 'form.daily': 'Daily',
-    'form.weekly': 'Weekly', 'form.monthly': 'Monthly', 'form.times': 'times',
+    'form.weekly': 'Weekly', 'form.monthly': 'Monthly', 'form.times': 'times', 'form.every': 'every',
     'form.conflictA': 'Conflicts with', 'form.conflictB': 'other event(s):',
     'form.addGuest': 'Add guest by email', 'form.add': 'Add', 'form.removeGuest': 'Remove guest',
     'form.addLocation': 'Add location', 'form.addDesc': 'Add description', 'form.save': 'Save',

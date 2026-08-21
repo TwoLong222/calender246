@@ -86,6 +86,8 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
 export interface RecurrenceOptions {
   repeat: 'daily' | 'weekly' | 'monthly';
   count: number;
+  /** Lặp mỗi N đơn vị (mặc định 1). */
+  interval?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -99,7 +101,7 @@ export class EventsApiService {
 
   create(draft: Omit<CalendarEvent, 'id'>, recurrence?: RecurrenceOptions): Observable<SaveResult> {
     const payload = recurrence
-      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count }
+      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count, repeatInterval: recurrence.interval ?? 1 }
       : toApiPayload(draft);
     return this.http.post<MutationResponse>(this.base, payload).pipe(
       map((res) => ({

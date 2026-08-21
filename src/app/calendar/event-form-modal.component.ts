@@ -90,6 +90,8 @@ function toTimeInputValue(d: Date): string {
                   <option value="monthly">{{ tr.t('form.monthly') }}</option>
                 </select>
                 @if (repeat() !== 'none') {
+                  <span>{{ tr.t('form.every') }}</span>
+                  <input type="number" min="1" max="30" [(ngModel)]="repeatInterval" class="w-14 rounded border border-gray-300 px-2 py-1" />
                   <span>×</span>
                   <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="w-16 rounded border border-gray-300 px-2 py-1" />
                   <span>{{ tr.t('form.times') }}</span>
@@ -265,6 +267,7 @@ export class EventFormModalComponent {
   color = signal('sky');
   repeat = signal<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   repeatCount = signal(4);
+  repeatInterval = signal(1);
   /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
   editing = signal(false);
 
@@ -316,6 +319,7 @@ export class EventFormModalComponent {
         this.color.set('sky');
         this.repeat.set('none');
         this.repeatCount.set(4);
+        this.repeatInterval.set(1);
         // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới.
         this.reminderMinutes.set(this.settings.settings().default_reminder);
       }
@@ -388,7 +392,11 @@ export class EventFormModalComponent {
     const repeat = this.repeat();
     const recurrence =
       !this.editingId && repeat !== 'none'
-        ? { repeat, count: Math.min(Math.max(this.repeatCount() || 1, 1), 52) }
+        ? {
+            repeat,
+            count: Math.min(Math.max(this.repeatCount() || 1, 1), 52),
+            interval: Math.min(Math.max(this.repeatInterval() || 1, 1), 30),
+          }
         : undefined;
 
     this.state.saveEvent(
