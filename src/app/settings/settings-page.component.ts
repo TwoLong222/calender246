@@ -208,12 +208,12 @@ type Section =
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('notif.defaultReminder') }}</label>
                   <select [ngModel]="reminderValue()" (ngModelChange)="setReminder($event)" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     <option value="none">{{ tr.t('notif.none') }}</option>
-                    <option value="5">5 {{ tr.t('notif.min') }}</option>
-                    <option value="10">10 {{ tr.t('notif.min') }}</option>
-                    <option value="15">15 {{ tr.t('notif.min') }}</option>
-                    <option value="30">30 {{ tr.t('notif.min') }}</option>
-                    <option value="60">{{ tr.t('notif.hour') }}</option>
-                    <option value="1440">{{ tr.t('notif.day') }}</option>
+                    <option value="5">{{ tr.t('notif.r5') }}</option>
+                    <option value="10">{{ tr.t('notif.r10') }}</option>
+                    <option value="15">{{ tr.t('notif.r15') }}</option>
+                    <option value="30">{{ tr.t('notif.r30') }}</option>
+                    <option value="60">{{ tr.t('notif.r60') }}</option>
+                    <option value="1440">{{ tr.t('notif.r1440') }}</option>
                   </select>
                   <p class="mt-1 text-xs text-gray-400">{{ tr.t('notif.reminderNote') }}</p>
                 </div>

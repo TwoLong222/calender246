@@ -71,7 +71,11 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     start: new Date(row.start_time),
     end: new Date(row.end_time),
     isAllDay: row.is_all_day,
-    guests: (row.attendees ?? []).map((a) => ({ email: a.email, status: a.status })),
+    // Người tạo có thể được backend tự thêm vào bảng khách mời để nhận email nhắc.
+    // Không hiển thị chính mình như một "khách mời" -> lọc bỏ theo creator_email.
+    guests: (row.attendees ?? [])
+      .filter((a) => a.email.toLowerCase() !== (row.creator_email ?? '').toLowerCase())
+      .map((a) => ({ email: a.email, status: a.status })),
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,

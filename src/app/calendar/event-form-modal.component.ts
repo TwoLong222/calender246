@@ -183,12 +183,12 @@ function toTimeInputValue(d: Date): string {
               <app-icon name="bell" class="h-4 w-4 text-gray-500" />
               <select [ngModel]="reminderStr()" (ngModelChange)="setReminder($event)" class="rounded border border-gray-300 px-2 py-1">
                 <option value="none">{{ tr.t('notif.none') }}</option>
-                <option value="5">5 {{ tr.t('notif.min') }}</option>
-                <option value="10">10 {{ tr.t('notif.min') }}</option>
-                <option value="15">15 {{ tr.t('notif.min') }}</option>
-                <option value="30">30 {{ tr.t('notif.min') }}</option>
-                <option value="60">{{ tr.t('notif.hour') }}</option>
-                <option value="1440">{{ tr.t('notif.day') }}</option>
+                <option value="5">{{ tr.t('notif.r5') }}</option>
+                <option value="10">{{ tr.t('notif.r10') }}</option>
+                <option value="15">{{ tr.t('notif.r15') }}</option>
+                <option value="30">{{ tr.t('notif.r30') }}</option>
+                <option value="60">{{ tr.t('notif.r60') }}</option>
+                <option value="1440">{{ tr.t('notif.r1440') }}</option>
               </select>
             </div>
           </div>

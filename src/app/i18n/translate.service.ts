@@ -57,6 +57,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     // Notifications
     'notif.browser': 'Thông báo trình duyệt', 'notif.defaultReminder': 'Nhắc mặc định cho sự kiện mới',
     'notif.none': 'Không', 'notif.min': 'phút trước', 'notif.hour': '1 giờ trước', 'notif.day': '1 ngày trước',
+    'notif.r5': 'trước 5 phút', 'notif.r10': 'trước 10 phút', 'notif.r15': 'trước 15 phút',
+    'notif.r30': 'trước 30 phút', 'notif.r60': 'trước 1 giờ', 'notif.r1440': 'trước 1 ngày',
     'notif.reminderNote': 'Áp dụng khi tạo sự kiện mới; không ghi đè nhắc đã đặt riêng.',
     'notif.denied': 'Trình duyệt đã từ chối quyền thông báo.',
     'notif.blocked': 'Quyền thông báo đang bị chặn — mở cài đặt trình duyệt để bật lại.',
@@ -175,6 +177,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'wd.0': 'Sun', 'wd.1': 'Mon', 'wd.2': 'Tue', 'wd.3': 'Wed', 'wd.4': 'Thu', 'wd.5': 'Fri', 'wd.6': 'Sat',
     'notif.browser': 'Browser notifications', 'notif.defaultReminder': 'Default reminder for new events',
     'notif.none': 'None', 'notif.min': 'minutes before', 'notif.hour': '1 hour before', 'notif.day': '1 day before',
+    'notif.r5': '5 minutes before', 'notif.r10': '10 minutes before', 'notif.r15': '15 minutes before',
+    'notif.r30': '30 minutes before', 'notif.r60': '1 hour before', 'notif.r1440': '1 day before',
     'notif.reminderNote': 'Applied to new events; does not override reminders set per event.',
     'notif.denied': 'The browser denied notification permission.',
     'notif.blocked': 'Notifications are blocked — enable them in your browser settings.',
