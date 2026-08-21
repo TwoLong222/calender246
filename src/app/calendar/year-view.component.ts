@@ -1,8 +1,11 @@
 // View "Năm": lưới 12 mini-calendar (mỗi tháng 1 ô), giống Google Calendar year view.
-// Không hiển thị event trong view này (đúng hành vi Google Calendar thật) — chỉ để định hướng nhanh.
+// Có chấm nhỏ dưới các ngày CÓ SỰ KIỆN để nhìn nhanh cả năm bận rộn thế nào.
 
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { isSameDay, MONTH_LABELS } from './date-utils';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { CalendarEvent } from './calendar.types';
+import { isSameDay } from './date-utils';
+import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 interface MiniMonthCell {
   date: Date;
@@ -17,9 +20,9 @@ interface MiniMonthCell {
     <div class="grid h-full grid-cols-4 gap-6 overflow-y-auto p-4">
       @for (month of months(); track month.getTime()) {
         <div>
-          <div class="mb-2 text-center text-sm font-medium text-gray-700">{{ MONTH_LABELS[month.getMonth()] }}</div>
+          <div class="mb-2 text-center text-sm font-medium text-gray-700">{{ tr.monthLong(month.getMonth()) }}</div>
           <div class="grid grid-cols-7 gap-y-1 text-center text-[10px] text-gray-400">
-            @for (label of weekdayLabels; track label) {
+            @for (label of weekdayLabels(); track label) {
               <span>{{ label }}</span>
             }
           </div>
@@ -28,13 +31,22 @@ interface MiniMonthCell {
               <button
                 type="button"
                 (click)="dateClicked.emit(cell.date)"
-                class="mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px]"
+                class="relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[11px]"
                 [class.text-gray-300]="!cell.inCurrentMonth"
                 [class.text-gray-700]="cell.inCurrentMonth && !isToday(cell.date)"
                 [class.bg-blue-700]="isToday(cell.date)"
                 [class.text-white]="isToday(cell.date)"
+                [class.font-medium]="cell.inCurrentMonth && hasEvent(cell.date)"
               >
                 {{ cell.date.getDate() }}
+                <!-- Chấm nhỏ dưới ngày có sự kiện; hôm nay thì đổi thành trắng cho nổi trên nền xanh -->
+                @if (cell.inCurrentMonth && hasEvent(cell.date)) {
+                  <span
+                    class="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                    [class.bg-blue-500]="!isToday(cell.date)"
+                    [class.bg-white]="isToday(cell.date)"
+                  ></span>
+                }
               </button>
             }
           </div>
@@ -45,10 +57,12 @@ interface MiniMonthCell {
 })
 export class YearViewComponent {
   viewedDate = input.required<Date>();
+  events = input<CalendarEvent[]>([]);
   dateClicked = output<Date>();
 
-  readonly MONTH_LABELS = MONTH_LABELS;
-  readonly weekdayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  protected readonly tr = inject(TranslateService);
+  private readonly settings = inject(SettingsService);
+  readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
 
   months = computed(() => {
@@ -56,13 +70,39 @@ export class YearViewComponent {
     return Array.from({ length: 12 }, (_, m) => new Date(year, m, 1));
   });
 
+  /** Set các ngày (yyyy-mm-dd) có ít nhất 1 sự kiện — tính 1 lần khi events đổi */
+  private readonly eventDays = computed(() => {
+    const set = new Set<string>();
+    for (const e of this.events()) {
+      const d = e.start;
+      // Với sự kiện kéo dài nhiều ngày, đánh dấu mọi ngày từ start -> end
+      const end = e.end;
+      const cur = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      while (cur <= last) {
+        set.add(this.dayKey(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return set;
+  });
+
+  hasEvent(d: Date): boolean {
+    return this.eventDays().has(this.dayKey(d));
+  }
+
+  private dayKey(d: Date): string {
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+
   cellsFor(monthStart: Date): MiniMonthCell[] {
     const firstWeekday = monthStart.getDay();
+    const leading = (firstWeekday - this.settings.weekStartsOn() + 7) % 7;
     const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
     const daysInPrevMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0).getDate();
 
     const cells: MiniMonthCell[] = [];
-    for (let i = firstWeekday - 1; i >= 0; i--) {
+    for (let i = leading - 1; i >= 0; i--) {
       cells.push({
         date: new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, daysInPrevMonth - i),
         inCurrentMonth: false,

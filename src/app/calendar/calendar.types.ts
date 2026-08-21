@@ -28,4 +28,12 @@ export interface CalendarEvent {
   guests: Guest[];
   /** Tên màu Tailwind dùng để tô sự kiện, vd: 'sky' | 'violet' | 'emerald' | 'rose' | 'amber' */
   color: string;
+  /** Nếu là 1 mắt trong chuỗi lặp -> các occurrence cùng chuỗi có chung seriesId; null nếu không lặp */
+  seriesId?: string | null;
+  /** Email người tạo event (hiện "Người tạo" ở popover) */
+  creatorEmail?: string;
+  /** Nhắc trước bao nhiêu phút; null = không nhắc */
+  reminderMinutes?: number | null;
+  /** Thời điểm bị đưa vào thùng rác (chỉ có ở sự kiện trong thùng rác); null = chưa xóa */
+  deletedAt?: Date | null;
 }

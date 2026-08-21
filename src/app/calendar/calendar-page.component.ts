@@ -4,7 +4,7 @@
 // và cảnh báo trùng lịch do SERVER xác nhận sau khi lưu (lastSavedConflicts).
 
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { MiniCalendarComponent } from './mini-calendar.component';
 import { TimeGridViewComponent } from './time-grid-view.component';
@@ -12,9 +12,17 @@ import { MonthViewComponent } from './month-view.component';
 import { YearViewComponent } from './year-view.component';
 import { EventFormModalComponent } from './event-form-modal.component';
 import { EventDetailPopoverComponent } from './event-detail-popover.component';
+import { TrashModalComponent } from './trash-modal.component';
+import { AiAssistantComponent } from '../ai/ai-assistant.component';
+import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
+import { IconComponent } from '../shared/icon.component';
+import { ThemeService } from '../theme.service';
+import { IcsService } from './ics.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
-import { MONTH_LABELS, addDays, startOfWeek } from './date-utils';
+import { addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
+import { SettingsService } from '../settings/settings.service';
+import { TranslateService } from '../i18n/translate.service';
 
 @Component({
   selector: 'app-calendar-page',
@@ -26,13 +34,18 @@ import { SupabaseService } from '../auth/supabase.service';
     YearViewComponent,
     EventFormModalComponent,
     EventDetailPopoverComponent,
+    TrashModalComponent,
+    AiAssistantComponent,
+    NotificationToastsComponent,
+    IconComponent,
+    RouterLink,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-screen flex-col bg-white text-gray-900">
       @if (state.loadError(); as msg) {
         <div class="flex items-center justify-between bg-red-50 px-4 py-2 text-sm text-red-700">
-          <span>⚠️ {{ msg }}</span>
+          <span class="flex items-center gap-2"><app-icon name="alert" />{{ msg }}</span>
           <button type="button" (click)="state.reload()" class="rounded border border-red-300 px-2 py-0.5 hover:bg-red-100">
             Thử lại
           </button>
@@ -40,39 +53,56 @@ import { SupabaseService } from '../auth/supabase.service';
       }
       @if (state.lastSavedConflicts().length > 0) {
         <div class="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm text-amber-800">
-          <span>
-            ⚠️ Sự kiện vừa lưu bị trùng lịch với: {{ state.lastSavedConflicts().join(', ') }}
+          <span class="flex items-center gap-2">
+            <app-icon name="alert" />
+            Sự kiện vừa lưu bị trùng lịch với: {{ state.lastSavedConflicts().join(', ') }}
           </span>
-          <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded px-2 py-0.5 hover:bg-amber-100">✕</button>
+          <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded p-1 hover:bg-amber-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
+        </div>
+      }
+      @if (importMsg(); as msg) {
+        <div class="flex items-center justify-between bg-gray-50 px-4 py-2 text-sm text-gray-700">
+          <span class="flex items-center gap-2"><app-icon name="inbox" />{{ msg }}</span>
+          <button type="button" (click)="importMsg.set('')" class="rounded p-1 hover:bg-gray-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
       }
 
       <!-- Top bar -->
       <header class="flex items-center gap-4 border-b border-gray-200 px-4 py-2">
-        <span class="text-lg font-medium text-gray-700">📅 Lịch</span>
+        <button
+          type="button"
+          (click)="sidebarOpen.set(!sidebarOpen())"
+          class="tap rounded-full p-1.5 hover:bg-gray-100"
+          aria-label="Ẩn/hiện thanh bên"
+          title="Ẩn/hiện thanh bên"
+        >
+          <app-icon name="menu" class="h-5 w-5 text-gray-600" />
+        </button>
+        <span class="flex items-center gap-2 text-lg font-medium text-gray-700">
+          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> {{ tr.t('nav.calendar') }}
+        </span>
 
         <button
           type="button"
           (click)="state.goToday()"
           class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-        >
-          Hôm nay
-        </button>
+        >{{ tr.t('nav.today') }}</button>
 
         <div class="flex gap-1">
-          <button type="button" (click)="state.goPrev()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước">‹</button>
-          <button type="button" (click)="state.goNext()" class="rounded-full p-1.5 hover:bg-gray-100" aria-label="Sau">›</button>
+          <button type="button" (click)="state.goPrev()" class="tap rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước"><app-icon name="chevron-left" /></button>
+          <button type="button" (click)="state.goNext()" class="tap rounded-full p-1.5 hover:bg-gray-100" aria-label="Sau"><app-icon name="chevron-right" /></button>
         </div>
 
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
 
         @if (state.isLoading()) {
-          <span class="text-xs text-gray-400">Đang tải...</span>
+          <span class="text-xs text-gray-400">{{ tr.t('nav.loading') }}</span>
         }
 
         <div class="ml-auto flex items-center gap-3">
           <!-- Ô tìm kiếm sự kiện -->
           <div class="relative">
+            <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               [value]="searchQuery()"
@@ -80,11 +110,11 @@ import { SupabaseService } from '../auth/supabase.service';
               (focus)="searchFocused.set(true)"
               (blur)="onSearchBlur()"
               (keydown.escape)="clearSearch()"
-              placeholder="🔍 Tìm sự kiện..."
-              class="w-56 rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-600"
+              [placeholder]="tr.t('nav.search')"
+              class="w-56 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600"
             />
             @if (searchFocused() && searchQuery().trim()) {
-              <div class="absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 @if (searchResults().length === 0) {
                   <p class="px-3 py-2 text-sm text-gray-400">Không tìm thấy sự kiện nào.</p>
                 } @else {
@@ -103,48 +133,98 @@ import { SupabaseService } from '../auth/supabase.service';
             }
           </div>
 
+          <button
+            type="button"
+            (click)="theme.toggle()"
+            class="tap rounded-full p-1.5 hover:bg-gray-100"
+            [attr.aria-label]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
+            [title]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
+          >
+            @if (theme.isDark()) {
+              <app-icon name="sun" class="h-5 w-5 text-amber-500" />
+            } @else {
+              <app-icon name="moon" class="h-5 w-5 text-gray-600" />
+            }
+          </button>
+
+          <!-- Bánh răng: gom công cụ Xuất/Nhập .ics + Thùng rác -->
+          <div class="relative">
+            <button
+              type="button"
+              (click)="settingsMenuOpen.set(!settingsMenuOpen())"
+              class="tap rounded-full p-1.5 hover:bg-gray-100"
+              title="Công cụ & cài đặt"
+              aria-label="Công cụ & cài đặt"
+            >
+              <app-icon name="dots" class="h-5 w-5 text-gray-600" />
+            </button>
+            @if (settingsMenuOpen()) {
+              <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
+              <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
+              <div class="popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="download" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.export') }}
+                </button>
+                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="upload" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.import') }}
+                </button>
+                <div class="my-1 border-t border-gray-200"></div>
+                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="trash" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.trash') }}
+                </button>
+                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="settings" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.settings') }}
+                </a>
+              </div>
+            }
+            <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
+          </div>
+
           <select
             class="rounded border border-gray-300 px-2 py-1.5 text-sm"
             [value]="state.viewMode()"
             (change)="onViewModeChange($event)"
           >
-            <option value="day">Ngày</option>
-            <option value="week">Tuần</option>
-            <option value="month">Tháng</option>
-            <option value="year">Năm</option>
+            <option value="day">{{ tr.t('view.day') }}</option>
+            <option value="week">{{ tr.t('view.week') }}</option>
+            <option value="month">{{ tr.t('view.month') }}</option>
+            <option value="year">{{ tr.t('view.year') }}</option>
           </select>
 
           @if (supabase.user(); as user) {
             <span class="text-sm text-gray-500">{{ user.email }}</span>
           }
-          <button type="button" (click)="logout()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-            Đăng xuất
+          <button type="button" (click)="logout()" class="tap rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
+            {{ tr.t('priv.logout') }}
           </button>
         </div>
       </header>
 
       <div class="flex flex-1 overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-64 shrink-0 overflow-y-auto border-r border-gray-200 p-4">
+        <!-- Sidebar (trượt mượt khi ẩn/hiện bằng nút 3 gạch ở header) -->
+        <aside
+          class="sidebar-panel shrink-0 overflow-y-auto border-r border-gray-200"
+          [class.sidebar-collapsed]="!sidebarOpen()"
+        >
           <div class="relative mb-4">
             <button
               type="button"
               (click)="createMenuOpen.set(!createMenuOpen())"
               class="flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium shadow-sm hover:shadow"
             >
-              <span class="text-xl leading-none text-blue-700">+</span> Tạo
+              <app-icon name="plus" class="h-5 w-5 text-blue-700" /> {{ tr.t('nav.create') }}
             </button>
 
             @if (createMenuOpen()) {
-              <div class="absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="popup-in absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button type="button" (click)="openCreate('event')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  Sự kiện
+                  {{ tr.t('kind.event') }}
                 </button>
                 <button type="button" (click)="openCreate('task')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  Việc cần làm
+                  {{ tr.t('kind.task') }}
                 </button>
                 <button type="button" (click)="openCreate('appointment')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
-                  Lên lịch hẹn
+                  {{ tr.t('kind.appointment') }}
                 </button>
               </div>
             }
@@ -153,47 +233,64 @@ import { SupabaseService } from '../auth/supabase.service';
           <app-mini-calendar [viewedDate]="state.viewedDate()" (dateSelected)="onMiniCalendarPick($event)" />
 
           <div class="mt-6">
-            <p class="mb-2 text-sm font-medium text-gray-700">Lịch của tôi</p>
+            <p class="mb-2 text-sm font-medium text-gray-700">{{ tr.t('nav.show') }}</p>
             <ul class="space-y-1 text-sm text-gray-700">
-              <li class="flex items-center gap-2"><input type="checkbox" checked class="accent-sky-600" /> Của tôi</li>
-              <li class="flex items-center gap-2"><input type="checkbox" checked class="accent-violet-600" /> Gia đình</li>
-              <li class="flex items-center gap-2"><input type="checkbox" checked class="accent-emerald-600" /> Việc cần làm</li>
+              <li class="flex items-center gap-2">
+                <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="accent-sky-600" />
+                {{ tr.t('kind.event') }}
+              </li>
+              <li class="flex items-center gap-2">
+                <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="accent-emerald-600" />
+                {{ tr.t('kind.task') }}
+              </li>
+              <li class="flex items-center gap-2">
+                <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="accent-violet-600" />
+                {{ tr.t('kind.appointment') }}
+              </li>
             </ul>
           </div>
+
         </aside>
 
         <!-- Main view -->
         <main class="flex-1 overflow-hidden">
-          @switch (state.viewMode()) {
-            @case ('day') {
-              <app-time-grid-view
-                [dates]="[state.viewedDate()]"
-                [events]="state.events()"
-                (slotClicked)="onSlotClicked($event)"
-                (eventClicked)="onEventClicked($event)"
-                (eventTimesChanged)="onEventTimesChanged($event)"
-              />
-            }
-            @case ('week') {
-              <app-time-grid-view
-                [dates]="weekDates()"
-                [events]="state.events()"
-                (slotClicked)="onSlotClicked($event)"
-                (eventClicked)="onEventClicked($event)"
-                (eventTimesChanged)="onEventTimesChanged($event)"
-              />
-            }
-            @case ('month') {
-              <app-month-view
-                [viewedDate]="state.viewedDate()"
-                [events]="state.events()"
-                (dateClicked)="onMonthDateClicked($event)"
-                (eventClicked)="onEventClicked($event)"
-              />
-            }
-            @case ('year') {
-              <app-year-view [viewedDate]="state.viewedDate()" (dateClicked)="onYearDateClicked($event)" />
-            }
+          <!-- Bọc trong @for keyed theo view+ngày: mỗi lần đổi -> DOM tạo lại -> chạy animation .view-fade -->
+          @for (key of [transitionKey()]; track key) {
+            <div class="view-fade h-full">
+              @switch (state.viewMode()) {
+                @case ('day') {
+                  <app-time-grid-view
+                    [dates]="[state.viewedDate()]"
+                    [events]="state.visibleEvents()"
+                    (slotClicked)="onSlotClicked($event)"
+                    (eventClicked)="onEventClicked($event)"
+                    (eventTimesChanged)="onEventTimesChanged($event)"
+                    (dateSelected)="onDayHeaderClicked($event)"
+                  />
+                }
+                @case ('week') {
+                  <app-time-grid-view
+                    [dates]="weekDates()"
+                    [events]="state.visibleEvents()"
+                    (slotClicked)="onSlotClicked($event)"
+                    (eventClicked)="onEventClicked($event)"
+                    (eventTimesChanged)="onEventTimesChanged($event)"
+                    (dateSelected)="onDayHeaderClicked($event)"
+                  />
+                }
+                @case ('month') {
+                  <app-month-view
+                    [viewedDate]="state.viewedDate()"
+                    [events]="state.visibleEvents()"
+                    (dateClicked)="onMonthDateClicked($event)"
+                    (eventClicked)="onEventClicked($event)"
+                  />
+                }
+                @case ('year') {
+                  <app-year-view [viewedDate]="state.viewedDate()" [events]="state.visibleEvents()" (dateClicked)="onYearDateClicked($event)" />
+                }
+              }
+            </div>
           }
         </main>
       </div>
@@ -205,13 +302,66 @@ import { SupabaseService } from '../auth/supabase.service';
     @if (state.selectedEventId()) {
       <app-event-detail-popover />
     }
+    @if (state.isTrashOpen()) {
+      <app-trash-modal />
+    }
+
+    @if (settings.settings().ai_settings.enabled) {
+      <app-ai-assistant />
+    }
+    <app-notification-toasts />
   `,
 })
 export class CalendarPageComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly supabase = inject(SupabaseService);
+  protected readonly theme = inject(ThemeService);
+  protected readonly settings = inject(SettingsService);
+  protected readonly tr = inject(TranslateService);
+  private readonly ics = inject(IcsService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
+  protected readonly sidebarOpen = signal(true);
+  protected readonly settingsMenuOpen = signal(false);
+  protected readonly importMsg = signal('');
+
+  onExport(): void {
+    this.ics.exportToFile(this.state.events());
+  }
+
+  onImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = this.ics.parse(String(reader.result));
+        if (imported.length === 0) {
+          this.importMsg.set('Không tìm thấy sự kiện nào trong file.');
+          return;
+        }
+        for (const ev of imported) {
+          this.state.saveEvent({
+            kind: 'event',
+            title: ev.title,
+            description: ev.description,
+            location: ev.location,
+            start: ev.start,
+            end: ev.end,
+            isAllDay: ev.isAllDay,
+            guests: [],
+            color: 'sky',
+          });
+        }
+        this.importMsg.set(`Đã nhập ${imported.length} sự kiện.`);
+      } catch {
+        this.importMsg.set('File .ics không hợp lệ.');
+      }
+      input.value = ''; // cho phép chọn lại cùng file
+    };
+    reader.readAsText(file);
+  }
 
   // ----- Tìm kiếm sự kiện -----
   protected readonly searchQuery = signal('');
@@ -262,14 +412,21 @@ export class CalendarPageComponent {
   }
 
   weekDates = computed(() => {
-    const start = startOfWeek(this.state.viewedDate());
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    const start = startOfWeek(this.state.viewedDate(), this.settings.weekStartsOn());
+    const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    // Ẩn cuối tuần trong view Tuần nếu người dùng tắt "Hiện cuối tuần".
+    return this.settings.settings().show_weekends
+      ? days
+      : days.filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
   });
+
+  /** Khóa đổi mỗi khi đổi view hoặc đổi ngày đang xem -> kích hoạt lại animation chuyển trang */
+  transitionKey = computed(() => `${this.state.viewMode()}:${this.state.viewedDate().getTime()}`);
 
   headerLabel = computed(() => {
     const d = this.state.viewedDate();
     if (this.state.viewMode() === 'year') return `${d.getFullYear()}`;
-    return `${MONTH_LABELS[d.getMonth()]}, ${d.getFullYear()}`;
+    return `${this.tr.monthLong(d.getMonth())}, ${d.getFullYear()}`;
   });
 
   onViewModeChange(event: Event): void {
@@ -278,10 +435,15 @@ export class CalendarPageComponent {
   }
 
   onMiniCalendarPick(date: Date): void {
-    this.state.selectDate(date);
+    this.state.selectDate(date, true);
   }
 
   onMonthDateClicked(date: Date): void {
+    this.state.selectDate(date, true);
+  }
+
+  /** Bấm ngày ở header lưới giờ -> chuyển sang view Ngày của ngày đó */
+  onDayHeaderClicked(date: Date): void {
     this.state.selectDate(date, true);
   }
 

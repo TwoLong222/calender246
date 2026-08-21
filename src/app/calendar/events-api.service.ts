@@ -7,7 +7,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { AttendeeStatus, CalendarEvent, EventKind } from './calendar.types';
+import { AttendeeStatus, CalendarEvent, EventKind, Guest } from './calendar.types';
 
 interface ApiAttendee {
   id: string;
@@ -25,6 +25,10 @@ interface ApiEvent {
   is_all_day: boolean;
   kind: EventKind;
   color: string;
+  series_id: string | null;
+  creator_email?: string | null;
+  reminder_minutes?: number | null;
+  deleted_at?: string | null;
   attendees?: ApiAttendee[];
 }
 
@@ -50,6 +54,7 @@ function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
     // "Lên lịch hẹn" (appointment) chưa có bảng riêng ở backend -> tạm lưu như "event" thường
     kind: (e.kind === 'appointment' ? 'event' : e.kind) as 'event' | 'task',
     color: e.color,
+    reminderMinutes: e.reminderMinutes ?? null,
     guestEmails: e.guests.map((g) => g.email),
   };
 }
@@ -66,6 +71,10 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     isAllDay: row.is_all_day,
     guests: (row.attendees ?? []).map((a) => ({ email: a.email, status: a.status })),
     color: row.color ?? 'sky',
+    seriesId: row.series_id ?? null,
+    creatorEmail: row.creator_email ?? undefined,
+    reminderMinutes: row.reminder_minutes ?? null,
+    deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
   };
 }
 
@@ -105,7 +114,30 @@ export class EventsApiService {
     );
   }
 
-  delete(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/${id}`);
+  delete(id: string, scope?: 'series'): Observable<void> {
+    const url = scope === 'series' ? `${this.base}/${id}?scope=series` : `${this.base}/${id}`;
+    return this.http.delete<void>(url);
+  }
+
+  /** Lấy danh sách sự kiện trong thùng rác */
+  listTrash(): Observable<CalendarEvent[]> {
+    return this.http.get<ApiEvent[]>(`${this.base}/trash`).pipe(map((rows) => rows.map(fromApiEvent)));
+  }
+
+  /** Khôi phục 1 sự kiện từ thùng rác */
+  restore(id: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/${id}/restore`, {});
+  }
+
+  /** Xóa vĩnh viễn 1 sự kiện trong thùng rác */
+  purge(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${id}/purge`);
+  }
+
+  /** User tự đặt trạng thái tham dự -> trả về danh sách khách mời mới (đã cập nhật) */
+  rsvp(id: string, status: AttendeeStatus): Observable<Guest[]> {
+    return this.http
+      .post<{ attendees: ApiAttendee[] }>(`${this.base}/${id}/rsvp`, { status })
+      .pipe(map((res) => (res.attendees ?? []).map((a) => ({ email: a.email, status: a.status }))));
   }
 }

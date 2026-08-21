@@ -40,11 +40,20 @@ export function addYears(d: Date, n: number): Date {
   return r;
 }
 
-/** Trả về Chủ Nhật của tuần chứa `d` (tuần bắt đầu từ Chủ Nhật, giống mặc định Google Calendar) */
-export function startOfWeek(d: Date): Date {
+/**
+ * Trả về ngày đầu tuần chứa `d`.
+ * weekStartsOn: 0 = Chủ Nhật (mặc định), 1 = Thứ Hai.
+ */
+export function startOfWeek(d: Date, weekStartsOn = 0): Date {
   const r = startOfDay(d);
-  r.setDate(r.getDate() - r.getDay());
+  const diff = (r.getDay() - weekStartsOn + 7) % 7;
+  r.setDate(r.getDate() - diff);
   return r;
+}
+
+/** Nhãn thứ trong tuần, xoay theo ngày bắt đầu tuần (0=CN, 1=T2). */
+export function orderedWeekdayLabels(weekStartsOn = 0): string[] {
+  return [...WEEKDAY_LABELS.slice(weekStartsOn), ...WEEKDAY_LABELS.slice(0, weekStartsOn)];
 }
 
 export function startOfMonth(d: Date): Date {
@@ -55,8 +64,9 @@ export function minutesSinceMidnight(d: Date): number {
   return d.getHours() * 60 + d.getMinutes();
 }
 
-/** vd: 0 -> "12 AM", 13 -> "1 PM" */
-export function formatHourLabel(hour: number): string {
+/** vd (12h): 0 -> "12 AM", 13 -> "1 PM". (24h): 13 -> "13:00". */
+export function formatHourLabel(hour: number, is24h = false): string {
+  if (is24h) return `${String(hour).padStart(2, '0')}:00`;
   if (hour === 0) return '12 AM';
   if (hour === 12) return '12 PM';
   return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
