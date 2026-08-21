@@ -6,6 +6,7 @@ import { isSameDay, startOfMonth } from './date-utils';
 import { HolidaysService } from './holidays.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { CalendarStateService } from './calendar-state.service';
 
 interface MonthCell {
   date: Date;
@@ -51,7 +52,7 @@ const MAX_CHIPS_PER_CELL = 3;
                   class="truncate rounded px-1 text-left text-[11px] text-white"
                   [class]="colorClass(e.color)"
                 >
-                  {{ e.title || '(Không có tiêu đề)' }}
+                  @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
                 </button>
               }
               @if (overflowCount(cell.date) > 0) {
@@ -72,7 +73,8 @@ export class MonthViewComponent {
   eventClicked = output<CalendarEvent>();
 
   private readonly settings = inject(SettingsService);
-  private readonly tr = inject(TranslateService);
+  protected readonly tr = inject(TranslateService);
+  protected readonly state = inject(CalendarStateService);
   readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
 

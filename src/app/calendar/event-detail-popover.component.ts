@@ -248,8 +248,7 @@ export class EventDetailPopoverComponent {
   canManage = computed<boolean>(() => {
     const e = this.event();
     if (!e) return false;
-    if (!e.creatorEmail) return true;
-    return e.creatorEmail.toLowerCase() === this.supabase.user()?.email?.toLowerCase();
+    return this.state.canEditEvent(e);
   });
 
   /** Số khách đã đồng ý / chưa trả lời — tóm tắt cho người tạo dễ nhìn */

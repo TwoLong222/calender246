@@ -10,11 +10,47 @@ import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.t
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { SharingApiService } from '../sharing/sharing-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
   private readonly supabase = inject(SupabaseService);
+  private readonly sharingApi = inject(SharingApiService);
+
+  /** Các lịch được chia sẻ CHO mình (kèm vai trò) — để phân biệt & phân quyền editor. */
+  readonly sharedCalendars = signal<{ id: string; role: 'viewer' | 'editor' }[]>([]);
+  private readonly editorCalendarIds = computed(
+    () => new Set(this.sharedCalendars().filter((c) => c.role === 'editor').map((c) => c.id)),
+  );
+  private readonly sharedCalendarIds = computed(
+    () => new Set(this.sharedCalendars().map((c) => c.id)),
+  );
+
+  /** true nếu user hiện tại được phép SỬA event này (chủ event, hoặc editor của lịch được chia sẻ). */
+  canEditEvent(e: CalendarEvent): boolean {
+    const me = this.supabase.user()?.email?.toLowerCase();
+    if (!e.creatorEmail) return true; // event cũ chưa có creatorEmail -> thường của mình
+    if (e.creatorEmail.toLowerCase() === me) return true;
+    return !!e.calendarId && this.editorCalendarIds().has(e.calendarId);
+  }
+
+  /** true nếu event thuộc lịch của NGƯỜI KHÁC chia sẻ cho mình (để hiện nhãn). */
+  isSharedEvent(e: CalendarEvent): boolean {
+    return !!e.calendarId && this.sharedCalendarIds().has(e.calendarId);
+  }
+
+  private loadSharedCalendars(): void {
+    this.sharingApi.sharedWithMe().subscribe({
+      next: (rows) =>
+        this.sharedCalendars.set(
+          (rows ?? [])
+            .filter((r) => r.calendar)
+            .map((r) => ({ id: r.calendar!.id, role: r.role })),
+        ),
+      error: () => {},
+    });
+  }
 
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
@@ -56,6 +92,7 @@ export class CalendarStateService {
 
   constructor() {
     this.reload();
+    this.loadSharedCalendars();
     this.subscribeRealtime();
   }
 

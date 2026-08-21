@@ -9,6 +9,10 @@ export interface CalendarMember {
   role: 'viewer' | 'editor';
   created_at?: string;
 }
+export interface SharedCalendar {
+  role: 'viewer' | 'editor';
+  calendar: { id: string; name: string; color: string } | null;
+}
 
 @Injectable({ providedIn: 'root' })
 export class SharingApiService {
@@ -23,5 +27,8 @@ export class SharingApiService {
   }
   removeMember(email: string): Observable<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`${this.base}/members/${encodeURIComponent(email)}`);
+  }
+  sharedWithMe(): Observable<SharedCalendar[]> {
+    return this.http.get<SharedCalendar[]>(`${this.base}/shared-with-me`);
   }
 }

@@ -17,6 +17,7 @@ interface ApiAttendee {
 
 interface ApiEvent {
   id: string;
+  calendar_id?: string;
   title: string;
   description: string | null;
   location: string | null;
@@ -73,6 +74,7 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,
+    calendarId: row.calendar_id ?? undefined,
     reminderMinutes: row.reminder_minutes ?? null,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
   };
