@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
+import { AttachmentsApiService, EventAttachment } from './attachments-api.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { AttendeeStatus } from './calendar.types';
@@ -98,6 +99,36 @@ import { IconComponent } from '../shared/icon.component';
             </button>
           </div>
 
+          <!-- Tài liệu đính kèm -->
+          <div class="mt-4 border-t border-gray-100 pt-3">
+            <div class="mb-2 flex items-center justify-between">
+              <p class="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <app-icon name="notes" class="h-4 w-4" /> {{ tr.t('attach.title') }}
+              </p>
+              @if (canManage()) {
+                <label class="tap cursor-pointer rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50">
+                  {{ uploading() ? tr.t('attach.uploading') : tr.t('attach.add') }}
+                  <input type="file" class="hidden" (change)="onFileSelected($event)" [disabled]="uploading()" />
+                </label>
+              }
+            </div>
+            @if (attachments().length === 0) {
+              <p class="text-xs text-gray-400">{{ tr.t('attach.none') }}</p>
+            } @else {
+              <ul class="space-y-1">
+                @for (a of attachments(); track a.id) {
+                  <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-sm">
+                    <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700 hover:underline">{{ a.file_name }}</a>
+                    <span class="shrink-0 text-xs text-gray-400">{{ fileSize(a.size_bytes) }}</span>
+                    @if (canManage()) {
+                      <button type="button" (click)="removeAttachment(a.id)" class="tap shrink-0 rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-600" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
           <!-- Bình luận -->
           <div class="mt-4 border-t border-gray-100 pt-3">
             <p class="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
@@ -188,6 +219,35 @@ export class EventDetailPopoverComponent {
   protected readonly comments = inject(CommentsService);
   private readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
+  private readonly attachmentsApi = inject(AttachmentsApiService);
+
+  // ----- Tài liệu đính kèm -----
+  protected readonly attachments = signal<EventAttachment[]>([]);
+  protected readonly uploading = signal(false);
+
+  private loadAttachments(eventId: string): void {
+    this.attachmentsApi.list(eventId).subscribe({ next: (a) => this.attachments.set(a), error: () => this.attachments.set([]) });
+  }
+  protected onFileSelected(evt: Event): void {
+    const input = evt.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const e = this.event();
+    if (!file || !e) return;
+    this.uploading.set(true);
+    this.attachmentsApi.upload(e.id, file).subscribe({
+      next: () => { this.uploading.set(false); this.loadAttachments(e.id); input.value = ''; },
+      error: () => { this.uploading.set(false); input.value = ''; },
+    });
+  }
+  protected removeAttachment(attId: string): void {
+    const e = this.event();
+    if (!e) return;
+    this.attachmentsApi.remove(e.id, attId).subscribe({ next: () => this.loadAttachments(e.id), error: () => {} });
+  }
+  protected fileSize(bytes: number | null): string {
+    if (!bytes) return '';
+    return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
 
   event = computed(() => this.state.selectedEvent());
 
@@ -322,8 +382,10 @@ export class EventDetailPopoverComponent {
       const e = this.event();
       if (e) {
         this.comments.loadFor(e.id);
+        this.loadAttachments(e.id);
       } else {
         this.comments.clear();
+        this.attachments.set([]);
         this.editingId.set(null);
         this.deletingId.set(null);
         this.newComment.set('');

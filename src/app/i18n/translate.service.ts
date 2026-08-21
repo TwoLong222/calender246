@@ -119,6 +119,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'detail.comments': 'Bình luận', 'detail.delComment': 'Xóa bình luận?', 'detail.noComments': 'Chưa có bình luận nào.',
     'detail.writeComment': 'Viết bình luận...', 'detail.send': 'Gửi',
     'detail.deleteEvent': 'Xóa sự kiện này?', 'detail.deleteThis': 'Xóa sự kiện này', 'detail.deleteSeries': 'Xóa cả chuỗi lặp',
+    'attach.title': 'Tài liệu', 'attach.add': 'Thêm tệp', 'attach.none': 'Chưa có tệp.', 'attach.uploading': 'Đang tải lên…',
     'rsvp.yes': 'Có', 'rsvp.no': 'Không', 'rsvp.maybe': 'Có thể',
     'rsvp.accepted': 'Đồng ý', 'rsvp.declined': 'Từ chối', 'rsvp.tentative': 'Có thể', 'rsvp.needsAction': 'Chưa trả lời',
     // AI assistant chat
@@ -225,6 +226,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'detail.comments': 'Comments', 'detail.delComment': 'Delete comment?', 'detail.noComments': 'No comments yet.',
     'detail.writeComment': 'Write a comment...', 'detail.send': 'Send',
     'detail.deleteEvent': 'Delete this event?', 'detail.deleteThis': 'Delete this event', 'detail.deleteSeries': 'Delete entire series',
+    'attach.title': 'Files', 'attach.add': 'Add file', 'attach.none': 'No files.', 'attach.uploading': 'Uploading…',
     'rsvp.yes': 'Yes', 'rsvp.no': 'No', 'rsvp.maybe': 'Maybe',
     'rsvp.accepted': 'Accepted', 'rsvp.declined': 'Declined', 'rsvp.tentative': 'Maybe', 'rsvp.needsAction': 'No reply',
     'ai.title': 'Calendar assistant', 'ai.thinking': 'Thinking…', 'ai.createEvent': 'Create event:',
