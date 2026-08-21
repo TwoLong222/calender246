@@ -19,7 +19,6 @@ export class NotificationService {
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
-  private readonly LEAD_MS = 10 * 60 * 1000; // nhắc khi còn <= 10 phút tới giờ bắt đầu
 
   constructor() {
     // Xin quyền thông báo trình duyệt (nếu chưa hỏi)
@@ -38,8 +37,12 @@ export class NotificationService {
     const now = Date.now();
     for (const e of this.state.events()) {
       if (e.isAllDay || this.notified.has(e.id)) continue;
+      // Chỉ nhắc sự kiện CÓ đặt nhắc, và đúng số phút đã chọn (5/15/30... phút trước).
+      // Để "Không" (reminderMinutes == null) -> không báo toast.
+      if (e.reminderMinutes == null) continue;
+      const leadMs = e.reminderMinutes * 60 * 1000;
       const diff = e.start.getTime() - now;
-      if (diff > 0 && diff <= this.LEAD_MS) {
+      if (diff > 0 && diff <= leadMs) {
         this.notified.add(e.id);
         this.fire(e);
       }
