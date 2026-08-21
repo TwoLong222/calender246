@@ -24,6 +24,7 @@ interface ApiEvent {
   end_time: string;
   is_all_day: boolean;
   kind: EventKind;
+  color: string;
   attendees?: ApiAttendee[];
 }
 
@@ -48,6 +49,7 @@ function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
     isAllDay: e.isAllDay,
     // "Lên lịch hẹn" (appointment) chưa có bảng riêng ở backend -> tạm lưu như "event" thường
     kind: (e.kind === 'appointment' ? 'event' : e.kind) as 'event' | 'task',
+    color: e.color,
     guestEmails: e.guests.map((g) => g.email),
   };
 }
@@ -63,8 +65,14 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     end: new Date(row.end_time),
     isAllDay: row.is_all_day,
     guests: (row.attendees ?? []).map((a) => ({ email: a.email, status: a.status })),
-    color: 'sky',
+    color: row.color ?? 'sky',
   };
+}
+
+/** Tùy chọn lặp lại khi tạo event mới (materialized: backend tạo `count` event thật) */
+export interface RecurrenceOptions {
+  repeat: 'daily' | 'weekly' | 'monthly';
+  count: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -76,8 +84,11 @@ export class EventsApiService {
     return this.http.get<ApiEvent[]>(this.base).pipe(map((rows) => rows.map(fromApiEvent)));
   }
 
-  create(draft: Omit<CalendarEvent, 'id'>): Observable<SaveResult> {
-    return this.http.post<MutationResponse>(this.base, toApiPayload(draft)).pipe(
+  create(draft: Omit<CalendarEvent, 'id'>, recurrence?: RecurrenceOptions): Observable<SaveResult> {
+    const payload = recurrence
+      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count }
+      : toApiPayload(draft);
+    return this.http.post<MutationResponse>(this.base, payload).pipe(
       map((res) => ({
         event: fromApiEvent(res.event),
         conflictTitles: res.conflicts.map((c) => c.title),

@@ -77,6 +77,24 @@ function toTimeInputValue(d: Date): string {
               Cả ngày
             </label>
 
+            <!-- Lặp lại: chỉ cho tạo mới (sửa 1 event trong chuỗi lặp phức tạp -> để sau) -->
+            @if (!editing()) {
+              <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
+                <span>🔁</span>
+                <select [(ngModel)]="repeat" class="rounded border border-gray-300 px-2 py-1">
+                  <option value="none">Không lặp</option>
+                  <option value="daily">Hàng ngày</option>
+                  <option value="weekly">Hàng tuần</option>
+                  <option value="monthly">Hàng tháng</option>
+                </select>
+                @if (repeat() !== 'none') {
+                  <span>×</span>
+                  <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="w-16 rounded border border-gray-300 px-2 py-1" />
+                  <span>lần</span>
+                }
+              </div>
+            }
+
             @if (conflicts().length > 0) {
               <div class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 ⚠️ Trùng lịch với {{ conflicts().length }} sự kiện khác:
@@ -91,15 +109,31 @@ function toTimeInputValue(d: Date): string {
             <div class="flex items-start gap-2 text-sm">
               <span class="w-5 pt-1.5 text-center">👤</span>
               <div class="flex-1">
-                <div class="flex gap-2">
-                  <input
-                    type="email"
-                    [(ngModel)]="guestEmailDraft"
-                    (keydown.enter)="addGuest()"
-                    placeholder="Thêm khách bằng email"
-                    class="flex-1 rounded border border-gray-300 px-2 py-1"
-                  />
-                  <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">Thêm</button>
+                <div class="relative">
+                  <div class="flex gap-2">
+                    <input
+                      type="email"
+                      [(ngModel)]="guestEmailDraft"
+                      (keydown.enter)="addGuest()"
+                      placeholder="Thêm khách bằng email"
+                      class="flex-1 rounded border border-gray-300 px-2 py-1"
+                    />
+                    <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">Thêm</button>
+                  </div>
+                  <!-- Gợi ý các email đã từng mời (autocomplete) -->
+                  @if (guestSuggestions().length > 0) {
+                    <div class="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                      @for (s of guestSuggestions(); track s) {
+                        <button
+                          type="button"
+                          (click)="pickSuggestion(s)"
+                          class="block w-full truncate px-3 py-1.5 text-left hover:bg-gray-50"
+                        >
+                          {{ s }}
+                        </button>
+                      }
+                    </div>
+                  }
                 </div>
                 @if (guests().length > 0) {
                   <ul class="mt-2 space-y-1">
@@ -122,6 +156,22 @@ function toTimeInputValue(d: Date): string {
             <div class="flex items-start gap-2 text-sm">
               <span class="w-5 pt-1.5 text-center">📝</span>
               <textarea [(ngModel)]="description" rows="2" placeholder="Thêm mô tả" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
+            </div>
+
+            <!-- Chọn màu cho sự kiện -->
+            <div class="flex items-center gap-2 text-sm">
+              <span class="w-5 text-center">🎨</span>
+              <div class="flex gap-2">
+                @for (c of colorOptions; track c.name) {
+                  <button
+                    type="button"
+                    (click)="color.set(c.name)"
+                    [title]="c.label"
+                    [attr.aria-label]="c.label"
+                    [class]="c.class + ' h-6 w-6 rounded-full ' + (color() === c.name ? 'ring-2 ring-gray-800 ring-offset-1' : '')"
+                  ></button>
+                }
+              </div>
             </div>
           </div>
         }
@@ -187,6 +237,19 @@ export class EventFormModalComponent {
   description = signal('');
   guests = signal<Guest[]>([]);
   guestEmailDraft = signal('');
+  color = signal('sky');
+  repeat = signal<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  repeatCount = signal(4);
+  /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
+  editing = signal(false);
+
+  readonly colorOptions = [
+    { name: 'sky', label: 'Xanh dương', class: 'bg-sky-600' },
+    { name: 'violet', label: 'Tím', class: 'bg-violet-600' },
+    { name: 'emerald', label: 'Xanh lá', class: 'bg-emerald-600' },
+    { name: 'rose', label: 'Hồng', class: 'bg-rose-600' },
+    { name: 'amber', label: 'Vàng', class: 'bg-amber-600' },
+  ];
 
   private editingId: string | null = null;
 
@@ -197,6 +260,7 @@ export class EventFormModalComponent {
       if (!this.state.isFormOpen()) return;
       const editing = this.state.editingEvent();
       this.editingId = editing?.id ?? null;
+      this.editing.set(!!editing);
 
       if (editing) {
         this.tab.set(editing.kind);
@@ -209,6 +273,7 @@ export class EventFormModalComponent {
         this.location.set(editing.location ?? '');
         this.description.set(editing.description ?? '');
         this.guests.set(editing.guests);
+        this.color.set(editing.color ?? 'sky');
       } else {
         const start = this.state.formInitialStart();
         const end = new Date(start.getTime() + 60 * 60_000);
@@ -222,6 +287,9 @@ export class EventFormModalComponent {
         this.location.set('');
         this.description.set('');
         this.guests.set([]);
+        this.color.set('sky');
+        this.repeat.set('none');
+        this.repeatCount.set(4);
       }
       this.guestEmailDraft.set('');
     });
@@ -241,6 +309,31 @@ export class EventFormModalComponent {
   formatRange(e: CalendarEvent): string {
     const fmt = (d: Date) => d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     return `${fmt(e.start)} – ${fmt(e.end)}`;
+  }
+
+  /** Gợi ý các email ĐÃ TỪNG mời (gom từ mọi event), khớp với chữ đang gõ, chưa nằm trong danh sách hiện tại */
+  guestSuggestions = computed<string[]>(() => {
+    const q = this.guestEmailDraft().trim().toLowerCase();
+    if (!q) return [];
+    const alreadyAdded = new Set(this.guests().map((g) => g.email.toLowerCase()));
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const ev of this.state.events()) {
+      for (const g of ev.guests) {
+        const key = g.email.toLowerCase();
+        if (seen.has(key) || alreadyAdded.has(key)) continue;
+        if (!key.includes(q)) continue;
+        seen.add(key);
+        result.push(g.email);
+        if (result.length >= 6) return result;
+      }
+    }
+    return result;
+  });
+
+  pickSuggestion(email: string): void {
+    this.guestEmailDraft.set(email);
+    this.addGuest();
   }
 
   addGuest(): void {
@@ -263,17 +356,27 @@ export class EventFormModalComponent {
     const start = this.isAllDay() ? new Date(`${this.startDate()}T00:00`) : this.computedStart();
     const end = this.isAllDay() ? new Date(`${this.endDate()}T23:59`) : this.computedEnd();
 
-    this.state.saveEvent({
-      id: this.editingId ?? undefined,
-      kind: this.tab(),
-      title: this.title().trim(),
-      description: this.description() || undefined,
-      location: this.location() || undefined,
-      start,
-      end,
-      isAllDay: this.isAllDay(),
-      guests: this.guests(),
-      color: 'sky',
-    });
+    // Chỉ cho lặp khi TẠO MỚI và có chọn kiểu lặp
+    const repeat = this.repeat();
+    const recurrence =
+      !this.editingId && repeat !== 'none'
+        ? { repeat, count: Math.min(Math.max(this.repeatCount() || 1, 1), 52) }
+        : undefined;
+
+    this.state.saveEvent(
+      {
+        id: this.editingId ?? undefined,
+        kind: this.tab(),
+        title: this.title().trim(),
+        description: this.description() || undefined,
+        location: this.location() || undefined,
+        start,
+        end,
+        isAllDay: this.isAllDay(),
+        guests: this.guests(),
+        color: this.color(),
+      },
+      recurrence,
+    );
   }
 }

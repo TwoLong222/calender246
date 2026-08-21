@@ -71,6 +71,38 @@ import { SupabaseService } from '../auth/supabase.service';
         }
 
         <div class="ml-auto flex items-center gap-3">
+          <!-- Ô tìm kiếm sự kiện -->
+          <div class="relative">
+            <input
+              type="text"
+              [value]="searchQuery()"
+              (input)="onSearchInput($event)"
+              (focus)="searchFocused.set(true)"
+              (blur)="onSearchBlur()"
+              (keydown.escape)="clearSearch()"
+              placeholder="🔍 Tìm sự kiện..."
+              class="w-56 rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-600"
+            />
+            @if (searchFocused() && searchQuery().trim()) {
+              <div class="absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                @if (searchResults().length === 0) {
+                  <p class="px-3 py-2 text-sm text-gray-400">Không tìm thấy sự kiện nào.</p>
+                } @else {
+                  @for (e of searchResults(); track e.id) {
+                    <button
+                      type="button"
+                      (click)="goToSearchResult(e)"
+                      class="block w-full px-3 py-2 text-left hover:bg-gray-50"
+                    >
+                      <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || '(Không có tiêu đề)' }}</span>
+                      <span class="block truncate text-xs text-gray-500">{{ resultDateLabel(e) }}</span>
+                    </button>
+                  }
+                }
+              </div>
+            }
+          </div>
+
           <select
             class="rounded border border-gray-300 px-2 py-1.5 text-sm"
             [value]="state.viewMode()"
@@ -139,6 +171,7 @@ import { SupabaseService } from '../auth/supabase.service';
                 [events]="state.events()"
                 (slotClicked)="onSlotClicked($event)"
                 (eventClicked)="onEventClicked($event)"
+                (eventTimesChanged)="onEventTimesChanged($event)"
               />
             }
             @case ('week') {
@@ -147,6 +180,7 @@ import { SupabaseService } from '../auth/supabase.service';
                 [events]="state.events()"
                 (slotClicked)="onSlotClicked($event)"
                 (eventClicked)="onEventClicked($event)"
+                (eventTimesChanged)="onEventTimesChanged($event)"
               />
             }
             @case ('month') {
@@ -178,6 +212,54 @@ export class CalendarPageComponent {
   protected readonly supabase = inject(SupabaseService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
+
+  // ----- Tìm kiếm sự kiện -----
+  protected readonly searchQuery = signal('');
+  protected readonly searchFocused = signal(false);
+
+  /** Lọc sự kiện theo tiêu đề / mô tả / địa điểm (không phân biệt hoa thường), gần nhất lên trước */
+  protected readonly searchResults = computed<CalendarEvent[]>(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    if (!q) return [];
+    return this.state
+      .events()
+      .filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          (e.description ?? '').toLowerCase().includes(q) ||
+          (e.location ?? '').toLowerCase().includes(q),
+      )
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .slice(0, 20);
+  });
+
+  onSearchInput(ev: Event): void {
+    this.searchQuery.set((ev.target as HTMLInputElement).value);
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
+    this.searchFocused.set(false);
+  }
+
+  /** Đóng dropdown sau khi rời ô input — trễ 1 chút để kịp bắt cú click vào kết quả */
+  onSearchBlur(): void {
+    setTimeout(() => this.searchFocused.set(false), 150);
+  }
+
+  /** Bấm 1 kết quả -> nhảy tới ngày của sự kiện (view Ngày) rồi mở popover chi tiết */
+  goToSearchResult(e: CalendarEvent): void {
+    this.state.selectDate(e.start, true);
+    this.state.selectEvent(e.id);
+    this.clearSearch();
+  }
+
+  resultDateLabel(e: CalendarEvent): string {
+    const date = e.start.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' });
+    if (e.isAllDay) return `${date} · Cả ngày`;
+    const time = e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return `${date} · ${time}`;
+  }
 
   weekDates = computed(() => {
     const start = startOfWeek(this.state.viewedDate());
@@ -213,6 +295,11 @@ export class CalendarPageComponent {
 
   onEventClicked(event: CalendarEvent): void {
     this.state.selectEvent(event.id);
+  }
+
+  /** Người dùng kéo co giãn 1 sự kiện xong -> lưu giờ mới (optimistic, không giật) */
+  onEventTimesChanged(event: CalendarEvent): void {
+    this.state.updateEventTimes(event);
   }
 
   openCreate(kind: EventKind): void {

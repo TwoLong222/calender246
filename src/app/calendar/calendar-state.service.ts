@@ -8,7 +8,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
-import { EventsApiService } from './events-api.service';
+import { EventsApiService, RecurrenceOptions } from './events-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
@@ -135,20 +135,48 @@ export class CalendarStateService {
     });
   }
 
-  saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }): void {
+  saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }, recurrence?: RecurrenceOptions): void {
     const { id, ...rest } = draft;
-    const request$ = id ? this.api.update(id, rest) : this.api.create(rest);
+    const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
 
     request$.subscribe({
       next: ({ event, conflictTitles }) => {
-        this.events.update((list) => {
-          const exists = list.some((e) => e.id === event.id);
-          return exists ? list.map((e) => (e.id === event.id ? event : e)) : [...list, event];
-        });
+        if (recurrence) {
+          // Sự kiện lặp tạo nhiều event cùng lúc -> tải lại danh sách để thấy hết các lần lặp
+          this.reload();
+        } else {
+          this.events.update((list) => {
+            const exists = list.some((e) => e.id === event.id);
+            return exists ? list.map((e) => (e.id === event.id ? event : e)) : [...list, event];
+          });
+        }
         this.lastSavedConflicts.set(conflictTitles);
         this.closeForm();
       },
       error: () => {
+        this.loadError.set('Lưu sự kiện thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  /**
+   * Lưu giờ mới sau khi kéo co giãn sự kiện. Dùng cập nhật LẠC QUAN (optimistic):
+   * đổi giờ trên UI NGAY (khỏi giật về chỗ cũ trong lúc chờ API), nếu API lỗi thì trả lại giờ cũ.
+   */
+  updateEventTimes(event: CalendarEvent): void {
+    const { id, ...rest } = event;
+    const previous = this.events();
+
+    // Cập nhật ngay trên giao diện
+    this.events.update((list) => list.map((e) => (e.id === id ? event : e)));
+
+    this.api.update(id, rest).subscribe({
+      next: ({ event: saved, conflictTitles }) => {
+        this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e)));
+        this.lastSavedConflicts.set(conflictTitles);
+      },
+      error: () => {
+        this.events.set(previous); // lưu thất bại -> khôi phục giờ cũ
         this.loadError.set('Lưu sự kiện thất bại. Thử lại sau.');
       },
     });

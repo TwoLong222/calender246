@@ -123,7 +123,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
 
       <!-- Lưới thời gian, cuộn được -->
       <div #scrollArea class="relative flex-1 overflow-y-auto">
-        <div class="flex" [style.height.px]="HOUR_HEIGHT * 24">
+        <div #gridRow class="flex" [style.height.px]="HOUR_HEIGHT * 24">
           <!-- Cột nhãn giờ -->
           <div class="w-14 shrink-0">
             @for (hour of hours; track hour) {
@@ -160,15 +160,52 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                 <button
                   type="button"
                   (click)="onEventClick(item.event, $event)"
-                  class="absolute z-10 overflow-hidden rounded-md border border-white px-2 py-1 text-left text-xs text-white shadow-sm"
+                  (pointerdown)="startMove($event, item.event)"
+                  (pointermove)="onMove($event)"
+                  (pointerup)="endMove($event)"
+                  (pointercancel)="endMove($event)"
+                  class="group absolute z-10 cursor-grab touch-none overflow-hidden rounded-md border border-white px-2 py-1 text-left text-xs text-white shadow-sm active:cursor-grabbing"
                   [style.top.px]="item.top"
                   [style.height.px]="item.height"
                   [style.left.%]="item.left"
                   [style.width.%]="item.width"
                   [class]="colorClass(item.event.color)"
                 >
-                  <span class="block truncate font-medium">{{ item.event.title || '(Không có tiêu đề)' }}</span>
-                  <span class="block truncate opacity-90">{{ formatRange(item.event) }}</span>
+                  <!-- Tay cầm kéo mép TRÊN: đổi giờ bắt đầu -->
+                  <div
+                    class="absolute inset-x-0 top-0 z-20 h-1.5 cursor-ns-resize opacity-0 group-hover:opacity-100"
+                    title="Kéo để đổi giờ bắt đầu"
+                    (pointerdown)="startResize($event, item.event, 'top')"
+                    (pointermove)="onResizeMove($event)"
+                    (pointerup)="endResize($event)"
+                    (pointercancel)="endResize($event)"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
+                  </div>
+
+                  @if (item.height < 40) {
+                    <!-- Block quá ngắn: gộp giờ bắt đầu + tiêu đề trên 1 dòng để vẫn thấy được giờ -->
+                    <span class="block truncate font-medium">
+                      {{ formatStart(item.event) }} {{ item.event.title || '(Không có tiêu đề)' }}
+                    </span>
+                  } @else {
+                    <span class="block truncate font-medium">{{ item.event.title || '(Không có tiêu đề)' }}</span>
+                    <span class="block truncate opacity-90">{{ formatRange(item.event) }}</span>
+                  }
+
+                  <!-- Tay cầm kéo mép DƯỚI: đổi giờ kết thúc (thời lượng) -->
+                  <div
+                    class="absolute inset-x-0 bottom-0 z-20 flex h-1.5 items-center cursor-ns-resize opacity-0 group-hover:opacity-100"
+                    title="Kéo để đổi thời lượng"
+                    (pointerdown)="startResize($event, item.event, 'bottom')"
+                    (pointermove)="onResizeMove($event)"
+                    (pointerup)="endResize($event)"
+                    (pointercancel)="endResize($event)"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
+                  </div>
                 </button>
               }
             </div>
@@ -185,6 +222,8 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   slotClicked = output<Date>();
   eventClicked = output<CalendarEvent>();
+  /** Phát ra khi người dùng kéo co giãn 1 sự kiện xong -> trang cha lưu lại qua API */
+  eventTimesChanged = output<CalendarEvent>();
 
   readonly HOUR_HEIGHT = HOUR_HEIGHT;
   readonly hours = Array.from({ length: 24 }, (_, i) => i);
@@ -192,8 +231,35 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   private readonly today = new Date();
   private readonly scrollAreaRef = viewChild<ElementRef<HTMLDivElement>>('scrollArea');
+  private readonly gridRowRef = viewChild<ElementRef<HTMLDivElement>>('gridRow');
   private tickTimer?: ReturnType<typeof setInterval>;
   private readonly nowSignal = signal(new Date());
+
+  /** Bối cảnh khi kéo DỜI cả block (giữ nguyên thời lượng, đổi giờ bắt đầu + có thể đổi ngày) */
+  private moveCtx: {
+    id: string;
+    startX: number;
+    startY: number;
+    moved: boolean;
+    origStart: Date;
+    origEnd: Date;
+    durationMs: number;
+    event: CalendarEvent;
+  } | null = null;
+  /** Cờ chặn: vừa kéo xong thì bỏ qua click kế tiếp để không mở popup chi tiết */
+  private justDragged = false;
+
+  /** Giờ tạm (preview) đang hiển thị trong lúc kéo co giãn — null nghĩa là không kéo */
+  private readonly resizePreview = signal<{ id: string; start: Date; end: Date } | null>(null);
+  /** Bối cảnh kéo hiện tại (không phải signal vì không cần render trực tiếp) */
+  private resizeCtx: {
+    id: string;
+    edge: 'top' | 'bottom';
+    startY: number;
+    origStart: Date;
+    origEnd: Date;
+    event: CalendarEvent;
+  } | null = null;
 
   nowOffset = computed(() => (minutesSinceMidnight(this.nowSignal()) / 60) * HOUR_HEIGHT);
 
@@ -217,19 +283,155 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   positionedEvents(date: Date): LayoutedEvent[] {
-    const eventsOnDate = this.events().filter((e) => !e.isAllDay && isSameDay(e.start, date));
+    const preview = this.resizePreview();
+    const eventsOnDate = this.events()
+      .filter((e) => !e.isAllDay)
+      // Thay giờ thật bằng giờ preview trong lúc kéo (co giãn HOẶC dời) để block cập nhật tức thời...
+      .map((e) => (preview && preview.id === e.id ? { ...e, start: preview.start, end: preview.end } : e))
+      // ...rồi MỚI lọc theo ngày, nhờ vậy khi kéo sang cột ngày khác thì event tự chuyển cột theo con trỏ
+      .filter((e) => isSameDay(e.start, date));
     return layoutEventsForDay(eventsOnDate);
   }
 
-  formatRange(e: CalendarEvent): string {
-    const fmt = (d: Date) => {
-      let h = d.getHours();
-      const m = d.getMinutes();
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12 || 12;
-      return `${h}${m ? ':' + m.toString().padStart(2, '0') : ''}${ampm}`;
+  /** Xác định cột NGÀY nào đang nằm dưới con trỏ (cho kéo dời qua ngày khác ở view Tuần) */
+  private dayFromClientX(clientX: number): Date {
+    const dates = this.dates();
+    const el = this.gridRowRef()?.nativeElement;
+    if (!el) return dates[0];
+    const rect = el.getBoundingClientRect();
+    const LABEL_WIDTH = 56; // bề rộng cột nhãn giờ bên trái (class w-14)
+    const colWidth = (rect.width - LABEL_WIDTH) / dates.length;
+    const idx = Math.max(0, Math.min(dates.length - 1, Math.floor((clientX - rect.left - LABEL_WIDTH) / colWidth)));
+    return dates[idx];
+  }
+
+  /** Bắt đầu bấm giữ trên thân event — CHƯA coi là kéo cho tới khi con trỏ dịch quá ngưỡng */
+  startMove(ev: PointerEvent, event: CalendarEvent): void {
+    this.justDragged = false;
+    (ev.target as HTMLElement).setPointerCapture(ev.pointerId);
+    this.moveCtx = {
+      id: event.id,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      moved: false,
+      origStart: event.start,
+      origEnd: event.end,
+      durationMs: event.end.getTime() - event.start.getTime(),
+      event,
     };
-    return `${fmt(e.start)} – ${fmt(e.end)}`;
+  }
+
+  onMove(ev: PointerEvent): void {
+    const ctx = this.moveCtx;
+    if (!ctx) return;
+
+    const dx = ev.clientX - ctx.startX;
+    const dy = ev.clientY - ctx.startY;
+    // Ngưỡng 4px: dưới ngưỡng vẫn coi là "click" (mở chi tiết), không phải kéo
+    if (!ctx.moved && Math.hypot(dx, dy) < 4) return;
+    ctx.moved = true;
+
+    // Dọc -> đổi giờ bắt đầu (snap 15 phút); Ngang -> đổi ngày theo cột dưới con trỏ
+    const deltaMin = Math.round((dy / HOUR_HEIGHT) * 60 / 15) * 15;
+    const durMin = ctx.durationMs / 60000;
+    const origMinutes = ctx.origStart.getHours() * 60 + ctx.origStart.getMinutes();
+    const newMinutes = Math.max(0, Math.min(1440 - durMin, origMinutes + deltaMin)); // giữ event trong 1 ngày
+
+    const base = new Date(this.dayFromClientX(ev.clientX));
+    base.setHours(0, 0, 0, 0);
+    const newStart = new Date(base.getTime() + newMinutes * 60000);
+    const newEnd = new Date(newStart.getTime() + ctx.durationMs);
+
+    this.resizePreview.set({ id: ctx.id, start: newStart, end: newEnd });
+  }
+
+  endMove(ev: PointerEvent): void {
+    const ctx = this.moveCtx;
+    const preview = this.resizePreview();
+    this.moveCtx = null;
+    (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
+
+    if (!ctx) return;
+    if (!ctx.moved) {
+      this.resizePreview.set(null); // chỉ là click -> để (click) mở popup chi tiết
+      return;
+    }
+
+    this.resizePreview.set(null);
+    this.justDragged = true; // đã kéo -> chặn click mở popup ngay sau đó
+
+    if (preview && (preview.start.getTime() !== ctx.origStart.getTime() || preview.end.getTime() !== ctx.origEnd.getTime())) {
+      this.eventTimesChanged.emit({ ...ctx.event, start: preview.start, end: preview.end });
+    }
+  }
+
+  /** Bắt đầu kéo 1 mép của sự kiện (top = đổi giờ bắt đầu, bottom = đổi giờ kết thúc) */
+  startResize(ev: PointerEvent, event: CalendarEvent, edge: 'top' | 'bottom'): void {
+    ev.preventDefault();
+    ev.stopPropagation(); // không để lan lên nút -> tránh mở popup chi tiết
+    (ev.target as HTMLElement).setPointerCapture(ev.pointerId);
+    this.resizeCtx = { id: event.id, edge, startY: ev.clientY, origStart: event.start, origEnd: event.end, event };
+    this.resizePreview.set({ id: event.id, start: event.start, end: event.end });
+  }
+
+  onResizeMove(ev: PointerEvent): void {
+    const ctx = this.resizeCtx;
+    if (!ctx) return;
+
+    // Đổi khoảng cách kéo (px) -> phút, làm tròn về bội số 15 phút cho "dính" đẹp như Google Calendar
+    const deltaMin = Math.round(((ev.clientY - ctx.startY) / HOUR_HEIGHT) * 60 / 15) * 15;
+    const MIN_MS = 15 * 60000;
+
+    const dayStart = new Date(ctx.origStart);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEndMs = dayStart.getTime() + 24 * 60 * 60000;
+
+    let start = ctx.origStart;
+    let end = ctx.origEnd;
+
+    if (ctx.edge === 'bottom') {
+      end = new Date(ctx.origEnd.getTime() + deltaMin * 60000);
+      if (end.getTime() > dayEndMs) end = new Date(dayEndMs);
+      if (end.getTime() - start.getTime() < MIN_MS) end = new Date(start.getTime() + MIN_MS);
+    } else {
+      start = new Date(ctx.origStart.getTime() + deltaMin * 60000);
+      if (start.getTime() < dayStart.getTime()) start = new Date(dayStart.getTime());
+      if (end.getTime() - start.getTime() < MIN_MS) start = new Date(end.getTime() - MIN_MS);
+    }
+
+    this.resizePreview.set({ id: ctx.id, start, end });
+  }
+
+  endResize(ev: PointerEvent): void {
+    const ctx = this.resizeCtx;
+    const preview = this.resizePreview();
+    this.resizeCtx = null;
+    this.resizePreview.set(null);
+    (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
+
+    if (!ctx || !preview) return;
+    // Không đổi gì -> khỏi gọi API
+    if (preview.start.getTime() === ctx.origStart.getTime() && preview.end.getTime() === ctx.origEnd.getTime()) {
+      return;
+    }
+    this.eventTimesChanged.emit({ ...ctx.event, start: preview.start, end: preview.end });
+  }
+
+  private formatTime(d: Date): string {
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}${m ? ':' + m.toString().padStart(2, '0') : ''}${ampm}`;
+  }
+
+  formatRange(e: CalendarEvent): string {
+    return `${this.formatTime(e.start)} – ${this.formatTime(e.end)}`;
+  }
+
+  /** Chỉ giờ bắt đầu — dùng khi block quá ngắn, chỉ hiện được 1 dòng */
+  formatStart(e: CalendarEvent): string {
+    return this.formatTime(e.start);
   }
 
   colorClass(color: string): string {
@@ -251,6 +453,11 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   onEventClick(event: CalendarEvent, domEvent: Event): void {
     domEvent.stopPropagation();
+    // Nếu vừa kéo dời xong thì bỏ qua click này (không mở popup chi tiết)
+    if (this.justDragged) {
+      this.justDragged = false;
+      return;
+    }
     this.eventClicked.emit(event);
   }
 }
