@@ -45,7 +45,7 @@ import { CalendarEvent } from './calendar.types';
           </section>
         }
 
-        @if (done().length > 0) {
+        @if (done().length > 0 && settings.settings().show_completed_tasks) {
           <section>
             <p class="mb-2 text-sm font-medium text-gray-500">{{ tr.t('tasks.done') }} ({{ done().length }})</p>
             <ul class="space-y-1 rounded-lg border border-gray-200 bg-white">

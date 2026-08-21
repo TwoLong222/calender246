@@ -63,8 +63,19 @@ export class CalendarStateService {
 
   /** Bộ lọc hiển thị theo loại sự kiện (điều khiển bằng checkbox ở sidebar) */
   readonly visibleKinds = signal<Record<EventKind, boolean>>({ event: true, task: true, appointment: true });
-  /** Danh sách sự kiện đã lọc theo visibleKinds — các view lịch dùng cái này */
-  readonly visibleEvents = computed(() => this.events().filter((e) => this.visibleKinds()[e.kind]));
+  /**
+   * Có hiện task đã hoàn thành trên lịch không. Do SettingsService đẩy vào (tránh
+   * vòng phụ thuộc: SettingsService đã inject service này). Mặc định true.
+   */
+  readonly showCompletedTasks = signal(true);
+  /** Danh sách sự kiện đã lọc theo visibleKinds (+ ẩn task xong nếu tắt) — các view lịch dùng cái này */
+  readonly visibleEvents = computed(() =>
+    this.events().filter(
+      (e) =>
+        this.visibleKinds()[e.kind] &&
+        (this.showCompletedTasks() || e.kind !== 'task' || !e.completed),
+    ),
+  );
 
   toggleKind(kind: EventKind): void {
     this.visibleKinds.update((v) => ({ ...v, [kind]: !v[kind] }));
