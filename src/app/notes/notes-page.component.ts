@@ -29,7 +29,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
   imports: [FormsModule, RouterLink, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="min-h-screen bg-gray-50 text-gray-800">
+    <div class="view-fade min-h-screen bg-gray-50 text-gray-800">
       <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
         <a routerLink="/" class="tap flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100">
           <app-icon name="arrow-back" class="h-5 w-5" /> {{ tr.t('settings.back') }}
@@ -78,7 +78,15 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
         @if (error()) { <p class="mb-3 text-center text-sm text-red-600">{{ error() }}</p> }
 
         @if (loading()) {
-          <p class="py-10 text-center text-sm text-gray-400">…</p>
+          <!-- Khung xương giữ chỗ để không nhảy layout khi dữ liệu về -->
+          <div class="[column-gap:0.75rem] sm:columns-2 lg:columns-3">
+            @for (h of skeletons; track h) {
+              <div class="mb-3 inline-block w-full break-inside-avoid rounded-xl border border-gray-200 bg-white p-3">
+                <div class="h-4 w-2/3 animate-pulse rounded bg-gray-200"></div>
+                <div class="mt-2 animate-pulse rounded bg-gray-100" [style.height.px]="h"></div>
+              </div>
+            }
+          </div>
         } @else if (notes().length === 0) {
           <p class="py-10 text-center text-sm text-gray-400">{{ tr.t('notes.empty') }}</p>
         } @else {
@@ -140,6 +148,8 @@ export class NotesPageComponent {
   private readonly api = inject(NotesApiService);
 
   protected readonly colors = COLOR_ORDER;
+  /** Chiều cao (px) cho các thẻ skeleton — cao thấp xen kẽ cho giống thật. */
+  protected readonly skeletons = [64, 96, 48, 80, 60, 72];
   protected readonly notes = signal<Note[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal('');
