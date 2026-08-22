@@ -15,6 +15,8 @@ export interface Season {
   name: string;
   emoji: string;
   palette: AccentPalette;
+  /** Màu nền cả trang (tint nhẹ hợp tông dịp lễ, vẫn dễ đọc). */
+  bg: string;
   /** Mô tả thời gian áp dụng (cho UI). */
   when: string;
   /** Có đang trong dịp này không (theo 1 ngày cho trước). */
@@ -34,6 +36,7 @@ export const SEASONS: Season[] = [
     emoji: '🧧',
     when: 'Từ 23 tháng Chạp đến mùng 7 Tết (âm lịch)',
     palette: { 50: '#fff1f0', 100: '#ffccc7', 500: '#ff4d4f', 600: '#cf1322', 700: '#a8071a', 800: '#820014' },
+    bg: '#fff1f0',
     isActive: (d) => {
       const l = solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
       if (l.leap) return false;
@@ -46,6 +49,7 @@ export const SEASONS: Season[] = [
     emoji: '🥮',
     when: 'Quanh Rằm tháng 8 (âm lịch)',
     palette: { 50: '#fffbeb', 100: '#fef3c7', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e' },
+    bg: '#fffbeb',
     isActive: (d) => lunarBetween(d, 8, 13, 16),
   },
   {
@@ -54,6 +58,7 @@ export const SEASONS: Season[] = [
     emoji: '🎃',
     when: '25–31 tháng 10 (dương lịch)',
     palette: { 50: '#fff7ed', 100: '#ffedd5', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#7c2d12' },
+    bg: '#fff4e6',
     isActive: (d) => d.getMonth() === 9 && d.getDate() >= 25 && d.getDate() <= 31,
   },
   {
@@ -62,6 +67,7 @@ export const SEASONS: Season[] = [
     emoji: '🎄',
     when: '20–26 tháng 12 (dương lịch)',
     palette: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46' },
+    bg: '#f0fdf4',
     isActive: (d) => d.getMonth() === 11 && d.getDate() >= 20 && d.getDate() <= 26,
   },
   {
@@ -70,6 +76,7 @@ export const SEASONS: Season[] = [
     emoji: '🎉',
     when: '31/12 – 1/1 (dương lịch)',
     palette: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3' },
+    bg: '#eef2ff',
     isActive: (d) => (d.getMonth() === 11 && d.getDate() === 31) || (d.getMonth() === 0 && d.getDate() === 1),
   },
 ];
@@ -91,10 +98,10 @@ export class SeasonalThemeService {
   });
 
   constructor() {
-    // Áp/gỡ màu dịp lễ mỗi khi trạng thái đổi.
+    // Áp/gỡ màu + nền dịp lễ mỗi khi trạng thái đổi.
     effect(() => {
       const s = this.activeSeason();
-      if (s) this.themeBuilder.applyPalette(s.palette);
+      if (s) this.themeBuilder.applyPalette(s.palette, s.bg);
       else this.themeBuilder.reapply();
     });
   }
@@ -108,13 +115,13 @@ export class SeasonalThemeService {
     }
   }
 
-  /** Xem thử 1 dịp (áp màu tạm, không lưu). Gọi clearPreview() để trả lại. */
-  preview(palette: AccentPalette): void {
-    this.themeBuilder.applyPalette(palette);
+  /** Xem thử 1 dịp (áp màu + nền tạm, không lưu). Gọi clearPreview() để trả lại. */
+  preview(season: Season): void {
+    this.themeBuilder.applyPalette(season.palette, season.bg);
   }
   clearPreview(): void {
     const s = this.activeSeason();
-    if (s) this.themeBuilder.applyPalette(s.palette);
+    if (s) this.themeBuilder.applyPalette(s.palette, s.bg);
     else this.themeBuilder.reapply();
   }
 

@@ -38,6 +38,9 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 const STORAGE_KEY = 'accent-theme';
 const VAR_KEYS: (keyof AccentPalette)[] = [50, 100, 500, 600, 700, 800];
 
+/** Nền trang mặc định (gray-50) khi không dùng theme dịp lễ. */
+const DEFAULT_APP_BG = '#f9fafb';
+
 interface StoredAccent {
   /** id preset, 'custom', hoặc 'palette' (lưu nguyên bảng màu, vd theme dịp lễ). */
   id: string;
@@ -45,6 +48,8 @@ interface StoredAccent {
   base?: string;
   /** bảng màu đầy đủ khi id === 'palette'. */
   palette?: AccentPalette;
+  /** màu nền trang (khi id === 'palette' và có tint riêng). */
+  bg?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -53,44 +58,45 @@ export class ThemeBuilderService {
   readonly accentId = signal<string>('blue');
   /** màu gốc khi dùng tùy chỉnh (hex, = sắc 600). */
   readonly customBase = signal<string>('#2563eb');
-  /** Bảng màu ĐANG áp (dùng để reapply chính xác sau khi seasonal nhường lại). */
+  /** Bảng màu + nền ĐANG áp (dùng để reapply chính xác sau khi seasonal nhường lại). */
   private currentPalette: AccentPalette = ACCENT_PRESETS[0].palette;
+  private currentBg: string = DEFAULT_APP_BG;
 
   constructor() {
     const saved = this.load();
     if (saved?.id === 'custom' && saved.base) {
       this.setCustom(saved.base);
     } else if (saved?.id === 'palette' && saved.palette) {
-      this.setPalette(saved.palette, false);
+      this.setPalette(saved.palette, saved.bg, false);
     } else if (saved?.id) {
       this.setPreset(saved.id, false);
     }
   }
 
-  /** Áp 1 preset theo id. */
+  /** Áp 1 preset theo id (nền trang về mặc định). */
   setPreset(id: string, persist = true): void {
     const preset = ACCENT_PRESETS.find((p) => p.id === id) ?? ACCENT_PRESETS[0];
-    this.apply(preset.palette);
+    this.apply(preset.palette, DEFAULT_APP_BG);
     this.accentId.set(preset.id);
     this.customBase.set(preset.palette[600]);
     if (persist) this.save({ id: preset.id });
   }
 
-  /** Áp màu tùy chỉnh từ 1 màu gốc (hex) — tự suy ra 6 sắc độ. */
+  /** Áp màu tùy chỉnh từ 1 màu gốc (hex) — tự suy ra 6 sắc độ (nền trang về mặc định). */
   setCustom(baseHex: string): void {
     const palette = paletteFromBase(baseHex);
-    this.apply(palette);
+    this.apply(palette, DEFAULT_APP_BG);
     this.accentId.set('custom');
     this.customBase.set(baseHex);
     this.save({ id: 'custom', base: baseHex });
   }
 
-  /** Áp + lưu nguyên 1 bảng màu (vd chọn theme dịp lễ để dùng luôn). */
-  setPalette(palette: AccentPalette, persist = true): void {
-    this.apply(palette);
+  /** Áp + lưu nguyên 1 bảng màu + nền (vd chọn theme dịp lễ để dùng luôn). */
+  setPalette(palette: AccentPalette, bg?: string, persist = true): void {
+    this.apply(palette, bg ?? DEFAULT_APP_BG);
     this.accentId.set('palette');
     this.customBase.set(palette[600]);
-    if (persist) this.save({ id: 'palette', palette });
+    if (persist) this.save({ id: 'palette', palette, bg });
   }
 
   /** Về mặc định (xanh dương). */
@@ -100,21 +106,24 @@ export class ThemeBuilderService {
 
   /** Áp lại đúng màu người dùng đang chọn (dùng khi hết dịp lễ, seasonal nhường lại). */
   reapply(): void {
-    this.apply(this.currentPalette);
+    this.apply(this.currentPalette, this.currentBg);
   }
 
-  /** Áp trực tiếp 1 bảng màu (seasonal dùng để phủ tạm màu dịp lễ, KHÔNG lưu và KHÔNG đổi currentPalette). */
-  applyPalette(palette: AccentPalette): void {
+  /** Áp trực tiếp 1 bảng màu + nền (seasonal phủ tạm, KHÔNG lưu và KHÔNG đổi current). */
+  applyPalette(palette: AccentPalette, bg?: string): void {
     const root = document.documentElement;
     for (const k of VAR_KEYS) root.style.setProperty(`--accent-${k}`, palette[k]);
+    root.style.setProperty('--app-bg', bg ?? DEFAULT_APP_BG);
   }
 
-  private apply(palette: AccentPalette): void {
+  private apply(palette: AccentPalette, bg: string): void {
     this.currentPalette = palette; // nhớ lại để reapply chính xác
+    this.currentBg = bg;
     const root = document.documentElement;
     for (const k of VAR_KEYS) {
       root.style.setProperty(`--accent-${k}`, palette[k]);
     }
+    root.style.setProperty('--app-bg', bg);
   }
 
   private load(): StoredAccent | null {

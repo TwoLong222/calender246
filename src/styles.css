@@ -237,7 +237,11 @@ input[type='radio'] {
   --accent-600: #2563eb;
   --accent-700: #1d4ed8;
   --accent-800: #1e40af;
+  /* Nền trang (đổi theo theme dịp lễ; mặc định = gray-50) */
+  --app-bg: #f9fafb;
 }
+/* Nền trang chính đổi theo theme. Dark mode có rule riêng (đè lên) nên chỉ áp ở light. */
+.bg-gray-50 { background-color: var(--app-bg); }
 .bg-blue-50 { background-color: var(--accent-50); }
 .bg-blue-100 { background-color: var(--accent-100); }
 .bg-blue-500 { background-color: var(--accent-500); }

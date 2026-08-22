@@ -21,8 +21,8 @@ import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
-import { ACCENT_PRESETS, AccentPalette, ThemeBuilderService } from '../theme/theme-builder.service';
-import { SEASONS, SeasonalThemeService } from '../theme/seasonal-theme.service';
+import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
+import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 
 type Section =
   | 'account'
@@ -312,8 +312,8 @@ type Section =
                   @for (se of seasons; track se.id) {
                     <li
                       class="group flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-gray-50"
-                      (click)="useSeason(se.palette)"
-                      (mouseenter)="seasonal.preview(se.palette)"
+                      (click)="useSeason(se)"
+                      (mouseenter)="seasonal.preview(se)"
                       (mouseleave)="seasonal.clearPreview()"
                     >
                       <span class="text-lg">{{ se.emoji }}</span>
@@ -532,9 +532,9 @@ export class SettingsPageComponent {
     this.seasonal.setAuto(false);
     this.themeBuilder.setPreset(id);
   }
-  /** Bấm 1 dịp lễ -> dùng luôn theme đó (lưu lại), không cần chờ đúng ngày. */
-  protected useSeason(palette: AccentPalette): void {
-    this.themeBuilder.setPalette(palette);
+  /** Bấm 1 dịp lễ -> dùng luôn theme đó (màu + nền, lưu lại), không cần chờ đúng ngày. */
+  protected useSeason(se: Season): void {
+    this.themeBuilder.setPalette(se.palette, se.bg);
   }
   protected readonly weekdays = [1, 2, 3, 4, 5, 6, 0];
   protected readonly emailKeys = [
