@@ -22,6 +22,7 @@ import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
 import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
+import { SEASONS, SeasonalThemeService } from '../theme/seasonal-theme.service';
 
 type Section =
   | 'account'
@@ -243,7 +244,7 @@ type Section =
                   @for (p of accentPresets; track p.id) {
                     <button
                       type="button"
-                      (click)="themeBuilder.setPreset(p.id)"
+                      (click)="pickPreset(p.id)"
                       [title]="p.name"
                       class="tap relative h-9 w-9 rounded-full border-2 transition"
                       [style.background-color]="p.palette[600]"
@@ -285,6 +286,45 @@ type Section =
                 <button type="button" (click)="themeBuilder.reset()" class="text-sm text-gray-500 hover:text-gray-700 hover:underline">
                   {{ tr.t('theme.reset') }}
                 </button>
+              </section>
+
+              <!-- Giao diện theo dịp lễ -->
+              <section class="mt-4 rounded-lg border border-gray-200 bg-white p-5 space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 class="text-base font-semibold">{{ tr.t('theme.seasonal') }}</h2>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ tr.t('theme.seasonalHint') }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    [attr.aria-checked]="seasonal.autoEnabled()"
+                    (click)="seasonal.setAuto(!seasonal.autoEnabled())"
+                    class="relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition"
+                    [class.bg-blue-600]="seasonal.autoEnabled()"
+                    [class.bg-gray-300]="!seasonal.autoEnabled()"
+                  >
+                    <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all" [style.left.px]="seasonal.autoEnabled() ? 22 : 2"></span>
+                  </button>
+                </div>
+
+                <ul class="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                  @for (se of seasons; track se.id) {
+                    <li
+                      class="flex items-center gap-3 px-3 py-2"
+                      (mouseenter)="seasonal.autoEnabled() && seasonal.preview(se.palette)"
+                      (mouseleave)="seasonal.autoEnabled() && seasonal.clearPreview()"
+                    >
+                      <span class="text-lg">{{ se.emoji }}</span>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium">{{ se.name }}</p>
+                        <p class="truncate text-xs text-gray-500">{{ se.when }}</p>
+                      </div>
+                      <span class="h-4 w-4 shrink-0 rounded-full" [style.background-color]="se.palette[600]"></span>
+                    </li>
+                  }
+                </ul>
+                <p class="text-xs text-gray-400">{{ tr.t('theme.seasonalNote') }}</p>
               </section>
             }
 
@@ -477,10 +517,18 @@ export class SettingsPageComponent {
   protected readonly themes = ['light', 'dark', 'system'] as const;
   protected readonly themeBuilder = inject(ThemeBuilderService);
   protected readonly accentPresets = ACCENT_PRESETS;
-  /** Đổi màu nhấn tùy chỉnh từ ô chọn màu. */
+  protected readonly seasonal = inject(SeasonalThemeService);
+  protected readonly seasons = SEASONS;
+  /** Đổi màu nhấn tùy chỉnh từ ô chọn màu. Chọn thủ công -> tắt tự đổi theo lễ. */
   protected onCustomAccent(ev: Event): void {
     const value = (ev.target as HTMLInputElement).value;
+    this.seasonal.setAuto(false);
     this.themeBuilder.setCustom(value);
+  }
+  /** Chọn preset màu -> cũng tắt tự đổi theo lễ để giữ lựa chọn của người dùng. */
+  protected pickPreset(id: string): void {
+    this.seasonal.setAuto(false);
+    this.themeBuilder.setPreset(id);
   }
   protected readonly weekdays = [1, 2, 3, 4, 5, 6, 0];
   protected readonly emailKeys = [

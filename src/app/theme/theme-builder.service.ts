@@ -84,6 +84,21 @@ export class ThemeBuilderService {
     this.setPreset('blue');
   }
 
+  /** Áp lại đúng màu người dùng đang chọn (dùng khi hết dịp lễ, seasonal nhường lại). */
+  reapply(): void {
+    if (this.accentId() === 'custom') {
+      this.apply(paletteFromBase(this.customBase()));
+    } else {
+      const preset = ACCENT_PRESETS.find((p) => p.id === this.accentId()) ?? ACCENT_PRESETS[0];
+      this.apply(preset.palette);
+    }
+  }
+
+  /** Áp trực tiếp 1 bảng màu (seasonal dùng để phủ tạm màu dịp lễ, KHÔNG lưu). */
+  applyPalette(palette: AccentPalette): void {
+    this.apply(palette);
+  }
+
   private apply(palette: AccentPalette): void {
     const root = document.documentElement;
     for (const k of VAR_KEYS) {

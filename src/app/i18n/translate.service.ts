@@ -71,6 +71,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'theme.light': 'Sáng', 'theme.dark': 'Tối', 'theme.system': 'Theo hệ thống',
     'theme.accent': 'Màu nhấn', 'theme.accentHint': 'Đổi màu chủ đạo của lịch (nút, ngày hôm nay, liên kết...).',
     'theme.custom': 'Tùy chỉnh', 'theme.preview': 'Xem trước', 'theme.reset': 'Về mặc định (xanh dương)',
+    'theme.seasonal': 'Giao diện theo dịp lễ', 'theme.seasonalHint': 'Tự đổi tông màu + biểu tượng khi đến dịp (Tết, Trung thu, Halloween...).',
+    'theme.seasonalNote': 'Ngày Tết/Trung thu tính theo âm lịch, đúng cho mọi năm. Rê chuột vào từng dịp để xem thử màu.',
     // Privacy
     'priv.eventDefault': 'Quyền riêng tư mặc định của sự kiện', 'priv.private': 'Riêng tư',
     'priv.public': 'Hiển thị trên lịch chia sẻ', 'priv.booking': 'Đặt lịch công khai (Public Booking)',
@@ -197,6 +199,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'theme.light': 'Light', 'theme.dark': 'Dark', 'theme.system': 'System',
     'theme.accent': 'Accent color', 'theme.accentHint': 'Change the calendar’s main color (buttons, today, links...).',
     'theme.custom': 'Custom', 'theme.preview': 'Preview', 'theme.reset': 'Reset to default (blue)',
+    'theme.seasonal': 'Seasonal themes', 'theme.seasonalHint': 'Auto-switch color & icon on occasions (Tet, Mid-Autumn, Halloween...).',
+    'theme.seasonalNote': 'Tet/Mid-Autumn dates follow the lunar calendar, correct for any year. Hover an occasion to preview its color.',
     'priv.eventDefault': 'Default event privacy', 'priv.private': 'Private',
     'priv.public': 'Visible on shared calendars', 'priv.booking': 'Public Booking',
     'priv.status': 'Status', 'priv.disabled': 'Disabled', 'priv.comingSoon': 'Coming soon',

@@ -17,6 +17,7 @@ import { AiAssistantComponent } from '../ai/ai-assistant.component';
 import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
 import { IconComponent } from '../shared/icon.component';
 import { ThemeService } from '../theme.service';
+import { SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { IcsService } from './ics.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, startOfWeek } from './date-utils';
@@ -92,6 +93,12 @@ import { TranslateService } from '../i18n/translate.service';
         </div>
 
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
+
+        @if (seasonal.activeSeason(); as season) {
+          <span class="hidden items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 sm:inline-flex" [title]="season.when">
+            {{ season.emoji }} {{ season.name }}
+          </span>
+        }
 
         @if (state.isLoading()) {
           <span class="text-xs text-gray-400">{{ tr.t('nav.loading') }}</span>
@@ -323,6 +330,7 @@ export class CalendarPageComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly supabase = inject(SupabaseService);
   protected readonly theme = inject(ThemeService);
+  protected readonly seasonal = inject(SeasonalThemeService);
   protected readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);
