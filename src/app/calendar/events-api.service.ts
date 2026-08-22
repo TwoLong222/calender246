@@ -15,7 +15,7 @@ interface ApiAttendee {
   status: AttendeeStatus;
 }
 
-interface ApiEvent {
+export interface ApiEvent {
   id: string;
   title: string;
   description: string | null;
@@ -29,6 +29,7 @@ interface ApiEvent {
   creator_email?: string | null;
   reminder_minutes?: number | null;
   deleted_at?: string | null;
+  group_id?: string | null;
   attendees?: ApiAttendee[];
 }
 
@@ -43,7 +44,7 @@ interface SaveResult {
   conflictTitles: string[];
 }
 
-function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
+export function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
   return {
     title: e.title,
     description: e.description,
@@ -59,7 +60,7 @@ function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
   };
 }
 
-function fromApiEvent(row: ApiEvent): CalendarEvent {
+export function fromApiEvent(row: ApiEvent): CalendarEvent {
   return {
     id: row.id,
     kind: row.kind,
@@ -75,6 +76,7 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     creatorEmail: row.creator_email ?? undefined,
     reminderMinutes: row.reminder_minutes ?? null,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
+    groupId: row.group_id ?? undefined,
   };
 }
 
