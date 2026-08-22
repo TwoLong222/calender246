@@ -242,6 +242,7 @@ input[type='radio'] {
 }
 /* Nền trang chính đổi theo theme. Dark mode có rule riêng (đè lên) nên chỉ áp ở light. */
 .bg-gray-50 { background-color: var(--app-bg); }
+body { background-color: var(--app-bg); }
 .bg-blue-50 { background-color: var(--accent-50); }
 .bg-blue-100 { background-color: var(--accent-100); }
 .bg-blue-500 { background-color: var(--accent-500); }
@@ -258,3 +259,33 @@ input[type='radio'] {
 .hover\:bg-blue-700:hover { background-color: var(--accent-700); }
 .hover\:bg-blue-800:hover { background-color: var(--accent-800); }
 .hover\:border-blue-600:hover { border-color: var(--accent-600); }
+
+/* ============================================================
+   TRANG TRÍ LỄ HỘI — emoji rơi nhẹ (Tết, Halloween, Noel...).
+   Lớp phủ toàn màn hình, không chặn thao tác (pointer-events:none).
+   ============================================================ */
+.seasonal-decor {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 35;
+}
+.seasonal-flake {
+  position: absolute;
+  top: -8vh;
+  --drift: 0px;
+  animation-name: seasonFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+  opacity: 0.9;
+  user-select: none;
+}
+@keyframes seasonFall {
+  0% { transform: translate(0, -10vh) rotate(0deg); }
+  100% { transform: translate(var(--drift), 110vh) rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-flake { animation: none; display: none; }
+}

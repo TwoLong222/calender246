@@ -17,6 +17,8 @@ export interface Season {
   palette: AccentPalette;
   /** Màu nền cả trang (tint nhẹ hợp tông dịp lễ, vẫn dễ đọc). */
   bg: string;
+  /** Bộ emoji trang trí rơi/lơ lửng trên màn hình. */
+  decor: string[];
   /** Mô tả thời gian áp dụng (cho UI). */
   when: string;
   /** Có đang trong dịp này không (theo 1 ngày cho trước). */
@@ -37,6 +39,7 @@ export const SEASONS: Season[] = [
     when: 'Từ 23 tháng Chạp đến mùng 7 Tết (âm lịch)',
     palette: { 50: '#fff1f0', 100: '#ffccc7', 500: '#ff4d4f', 600: '#cf1322', 700: '#a8071a', 800: '#820014' },
     bg: '#fff1f0',
+    decor: ['🧧', '🌸', '🏮', '✨', '🧨'],
     isActive: (d) => {
       const l = solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
       if (l.leap) return false;
@@ -50,6 +53,7 @@ export const SEASONS: Season[] = [
     when: 'Quanh Rằm tháng 8 (âm lịch)',
     palette: { 50: '#fffbeb', 100: '#fef3c7', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e' },
     bg: '#fffbeb',
+    decor: ['🥮', '🏮', '🌕', '✨', '🐇'],
     isActive: (d) => lunarBetween(d, 8, 13, 16),
   },
   {
@@ -59,6 +63,7 @@ export const SEASONS: Season[] = [
     when: '25–31 tháng 10 (dương lịch)',
     palette: { 50: '#fff7ed', 100: '#ffedd5', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#7c2d12' },
     bg: '#fff4e6',
+    decor: ['🎃', '👻', '🦇', '🕸️', '🍬'],
     isActive: (d) => d.getMonth() === 9 && d.getDate() >= 25 && d.getDate() <= 31,
   },
   {
@@ -68,6 +73,7 @@ export const SEASONS: Season[] = [
     when: '20–26 tháng 12 (dương lịch)',
     palette: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46' },
     bg: '#f0fdf4',
+    decor: ['🎄', '❄️', '🎅', '🎁', '⛄'],
     isActive: (d) => d.getMonth() === 11 && d.getDate() >= 20 && d.getDate() <= 26,
   },
   {
@@ -77,11 +83,13 @@ export const SEASONS: Season[] = [
     when: '31/12 – 1/1 (dương lịch)',
     palette: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3' },
     bg: '#eef2ff',
+    decor: ['🎉', '🎊', '✨', '🥳', '🎆'],
     isActive: (d) => (d.getMonth() === 11 && d.getDate() === 31) || (d.getMonth() === 0 && d.getDate() === 1),
   },
 ];
 
 const STORAGE_KEY = 'seasonal-theme-auto';
+const MANUAL_KEY = 'seasonal-theme-manual';
 
 @Injectable({ providedIn: 'root' })
 export class SeasonalThemeService {
@@ -89,6 +97,8 @@ export class SeasonalThemeService {
 
   /** Bật tự đổi theo dịp lễ (mặc định bật). */
   readonly autoEnabled = signal<boolean>(this.loadAuto());
+  /** Dịp lễ người dùng CHỌN TAY để dùng luôn (null nếu đang dùng màu thường). */
+  readonly manualSeasonId = signal<string | null>(this.loadManual());
 
   /** Dịp lễ đang diễn ra hôm nay (null nếu không có), chỉ khi autoEnabled. */
   readonly activeSeason = computed<Season | null>(() => {
@@ -97,8 +107,16 @@ export class SeasonalThemeService {
     return SEASONS.find((s) => s.isActive(now)) ?? null;
   });
 
+  /** Dịp đang hiển thị thực tế: ưu tiên dịp thật hôm nay, nếu không thì dịp chọn tay. */
+  readonly effectiveSeason = computed<Season | null>(() => {
+    const auto = this.activeSeason();
+    if (auto) return auto;
+    const id = this.manualSeasonId();
+    return id ? SEASONS.find((s) => s.id === id) ?? null : null;
+  });
+
   constructor() {
-    // Áp/gỡ màu + nền dịp lễ mỗi khi trạng thái đổi.
+    // Áp/gỡ màu + nền dịp lễ tự động mỗi khi trạng thái đổi.
     effect(() => {
       const s = this.activeSeason();
       if (s) this.themeBuilder.applyPalette(s.palette, s.bg);
@@ -112,6 +130,17 @@ export class SeasonalThemeService {
       localStorage.setItem(STORAGE_KEY, on ? '1' : '0');
     } catch {
       /* bỏ qua nếu localStorage tắt */
+    }
+  }
+
+  /** Đánh dấu người dùng chọn tay 1 dịp (để hiện trang trí + huy hiệu). */
+  setManualSeason(id: string | null): void {
+    this.manualSeasonId.set(id);
+    try {
+      if (id) localStorage.setItem(MANUAL_KEY, id);
+      else localStorage.removeItem(MANUAL_KEY);
+    } catch {
+      /* bỏ qua */
     }
   }
 
@@ -130,6 +159,14 @@ export class SeasonalThemeService {
       return localStorage.getItem(STORAGE_KEY) !== '0'; // mặc định bật
     } catch {
       return true;
+    }
+  }
+
+  private loadManual(): string | null {
+    try {
+      return localStorage.getItem(MANUAL_KEY);
+    } catch {
+      return null;
     }
   }
 }

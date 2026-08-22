@@ -43,7 +43,7 @@ import { TranslateService } from '../i18n/translate.service';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="flex h-screen flex-col bg-white text-gray-900">
+    <div class="flex h-screen flex-col bg-gray-50 text-gray-900">
       @if (state.loadError(); as msg) {
         <div class="flex items-center justify-between bg-red-50 px-4 py-2 text-sm text-red-700">
           <span class="flex items-center gap-2"><app-icon name="alert" />{{ msg }}</span>
@@ -94,7 +94,7 @@ import { TranslateService } from '../i18n/translate.service';
 
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
 
-        @if (seasonal.activeSeason(); as season) {
+        @if (seasonal.effectiveSeason(); as season) {
           <span class="hidden items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 sm:inline-flex" [title]="season.when">
             {{ season.emoji }} {{ season.name }}
           </span>

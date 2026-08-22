@@ -283,7 +283,7 @@ type Section =
                   </div>
                 </div>
 
-                <button type="button" (click)="themeBuilder.reset()" class="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700 hover:underline">
                   {{ tr.t('theme.reset') }}
                 </button>
               </section>
@@ -521,20 +521,26 @@ export class SettingsPageComponent {
   protected readonly accentPresets = ACCENT_PRESETS;
   protected readonly seasonal = inject(SeasonalThemeService);
   protected readonly seasons = SEASONS;
-  /** Đổi màu nhấn tùy chỉnh từ ô chọn màu. Chọn thủ công -> tắt tự đổi theo lễ. */
+  /** Đổi màu nhấn tùy chỉnh từ ô chọn màu -> bỏ trang trí dịp lễ đang chọn tay. */
   protected onCustomAccent(ev: Event): void {
     const value = (ev.target as HTMLInputElement).value;
-    this.seasonal.setAuto(false);
     this.themeBuilder.setCustom(value);
+    this.seasonal.setManualSeason(null);
   }
-  /** Chọn preset màu -> cũng tắt tự đổi theo lễ để giữ lựa chọn của người dùng. */
+  /** Chọn preset màu -> bỏ trang trí dịp lễ đang chọn tay. */
   protected pickPreset(id: string): void {
-    this.seasonal.setAuto(false);
     this.themeBuilder.setPreset(id);
+    this.seasonal.setManualSeason(null);
   }
-  /** Bấm 1 dịp lễ -> dùng luôn theme đó (màu + nền, lưu lại), không cần chờ đúng ngày. */
+  /** Bấm 1 dịp lễ -> dùng luôn theme đó (màu + nền + trang trí, lưu lại). */
   protected useSeason(se: Season): void {
     this.themeBuilder.setPalette(se.palette, se.bg);
+    this.seasonal.setManualSeason(se.id);
+  }
+  /** Về mặc định: màu xanh dương + bỏ trang trí dịp lễ chọn tay. */
+  protected resetTheme(): void {
+    this.themeBuilder.reset();
+    this.seasonal.setManualSeason(null);
   }
   protected readonly weekdays = [1, 2, 3, 4, 5, 6, 0];
   protected readonly emailKeys = [
