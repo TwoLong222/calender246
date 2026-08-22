@@ -8,6 +8,7 @@ import { SettingsPageComponent } from './settings/settings-page.component';
 import { PublicBookingComponent } from './booking/public-booking.component';
 import { TaskListComponent } from './calendar/task-list.component';
 import { LunarPageComponent } from './lunar/lunar-page.component';
+import { NotesPageComponent } from './notes/notes-page.component';
 
 export const appRoutes: Routes = [
   { path: 'login', component: LoginPageComponent },
@@ -17,5 +18,6 @@ export const appRoutes: Routes = [
   { path: 'settings', component: SettingsPageComponent, canActivate: [authGuard] },
   { path: 'tasks', component: TaskListComponent, canActivate: [authGuard] },
   { path: 'am-lich', component: LunarPageComponent, canActivate: [authGuard] },
+  { path: 'notes', component: NotesPageComponent, canActivate: [authGuard] },
   { path: '', component: CalendarPageComponent, canActivate: [authGuard] },
 ];
