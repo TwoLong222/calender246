@@ -16,13 +16,6 @@ interface Flake {
   drift: number;
 }
 
-const CORNER_CLASS: Record<string, string> = {
-  tl: 'seasonal-pin-tl',
-  tr: 'seasonal-pin-tr',
-  bl: 'seasonal-pin-bl',
-  br: 'seasonal-pin-br',
-};
-
 @Component({
   selector: 'app-seasonal-decor',
   standalone: true,
@@ -30,9 +23,9 @@ const CORNER_CLASS: Record<string, string> = {
   template: `
     @if (season(); as s) {
       <div class="seasonal-decor" aria-hidden="true">
-        <!-- Trang trí đứng yên ở góc -->
-        @for (p of s.pinned; track $index) {
-          <span class="seasonal-pin" [class]="cornerClass(p.at)">{{ p.emoji }}</span>
+        <!-- Trang trí đứng yên dọc cạnh DƯỚI (tránh nút ở góc/header) -->
+        @for (p of pinned(); track $index) {
+          <span class="seasonal-pin" [style.left.%]="p.left">{{ p.emoji }}</span>
         }
         <!-- Vài emoji rơi nhẹ -->
         @for (f of flakes(); track $index) {
@@ -54,6 +47,18 @@ export class SeasonalDecorComponent {
 
   protected readonly season = computed(() => this.seasonal.effectiveSeason());
 
+  /** Trang trí đứng yên trải dọc cạnh dưới (6%..78% để chừa nút Trợ lý AI ở góc phải). */
+  protected readonly pinned = computed(() => {
+    const s = this.season();
+    if (!s) return [];
+    const items = s.pinned;
+    const n = items.length;
+    return items.map((p, i) => ({
+      emoji: p.emoji,
+      left: n <= 1 ? 8 : Math.round(6 + (i * 72) / (n - 1)),
+    }));
+  });
+
   /** Danh sách emoji rơi (ít thôi, ~10). */
   protected readonly flakes = computed<Flake[]>(() => {
     const s = this.season();
@@ -72,8 +77,4 @@ export class SeasonalDecorComponent {
     }
     return out;
   });
-
-  protected cornerClass(at: string): string {
-    return CORNER_CLASS[at] ?? '';
-  }
 }
