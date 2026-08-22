@@ -1,5 +1,7 @@
-// SeasonalDecorComponent: lớp phủ trang trí lễ hội (emoji rơi/lơ lửng).
-// Hiện khi có dịp lễ đang diễn ra thật, HOẶC người dùng chọn tay 1 dịp.
+// SeasonalDecorComponent: lớp phủ trang trí lễ hội.
+// - Vài emoji ĐỨNG YÊN ở 4 góc (lồng đèn, bí ngô, cây thông...).
+// - Ít emoji RƠI nhẹ (cánh hoa, tuyết, dơi...) cho có không khí, không rối.
+// Hiện khi có dịp (thật hoặc chọn tay) và công tắc đang bật.
 // pointer-events: none nên không chặn thao tác. Tôn trọng prefers-reduced-motion.
 
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
@@ -14,14 +16,26 @@ interface Flake {
   drift: number;
 }
 
+const CORNER_CLASS: Record<string, string> = {
+  tl: 'seasonal-pin-tl',
+  tr: 'seasonal-pin-tr',
+  bl: 'seasonal-pin-bl',
+  br: 'seasonal-pin-br',
+};
+
 @Component({
   selector: 'app-seasonal-decor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (flakes(); as list) {
+    @if (season(); as s) {
       <div class="seasonal-decor" aria-hidden="true">
-        @for (f of list; track $index) {
+        <!-- Trang trí đứng yên ở góc -->
+        @for (p of s.pinned; track $index) {
+          <span class="seasonal-pin" [class]="cornerClass(p.at)">{{ p.emoji }}</span>
+        }
+        <!-- Vài emoji rơi nhẹ -->
+        @for (f of flakes(); track $index) {
           <span
             class="seasonal-flake"
             [style.left.%]="f.left"
@@ -38,23 +52,28 @@ interface Flake {
 export class SeasonalDecorComponent {
   private readonly seasonal = inject(SeasonalThemeService);
 
-  /** Danh sách emoji rơi, tạo lại khi đổi dịp. null = không trang trí. */
-  protected readonly flakes = computed<Flake[] | null>(() => {
-    const season = this.seasonal.effectiveSeason();
-    if (!season) return null;
-    const emojis = season.decor;
-    const N = 18;
+  protected readonly season = computed(() => this.seasonal.effectiveSeason());
+
+  /** Danh sách emoji rơi (ít thôi, ~10). */
+  protected readonly flakes = computed<Flake[]>(() => {
+    const s = this.season();
+    if (!s || s.fall.length === 0) return [];
+    const N = 10;
     const out: Flake[] = [];
     for (let i = 0; i < N; i++) {
       out.push({
-        emoji: emojis[i % emojis.length],
+        emoji: s.fall[i % s.fall.length],
         left: Math.round((i / N) * 100 + (Math.random() * 6 - 3)),
-        delay: +(Math.random() * 8).toFixed(2),
-        dur: +(7 + Math.random() * 7).toFixed(2),
-        size: 16 + Math.round(Math.random() * 16),
-        drift: Math.round(Math.random() * 60 - 30),
+        delay: +(Math.random() * 9).toFixed(2),
+        dur: +(9 + Math.random() * 7).toFixed(2),
+        size: 15 + Math.round(Math.random() * 12),
+        drift: Math.round(Math.random() * 50 - 25),
       });
     }
     return out;
   });
+
+  protected cornerClass(at: string): string {
+    return CORNER_CLASS[at] ?? '';
+  }
 }

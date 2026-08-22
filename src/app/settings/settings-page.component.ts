@@ -532,9 +532,9 @@ export class SettingsPageComponent {
     this.themeBuilder.setPreset(id);
     this.seasonal.setManualSeason(null);
   }
-  /** Bấm 1 dịp lễ -> dùng luôn theme đó (màu + nền + trang trí, lưu lại). */
+  /** Bấm 1 dịp lễ -> dùng luôn theme đó (màu + nền + trang trí, lưu lại). Bật công tắc để hiện. */
   protected useSeason(se: Season): void {
-    this.themeBuilder.setPalette(se.palette, se.bg);
+    this.seasonal.setAuto(true);
     this.seasonal.setManualSeason(se.id);
   }
   /** Về mặc định: màu xanh dương + bỏ trang trí dịp lễ chọn tay. */
