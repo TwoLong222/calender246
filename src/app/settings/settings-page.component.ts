@@ -21,7 +21,7 @@ import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
-import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
+import { ACCENT_PRESETS, AccentPalette, ThemeBuilderService } from '../theme/theme-builder.service';
 import { SEASONS, SeasonalThemeService } from '../theme/seasonal-theme.service';
 
 type Section =
@@ -311,15 +311,17 @@ type Section =
                 <ul class="divide-y divide-gray-100 rounded-lg border border-gray-200">
                   @for (se of seasons; track se.id) {
                     <li
-                      class="flex items-center gap-3 px-3 py-2"
-                      (mouseenter)="seasonal.autoEnabled() && seasonal.preview(se.palette)"
-                      (mouseleave)="seasonal.autoEnabled() && seasonal.clearPreview()"
+                      class="group flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-gray-50"
+                      (click)="useSeason(se.palette)"
+                      (mouseenter)="seasonal.preview(se.palette)"
+                      (mouseleave)="seasonal.clearPreview()"
                     >
                       <span class="text-lg">{{ se.emoji }}</span>
                       <div class="min-w-0 flex-1">
                         <p class="truncate text-sm font-medium">{{ se.name }}</p>
                         <p class="truncate text-xs text-gray-500">{{ se.when }}</p>
                       </div>
+                      <span class="rounded-md bg-blue-600 px-2 py-1 text-xs text-white opacity-0 transition group-hover:opacity-100">{{ tr.t('theme.useTheme') }}</span>
                       <span class="h-4 w-4 shrink-0 rounded-full" [style.background-color]="se.palette[600]"></span>
                     </li>
                   }
@@ -529,6 +531,10 @@ export class SettingsPageComponent {
   protected pickPreset(id: string): void {
     this.seasonal.setAuto(false);
     this.themeBuilder.setPreset(id);
+  }
+  /** Bấm 1 dịp lễ -> dùng luôn theme đó (lưu lại), không cần chờ đúng ngày. */
+  protected useSeason(palette: AccentPalette): void {
+    this.themeBuilder.setPalette(palette);
   }
   protected readonly weekdays = [1, 2, 3, 4, 5, 6, 0];
   protected readonly emailKeys = [

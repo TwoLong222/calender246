@@ -39,23 +39,29 @@ const STORAGE_KEY = 'accent-theme';
 const VAR_KEYS: (keyof AccentPalette)[] = [50, 100, 500, 600, 700, 800];
 
 interface StoredAccent {
-  /** id preset, hoặc 'custom'. */
+  /** id preset, 'custom', hoặc 'palette' (lưu nguyên bảng màu, vd theme dịp lễ). */
   id: string;
   /** màu gốc (ứng với sắc 600) khi id === 'custom'. */
   base?: string;
+  /** bảng màu đầy đủ khi id === 'palette'. */
+  palette?: AccentPalette;
 }
 
 @Injectable({ providedIn: 'root' })
 export class ThemeBuilderService {
-  /** id đang chọn ('blue' mặc định, hoặc 'custom'). */
+  /** id đang chọn ('blue' mặc định, 'custom', hoặc 'palette'). */
   readonly accentId = signal<string>('blue');
   /** màu gốc khi dùng tùy chỉnh (hex, = sắc 600). */
   readonly customBase = signal<string>('#2563eb');
+  /** Bảng màu ĐANG áp (dùng để reapply chính xác sau khi seasonal nhường lại). */
+  private currentPalette: AccentPalette = ACCENT_PRESETS[0].palette;
 
   constructor() {
     const saved = this.load();
     if (saved?.id === 'custom' && saved.base) {
       this.setCustom(saved.base);
+    } else if (saved?.id === 'palette' && saved.palette) {
+      this.setPalette(saved.palette, false);
     } else if (saved?.id) {
       this.setPreset(saved.id, false);
     }
@@ -79,6 +85,14 @@ export class ThemeBuilderService {
     this.save({ id: 'custom', base: baseHex });
   }
 
+  /** Áp + lưu nguyên 1 bảng màu (vd chọn theme dịp lễ để dùng luôn). */
+  setPalette(palette: AccentPalette, persist = true): void {
+    this.apply(palette);
+    this.accentId.set('palette');
+    this.customBase.set(palette[600]);
+    if (persist) this.save({ id: 'palette', palette });
+  }
+
   /** Về mặc định (xanh dương). */
   reset(): void {
     this.setPreset('blue');
@@ -86,20 +100,17 @@ export class ThemeBuilderService {
 
   /** Áp lại đúng màu người dùng đang chọn (dùng khi hết dịp lễ, seasonal nhường lại). */
   reapply(): void {
-    if (this.accentId() === 'custom') {
-      this.apply(paletteFromBase(this.customBase()));
-    } else {
-      const preset = ACCENT_PRESETS.find((p) => p.id === this.accentId()) ?? ACCENT_PRESETS[0];
-      this.apply(preset.palette);
-    }
+    this.apply(this.currentPalette);
   }
 
-  /** Áp trực tiếp 1 bảng màu (seasonal dùng để phủ tạm màu dịp lễ, KHÔNG lưu). */
+  /** Áp trực tiếp 1 bảng màu (seasonal dùng để phủ tạm màu dịp lễ, KHÔNG lưu và KHÔNG đổi currentPalette). */
   applyPalette(palette: AccentPalette): void {
-    this.apply(palette);
+    const root = document.documentElement;
+    for (const k of VAR_KEYS) root.style.setProperty(`--accent-${k}`, palette[k]);
   }
 
   private apply(palette: AccentPalette): void {
+    this.currentPalette = palette; // nhớ lại để reapply chính xác
     const root = document.documentElement;
     for (const k of VAR_KEYS) {
       root.style.setProperty(`--accent-${k}`, palette[k]);
