@@ -316,12 +316,16 @@ export class AiAssistantComponent {
   send(): void {
     const text = this.input().trim();
     if (!text || this.loading()) return;
+    // Lịch sử vài lượt gần nhất (trước tin hiện tại) để AI nhớ ngữ cảnh.
+    const history = this.messages()
+      .slice(-8)
+      .map((m) => ({ role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', text: m.text }));
     this.messages.update((m) => [...m, { role: 'user', text }]);
     this.input.set('');
     this.pending.set(null);
     this.loading.set(true);
 
-    this.ai.chat(text).subscribe({
+    this.ai.chat(text, history).subscribe({
       next: (res) => {
         this.loading.set(false);
 
