@@ -39,10 +39,26 @@ export class SupabaseService {
     return this.client.auth.signInWithPassword({ email, password });
   }
 
+  // Đăng nhập THƯỜNG: chỉ dùng quyền cơ bản (email/hồ sơ) -> KHÔNG kích hoạt cảnh báo
+  // "app chưa xác minh", ai cũng đăng nhập được (khi app đã publish). Quyền Google Meet
+  // là quyền nhạy cảm -> tách ra, chỉ xin khi người dùng thực sự bấm "Tạo Meet".
   signInWithGoogle() {
     return this.client.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  }
+
+  /** Xin quyền tạo phòng Google Meet (chỉ gọi khi người dùng bấm "Tạo Meet"). Sẽ chuyển hướng
+   *  sang Google để đồng ý, rồi quay lại app với token có quyền Meet. */
+  requestMeetAccess() {
+    return this.client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.href, // quay lại đúng trang đang đứng
+        scopes: 'openid email profile https://www.googleapis.com/auth/meetings.space.created',
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
     });
   }
 

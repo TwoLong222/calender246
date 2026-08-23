@@ -8,8 +8,8 @@
 
 export const environment = {
   production: false,
-  supabaseUrl: 'https://rjkkoujpfvlnzmmgecsl.supabase.co',
-  supabaseAnonKey: 'sb_publishable_Ilm9VJqq74pBrOQmbl26SA_fvUtPL0A',
+  supabaseUrl: 'https://elpvpflgssbqrasmmdtk.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscHZwZmxnc3NicXJhc21tZHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0OTgxMjksImV4cCI6MjEwMTA3NDEyOX0.sG9j9dWITsbadZEsQKHKbt9z-U0V-X6m5VV2LCQe7xs',
   /** Base URL của NestJS backend — dùng để interceptor biết request nào cần gắn kèm token */
   apiUrl: 'http://localhost:3000/api',
 };

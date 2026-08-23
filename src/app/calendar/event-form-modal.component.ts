@@ -19,6 +19,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 import { AttachmentsApiService } from './attachments-api.service';
+import { SupabaseService } from '../auth/supabase.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -72,12 +73,15 @@ function toTimeInputValue(d: Date): string {
           <div class="space-y-4">
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="w-5 text-center">🕐</span>
-              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay()" />
+              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay() || !canEditTime()" />
               <span>–</span>
-              <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1" />
-              <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay()" />
+              <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+              <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay() || !canEditTime()" />
             </div>
+            @if (!canEditTime()) {
+              <p class="pl-7 text-xs text-gray-500">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
+            }
             <label class="flex items-center gap-2 pl-7 text-sm text-gray-600">
               <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
             </label>
@@ -162,7 +166,7 @@ function toTimeInputValue(d: Date): string {
 
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="2" [placeholder]="tr.t('form.addDesc')" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
 
             <!-- Chọn màu cho sự kiện -->
@@ -234,7 +238,7 @@ function toTimeInputValue(d: Date): string {
             </div>
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="2" [placeholder]="tr.t('form.addDesc')" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
           </div>
         }
@@ -268,6 +272,7 @@ export class EventFormModalComponent {
   protected readonly tr = inject(TranslateService);
   private readonly settings = inject(SettingsService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
+  private readonly supabase = inject(SupabaseService);
 
   // ----- Tài liệu đính kèm ngay lúc tạo (xếp hàng, upload sau khi lưu) -----
   protected readonly stagedFiles = signal<{ file: File; from: string; until: string }[]>([]);
@@ -297,6 +302,19 @@ export class EventFormModalComponent {
     }
     this.stagedFiles.set([]);
   }
+
+  /**
+   * Chỉ NGƯỜI TẠO mới được đổi giờ bắt đầu/kết thúc. Khi tạo mới -> luôn cho phép.
+   * Khi sửa -> so email người tạo với email đang đăng nhập (không xác định được thì cho
+   * phép, để backend là nơi quyết định cuối cùng).
+   */
+  canEditTime = computed(() => {
+    if (!this.editing()) return true;
+    const creator = this.state.editingEvent()?.creatorEmail;
+    const me = this.supabase.user()?.email;
+    if (!creator || !me) return true;
+    return creator.toLowerCase() === me.toLowerCase();
+  });
 
   reminderMinutes = signal<number | null>(null);
   reminderStr(): string {

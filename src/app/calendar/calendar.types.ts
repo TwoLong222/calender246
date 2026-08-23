@@ -40,4 +40,8 @@ export interface CalendarEvent {
   completed?: boolean;
   /** Thời điểm bị đưa vào thùng rác (chỉ có ở sự kiện trong thùng rác); null = chưa xóa */
   deletedAt?: Date | null;
+  /** Nếu là sự kiện NHÓM -> id của nhóm; undefined = sự kiện cá nhân */
+  groupId?: string;
+  /** Link phòng họp Google Meet (nếu có) -> hiện nút "Tham gia Meet" */
+  meetLink?: string;
 }

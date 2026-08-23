@@ -10,11 +10,13 @@ import { AttachmentsApiService } from '../calendar/attachments-api.service';
 
 interface Toast {
   id: string;
-  /** 'event' = nhắc lịch; 'file' = tài liệu vừa mở. */
-  kind: 'event' | 'file';
+  /** 'event' = nhắc lịch; 'file' = tài liệu vừa mở; 'chat' = tin nhắn nhóm mới. */
+  kind: 'event' | 'file' | 'chat';
   title: string;
   /** Dòng phụ: giờ bắt đầu (event) hoặc tên sự kiện (file). */
-  detail: string;
+  detail?: string;
+  /** Nội dung tin nhắn (chat). */
+  body?: string;
 }
 
 const SEEN_FILES_KEY = 'notified-file-open';
@@ -147,6 +149,27 @@ export class NotificationService {
       setTimeout(() => ctx.close(), 800);
     } catch {
       /* trình duyệt chặn âm thanh khi chưa có tương tác -> bỏ qua */
+    }
+  }
+
+  /**
+   * Thông báo chung (dùng cho tin nhắn nhóm mới):
+   * - Luôn hiện toast nổi trong app + kêu bíp nhẹ.
+   * - Nếu người dùng đang ở tab/cửa sổ KHÁC (tab ẩn) và đã cấp quyền -> báo thêm desktop.
+   */
+  notifyMessage(title: string, body: string): void {
+    const toastId = `chat:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    this.toasts.update((t) => [...t, { id: toastId, title, body, kind: 'chat' }]);
+    setTimeout(() => this.dismiss(toastId), 8_000); // tự ẩn sau 8s
+    this.playBeep();
+
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    if (hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(title, { body });
+      } catch {
+        /* một số trình duyệt yêu cầu ServiceWorker cho Notification — bỏ qua nếu lỗi */
+      }
     }
   }
 
