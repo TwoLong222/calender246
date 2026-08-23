@@ -14,6 +14,8 @@ import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
+import { TimePickerComponent } from '../shared/time-picker.component';
+import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 import { AttachmentsApiService } from './attachments-api.service';
@@ -34,7 +36,7 @@ function toTimeInputValue(d: Date): string {
 @Component({
   selector: 'app-event-form-modal',
   standalone: true,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent, TimePickerComponent, DateTimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
@@ -71,10 +73,10 @@ function toTimeInputValue(d: Date): string {
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="w-5 text-center">🕐</span>
               <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1" [disabled]="isAllDay()" />
+              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay()" />
               <span>–</span>
               <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="endTime" class="rounded border border-gray-300 px-2 py-1" [disabled]="isAllDay()" />
+              <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay()" />
             </div>
             <label class="flex items-center gap-2 pl-7 text-sm text-gray-600">
               <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
@@ -204,10 +206,10 @@ function toTimeInputValue(d: Date): string {
               </div>
               <div class="grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
                 <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.from') }}
-                  <input type="datetime-local" [(ngModel)]="stageFrom" class="rounded border border-gray-300 px-1 py-0.5" />
+                  <app-datetime-picker [(ngModel)]="stageFrom" />
                 </label>
                 <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.until') }}
-                  <input type="datetime-local" [(ngModel)]="stageUntil" class="rounded border border-gray-300 px-1 py-0.5" />
+                  <app-datetime-picker [(ngModel)]="stageUntil" />
                 </label>
                 <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
@@ -228,7 +230,7 @@ function toTimeInputValue(d: Date): string {
             <div class="flex items-center gap-2 text-sm">
               <app-icon name="target" class="h-4 w-4 text-gray-500" />
               <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1" />
+              <app-time-picker [(ngModel)]="startTime" />
             </div>
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />

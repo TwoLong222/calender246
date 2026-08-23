@@ -21,6 +21,7 @@ import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
+import { TimePickerComponent } from '../shared/time-picker.component';
 import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
 import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 
@@ -37,7 +38,7 @@ type Section =
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [FormsModule, IconComponent, RouterLink],
+  imports: [FormsModule, IconComponent, RouterLink, TimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="min-h-screen bg-gray-50 text-gray-800">
@@ -173,11 +174,11 @@ type Section =
                 <div class="flex gap-3">
                   <div class="flex-1">
                     <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.workStart') }}</label>
-                    <input type="time" [ngModel]="s().working_start" (ngModelChange)="set({ working_start: $event })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                    <app-time-picker [ngModel]="s().working_start" (ngModelChange)="set({ working_start: $event })" />
                   </div>
                   <div class="flex-1">
                     <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.workEnd') }}</label>
-                    <input type="time" [ngModel]="s().working_end" (ngModelChange)="set({ working_end: $event })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                    <app-time-picker [ngModel]="s().working_end" (ngModelChange)="set({ working_end: $event })" />
                   </div>
                 </div>
                 <div>

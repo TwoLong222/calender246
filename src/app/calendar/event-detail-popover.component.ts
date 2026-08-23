@@ -11,11 +11,12 @@ import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { AttendeeStatus } from './calendar.types';
 import { IconComponent } from '../shared/icon.component';
+import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 
 @Component({
   selector: 'app-event-detail-popover',
   standalone: true,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent, DateTimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (event(); as e) {
@@ -117,11 +118,11 @@ import { IconComponent } from '../shared/icon.component';
               <div class="mb-2 grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
                 <label class="flex flex-col gap-0.5 text-gray-500">
                   {{ tr.t('attach.from') }}
-                  <input type="datetime-local" [(ngModel)]="newFrom" class="rounded border border-gray-300 px-1 py-0.5 text-xs" />
+                  <app-datetime-picker [(ngModel)]="newFrom" />
                 </label>
                 <label class="flex flex-col gap-0.5 text-gray-500">
                   {{ tr.t('attach.until') }}
-                  <input type="datetime-local" [(ngModel)]="newUntil" class="rounded border border-gray-300 px-1 py-0.5 text-xs" />
+                  <app-datetime-picker [(ngModel)]="newUntil" />
                 </label>
                 <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
