@@ -86,6 +86,19 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
   };
 }
 
+/** Lời mời chưa trả lời (trang Lời mời). */
+export interface Invitation {
+  eventId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  location: string | null;
+  color: string;
+  creatorEmail: string | null;
+  myStatus: string;
+}
+
 /** Tùy chọn lặp lại khi tạo event mới (materialized: backend tạo `count` event thật) */
 export interface RecurrenceOptions {
   repeat: 'daily' | 'weekly' | 'monthly';
@@ -149,6 +162,11 @@ export class EventsApiService {
   /** Xóa vĩnh viễn 1 sự kiện trong thùng rác */
   purge(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${id}/purge`);
+  }
+
+  /** Lời mời chưa trả lời của user (để bấm Đồng ý/Từ chối ở trang Lời mời) */
+  listInvitations(): Observable<Invitation[]> {
+    return this.http.get<Invitation[]>(`${this.base}/invitations`);
   }
 
   /** User tự đặt trạng thái tham dự -> trả về danh sách khách mời mới (đã cập nhật) */
