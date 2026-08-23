@@ -78,7 +78,21 @@ import { TranslateService } from '../i18n/translate.service';
           <app-icon name="menu" class="h-5 w-5 text-gray-600" />
         </button>
         <span class="flex items-center gap-2 text-lg font-medium text-gray-700">
-          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> {{ tr.t('nav.calendar') }}
+          <svg viewBox="0 0 32 32" class="h-7 w-7" aria-hidden="true">
+            <rect x="9.2" y="3" width="2.6" height="6" rx="1.3" fill="var(--accent-600)"/>
+            <rect x="20.2" y="3" width="2.6" height="6" rx="1.3" fill="var(--accent-600)"/>
+            <rect x="3.5" y="6.5" width="25" height="22" rx="6" fill="var(--accent-600)"/>
+            <rect x="3.5" y="6.5" width="25" height="6.5" rx="6" fill="var(--accent-500)"/>
+            <g fill="#fff" opacity=".9">
+              <rect x="7" y="16.4" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="14.2" y="16.4" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="21.4" y="16.4" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="7" y="21.8" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="21.4" y="21.8" width="3.6" height="3.6" rx="1.1"/>
+            </g>
+            <rect x="14.2" y="21.8" width="3.6" height="3.6" rx="1.1" fill="#dc2626"/>
+          </svg>
+          {{ tr.t('nav.calendar') }}
         </span>
 
         <button

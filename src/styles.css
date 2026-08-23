@@ -3,6 +3,22 @@
 @import 'tailwindcss';
 
 /* ============================================================
+   FONT ĐỒNG BỘ VỚI LANDING PAGE
+   Hanken Grotesk cho nội dung, Bricolage Grotesque cho tiêu đề,
+   IBM Plex Mono cho nhãn/giờ (class .mono). Nạp trong index.html.
+   ============================================================ */
+body {
+  font-family: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+h1, h2, h3, h4 {
+  font-family: "Bricolage Grotesque", "Hanken Grotesk", sans-serif;
+  letter-spacing: -0.01em;
+}
+.mono, .font-mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/* ============================================================
    CON TRỎ CHUỘT — mọi thứ bấm được đều hiện bàn tay (pointer)
    khi rê chuột vào, để người dùng biết chỗ nào click được.
    ============================================================ */
@@ -231,14 +247,15 @@ input[type='radio'] {
    Màu SỰ KIỆN (sky/violet/emerald/rose/amber) KHÔNG bị ảnh hưởng.
    ============================================================ */
 :root {
-  --accent-50: #eff6ff;
-  --accent-100: #dbeafe;
-  --accent-500: #3b82f6;
-  --accent-600: #2563eb;
-  --accent-700: #1d4ed8;
-  --accent-800: #1e40af;
-  /* Nền trang (đổi theo theme dịp lễ; mặc định = gray-50) */
-  --app-bg: #f9fafb;
+  /* Màu nhấn mặc định = NAVY, đồng bộ landing page (#22407D) */
+  --accent-50: #eef2f8;
+  --accent-100: #d7e0ef;
+  --accent-500: #3a5ca0;
+  --accent-600: #22407d;
+  --accent-700: #1a3260;
+  --accent-800: #132549;
+  /* Nền trang: tông giấy ấm như landing (đổi theo theme dịp lễ) */
+  --app-bg: #f5f3ee;
 }
 /* Nền trang chính đổi theo theme. Dark mode có rule riêng (đè lên) nên chỉ áp ở light. */
 .bg-gray-50 { background-color: var(--app-bg); }

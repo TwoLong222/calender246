@@ -71,7 +71,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     // Appearance
     'theme.light': 'Sáng', 'theme.dark': 'Tối', 'theme.system': 'Theo hệ thống',
     'theme.accent': 'Màu nhấn', 'theme.accentHint': 'Đổi màu chủ đạo của lịch (nút, ngày hôm nay, liên kết...).',
-    'theme.custom': 'Tùy chỉnh', 'theme.preview': 'Xem trước', 'theme.reset': 'Về mặc định (xanh dương)',
+    'theme.custom': 'Tùy chỉnh', 'theme.preview': 'Xem trước', 'theme.reset': 'Về mặc định (xanh navy)',
     'theme.seasonal': 'Giao diện theo dịp lễ', 'theme.seasonalHint': 'Công tắc tổng: TẮT là ẩn hết màu + trang trí dịp lễ. BẬT thì tự đổi khi đến dịp thật.', 'theme.useTheme': 'Dùng',
     'theme.seasonalNote': 'Rê chuột để xem thử, BẤM vào 1 dịp để dùng tông màu đó ngay (không cần chờ đúng ngày). Ngày Tết/Trung thu tính theo âm lịch, đúng mọi năm.',
     // Privacy
@@ -203,7 +203,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'notif.blocked': 'Notifications are blocked — enable them in your browser settings.',
     'theme.light': 'Light', 'theme.dark': 'Dark', 'theme.system': 'System',
     'theme.accent': 'Accent color', 'theme.accentHint': 'Change the calendar’s main color (buttons, today, links...).',
-    'theme.custom': 'Custom', 'theme.preview': 'Preview', 'theme.reset': 'Reset to default (blue)',
+    'theme.custom': 'Custom', 'theme.preview': 'Preview', 'theme.reset': 'Reset to default (navy)',
     'theme.seasonal': 'Seasonal themes', 'theme.seasonalHint': 'Master switch: OFF hides all occasion colors & decorations. ON auto-switches when a real occasion arrives.', 'theme.useTheme': 'Use',
     'theme.seasonalNote': 'Hover to preview, CLICK an occasion to use its colors now (no need to wait). Tet/Mid-Autumn follow the lunar calendar, correct for any year.',
     'priv.eventDefault': 'Default event privacy', 'priv.private': 'Private',
