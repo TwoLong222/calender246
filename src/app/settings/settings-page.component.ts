@@ -19,7 +19,11 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from './settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
+import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
+import { TimePickerComponent } from '../shared/time-picker.component';
+import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
+import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 
 type Section =
   | 'account'
@@ -34,7 +38,7 @@ type Section =
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [FormsModule, IconComponent, RouterLink],
+  imports: [FormsModule, IconComponent, RouterLink, TimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="min-h-screen bg-gray-50 text-gray-800">
@@ -170,11 +174,11 @@ type Section =
                 <div class="flex gap-3">
                   <div class="flex-1">
                     <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.workStart') }}</label>
-                    <input type="time" [ngModel]="s().working_start" (ngModelChange)="set({ working_start: $event })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                    <app-time-picker [ngModel]="s().working_start" (ngModelChange)="set({ working_start: $event })" />
                   </div>
                   <div class="flex-1">
                     <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.workEnd') }}</label>
-                    <input type="time" [ngModel]="s().working_end" (ngModelChange)="set({ working_end: $event })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                    <app-time-picker [ngModel]="s().working_end" (ngModelChange)="set({ working_end: $event })" />
                   </div>
                 </div>
                 <div>
@@ -207,12 +211,12 @@ type Section =
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('notif.defaultReminder') }}</label>
                   <select [ngModel]="reminderValue()" (ngModelChange)="setReminder($event)" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     <option value="none">{{ tr.t('notif.none') }}</option>
-                    <option value="5">5 {{ tr.t('notif.min') }}</option>
-                    <option value="10">10 {{ tr.t('notif.min') }}</option>
-                    <option value="15">15 {{ tr.t('notif.min') }}</option>
-                    <option value="30">30 {{ tr.t('notif.min') }}</option>
-                    <option value="60">{{ tr.t('notif.hour') }}</option>
-                    <option value="1440">{{ tr.t('notif.day') }}</option>
+                    <option value="5">{{ tr.t('notif.r5') }}</option>
+                    <option value="10">{{ tr.t('notif.r10') }}</option>
+                    <option value="15">{{ tr.t('notif.r15') }}</option>
+                    <option value="30">{{ tr.t('notif.r30') }}</option>
+                    <option value="60">{{ tr.t('notif.r60') }}</option>
+                    <option value="1440">{{ tr.t('notif.r1440') }}</option>
                   </select>
                   <p class="mt-1 text-xs text-gray-400">{{ tr.t('notif.reminderNote') }}</p>
                 </div>
@@ -227,6 +231,103 @@ type Section =
                     <input type="radio" name="theme" [checked]="s().theme === th" (change)="set({ theme: th })" class="accent-blue-600" /> {{ tr.t('theme.' + th) }}
                   </label>
                 }
+              </section>
+
+              <!-- Bộ build màu nhấn của lịch -->
+              <section class="mt-4 rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+                <div>
+                  <h2 class="text-base font-semibold">{{ tr.t('theme.accent') }}</h2>
+                  <p class="mt-0.5 text-xs text-gray-500">{{ tr.t('theme.accentHint') }}</p>
+                </div>
+
+                <!-- Preset màu -->
+                <div class="flex flex-wrap gap-2">
+                  @for (p of accentPresets; track p.id) {
+                    <button
+                      type="button"
+                      (click)="pickPreset(p.id)"
+                      [title]="p.name"
+                      class="tap relative h-9 w-9 rounded-full border-2 transition"
+                      [style.background-color]="p.palette[600]"
+                      [class.border-gray-900]="themeBuilder.accentId() === p.id"
+                      [class.border-transparent]="themeBuilder.accentId() !== p.id"
+                    >
+                      @if (themeBuilder.accentId() === p.id) {
+                        <span class="absolute inset-0 flex items-center justify-center text-white">
+                          <app-icon name="check" class="h-4 w-4" />
+                        </span>
+                      }
+                    </button>
+                  }
+                </div>
+
+                <!-- Màu tùy chỉnh -->
+                <label class="flex items-center gap-3 text-sm">
+                  <span class="text-gray-700">{{ tr.t('theme.custom') }}</span>
+                  <input
+                    type="color"
+                    [value]="themeBuilder.customBase()"
+                    (input)="onCustomAccent($event)"
+                    class="h-9 w-14 cursor-pointer rounded border border-gray-300 bg-white p-0.5"
+                  />
+                  <span class="font-mono text-xs text-gray-500">{{ themeBuilder.customBase() }}</span>
+                </label>
+
+                <!-- Xem trước -->
+                <div class="rounded-lg border border-gray-200 p-3">
+                  <p class="mb-2 text-xs text-gray-500">{{ tr.t('theme.preview') }}</p>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm text-white">21</span>
+                    <button type="button" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">{{ tr.t('form.save') }}</button>
+                    <span class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700">{{ tr.t('theme.accent') }}</span>
+                    <a class="text-sm text-blue-600 hover:underline">{{ tr.t('theme.custom') }}</a>
+                  </div>
+                </div>
+
+                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                  {{ tr.t('theme.reset') }}
+                </button>
+              </section>
+
+              <!-- Giao diện theo dịp lễ -->
+              <section class="mt-4 rounded-lg border border-gray-200 bg-white p-5 space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 class="text-base font-semibold">{{ tr.t('theme.seasonal') }}</h2>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ tr.t('theme.seasonalHint') }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    [attr.aria-checked]="seasonal.autoEnabled()"
+                    (click)="seasonal.setAuto(!seasonal.autoEnabled())"
+                    class="relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition"
+                    [class.bg-blue-600]="seasonal.autoEnabled()"
+                    [class.bg-gray-300]="!seasonal.autoEnabled()"
+                  >
+                    <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all" [style.left.px]="seasonal.autoEnabled() ? 22 : 2"></span>
+                  </button>
+                </div>
+
+                <ul class="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                  @for (se of seasons; track se.id) {
+                    <li
+                      class="group flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-gray-50"
+                      (click)="useSeason(se)"
+                      (mouseenter)="seasonal.autoEnabled() && seasonal.preview(se)"
+                      (mouseleave)="seasonal.autoEnabled() && seasonal.clearPreview()"
+                    >
+                      <span class="text-lg">{{ se.emoji }}</span>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium">{{ se.name }}</p>
+                        <p class="truncate text-xs text-gray-500">{{ se.when }}</p>
+                      </div>
+                      <span class="rounded-md bg-blue-600 px-2 py-1 text-xs text-white opacity-0 transition group-hover:opacity-100">{{ tr.t('theme.useTheme') }}</span>
+                      <span class="h-4 w-4 shrink-0 rounded-full" [style.background-color]="se.palette[600]"></span>
+                    </li>
+                  }
+                </ul>
+                <p class="text-xs text-gray-400">{{ tr.t('theme.seasonalNote') }}</p>
               </section>
             }
 
@@ -270,6 +371,31 @@ type Section =
                   <button type="button" (click)="logout()" class="tap rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ tr.t('priv.logout') }}</button>
                   <button type="button" (click)="logoutAll()" class="tap ml-2 rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ tr.t('priv.logoutAll') }}</button>
                 </div>
+
+                <!-- Chia sẻ lịch -->
+                <div class="border-t border-gray-200 pt-3 text-sm">
+                  <p class="mb-1 font-medium">{{ tr.t('share.title') }}</p>
+                  <p class="mb-3 text-xs text-gray-400">{{ tr.t('share.desc') }}</p>
+                  <div class="flex flex-wrap gap-2">
+                    <input type="email" [ngModel]="shareEmail()" (ngModelChange)="shareEmail.set($event)" [placeholder]="tr.t('share.email')" class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2" />
+                    <select [ngModel]="shareRole()" (ngModelChange)="shareRole.set($event)" class="rounded-md border border-gray-300 px-2 py-2">
+                      <option value="viewer">{{ tr.t('share.viewer') }}</option>
+                      <option value="editor">{{ tr.t('share.editor') }}</option>
+                    </select>
+                    <button type="button" (click)="addMember()" class="tap rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">{{ tr.t('share.add') }}</button>
+                  </div>
+                  @if (shareError()) { <p class="mt-1 text-xs text-red-600">{{ shareError() }}</p> }
+                  <ul class="mt-3 space-y-1">
+                    @for (m of members(); track m.member_email) {
+                      <li class="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5">
+                        <span class="truncate">{{ m.member_email }} <span class="ml-1 text-xs text-gray-400">· {{ m.role === 'editor' ? tr.t('share.editor') : tr.t('share.viewer') }}</span></span>
+                        <button type="button" (click)="removeMember(m.member_email)" class="tap rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+                      </li>
+                    } @empty {
+                      <li class="text-xs text-gray-400">{{ tr.t('share.none') }}</li>
+                    }
+                  </ul>
+                </div>
               </section>
             }
 
@@ -300,6 +426,17 @@ type Section =
                   <label class="flex items-center justify-between text-sm"><span>{{ tr.t('ai.update') }}</span><input type="checkbox" [checked]="s().ai_settings.allow_update" (change)="toggleAi('allow_update')" class="accent-blue-600" /></label>
                   <label class="flex items-center justify-between text-sm"><span>{{ tr.t('ai.delete') }}</span><input type="checkbox" [checked]="s().ai_settings.allow_delete" (change)="toggleAi('allow_delete')" class="accent-blue-600" /></label>
                   <p class="text-xs text-gray-400">{{ tr.t('ai.note') }}</p>
+                </div>
+
+                <!-- Lịch sử trò chuyện với AI -->
+                <div class="flex items-center justify-between border-t border-gray-200 pt-3">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">{{ tr.t('ai.history') }}</p>
+                    <p class="text-xs text-gray-400">{{ tr.t('ai.historyHint') }}</p>
+                  </div>
+                  <button type="button" (click)="clearAiChat()" class="shrink-0 rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
+                    {{ aiCleared() ? tr.t('ai.cleared') : tr.t('ai.clear') }}
+                  </button>
                 </div>
               </section>
             }
@@ -351,6 +488,29 @@ export class SettingsPageComponent {
     setTimeout(() => this.bookingCopied.set(false), 1500);
   }
 
+  // ---- Chia sẻ lịch ----
+  private readonly sharingApi = inject(SharingApiService);
+  protected readonly members = signal<CalendarMember[]>([]);
+  protected readonly shareEmail = signal('');
+  protected readonly shareRole = signal<'viewer' | 'editor'>('viewer');
+  protected readonly shareError = signal('');
+
+  private loadMembers(): void {
+    this.sharingApi.getMembers().subscribe({ next: (m) => this.members.set(m), error: () => {} });
+  }
+  protected addMember(): void {
+    const email = this.shareEmail().trim();
+    if (!email) return;
+    this.shareError.set('');
+    this.sharingApi.addMember(email, this.shareRole()).subscribe({
+      next: () => { this.shareEmail.set(''); this.loadMembers(); },
+      error: (e) => this.shareError.set(e?.error?.message ?? 'Chia sẻ thất bại.'),
+    });
+  }
+  protected removeMember(email: string): void {
+    this.sharingApi.removeMember(email).subscribe({ next: () => this.loadMembers(), error: () => {} });
+  }
+
   protected readonly section = signal<Section>('general');
   protected readonly now = new Date();
   protected readonly timezones = COMMON_TIMEZONES;
@@ -369,6 +529,38 @@ export class SettingsPageComponent {
   ];
 
   protected readonly themes = ['light', 'dark', 'system'] as const;
+  protected readonly themeBuilder = inject(ThemeBuilderService);
+  protected readonly accentPresets = ACCENT_PRESETS;
+  protected readonly seasonal = inject(SeasonalThemeService);
+  protected readonly seasons = SEASONS;
+  /** Xóa lịch sử chat AI (lưu trên máy). */
+  protected readonly aiCleared = signal(false);
+  protected clearAiChat(): void {
+    try { localStorage.removeItem('ai-chat-history'); } catch { /* bỏ qua */ }
+    this.aiCleared.set(true);
+    setTimeout(() => this.aiCleared.set(false), 2000);
+  }
+  /** Đổi màu nhấn tùy chỉnh từ ô chọn màu -> bỏ trang trí dịp lễ đang chọn tay. */
+  protected onCustomAccent(ev: Event): void {
+    const value = (ev.target as HTMLInputElement).value;
+    this.themeBuilder.setCustom(value);
+    this.seasonal.setManualSeason(null);
+  }
+  /** Chọn preset màu -> bỏ trang trí dịp lễ đang chọn tay. */
+  protected pickPreset(id: string): void {
+    this.themeBuilder.setPreset(id);
+    this.seasonal.setManualSeason(null);
+  }
+  /** Bấm 1 dịp lễ -> dùng luôn theme đó (màu + nền + trang trí, lưu lại). Bật công tắc để hiện. */
+  protected useSeason(se: Season): void {
+    this.seasonal.setAuto(true);
+    this.seasonal.setManualSeason(se.id);
+  }
+  /** Về mặc định: màu xanh dương + bỏ trang trí dịp lễ chọn tay. */
+  protected resetTheme(): void {
+    this.themeBuilder.reset();
+    this.seasonal.setManualSeason(null);
+  }
   protected readonly weekdays = [1, 2, 3, 4, 5, 6, 0];
   protected readonly emailKeys = [
     'event_invitation', 'event_updated', 'event_cancelled', 'event_reminder',
@@ -405,6 +597,7 @@ export class SettingsPageComponent {
       next: (p) => this.bookingPage.set(p),
       error: () => {},
     });
+    this.loadMembers();
   }
 
   protected set(patch: Parameters<SettingsService['update']>[0]): void {

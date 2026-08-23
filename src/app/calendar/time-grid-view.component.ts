@@ -23,6 +23,7 @@ import { formatHourLabel, isSameDay, minutesSinceMidnight } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { CalendarStateService } from './calendar-state.service';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -197,10 +198,10 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   @if (item.height < 40) {
                     <!-- Block quá ngắn: gộp giờ bắt đầu + tiêu đề trên 1 dòng để vẫn thấy được giờ -->
                     <span class="block truncate font-medium">
-                      {{ formatStart(item.event) }} {{ item.event.title || '(Không có tiêu đề)' }}
+                      @if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ formatStart(item.event) }} {{ item.event.title || tr.t('common.untitled') }}
                     </span>
                   } @else {
-                    <span class="block truncate font-medium">{{ item.event.title || '(Không có tiêu đề)' }}</span>
+                    <span class="block truncate font-medium">@if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ item.event.title || tr.t('common.untitled') }}</span>
                     <span class="block truncate opacity-90">{{ formatRange(item.event) }}</span>
                   }
 
@@ -261,9 +262,10 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Chỉ CHỦ event mới được kéo/co giãn (khách được mời không sửa được — RLS chặn) */
+  protected readonly state = inject(CalendarStateService);
   canEdit(e: CalendarEvent): boolean {
-    if (!e.creatorEmail) return true; // event cũ chưa có creatorEmail -> tạm cho (thường của mình)
-    return e.creatorEmail.toLowerCase() === this.supabase.user()?.email?.toLowerCase();
+    // Chủ event, hoặc editor của lịch được chia sẻ.
+    return this.state.canEditEvent(e);
   }
   private readonly scrollAreaRef = viewChild<ElementRef<HTMLDivElement>>('scrollArea');
   private readonly gridRowRef = viewChild<ElementRef<HTMLDivElement>>('gridRow');

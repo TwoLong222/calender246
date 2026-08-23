@@ -32,8 +32,12 @@ export interface CalendarEvent {
   seriesId?: string | null;
   /** Email người tạo event (hiện "Người tạo" ở popover) */
   creatorEmail?: string;
+  /** Lịch chứa event (để biết event thuộc lịch của mình hay lịch được chia sẻ) */
+  calendarId?: string;
   /** Nhắc trước bao nhiêu phút; null = không nhắc */
   reminderMinutes?: number | null;
+  /** Task đã hoàn thành (chỉ dùng cho kind='task') */
+  completed?: boolean;
   /** Thời điểm bị đưa vào thùng rác (chỉ có ở sự kiện trong thùng rác); null = chưa xóa */
   deletedAt?: Date | null;
 }

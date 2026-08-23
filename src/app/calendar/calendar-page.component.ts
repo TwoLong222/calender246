@@ -17,6 +17,7 @@ import { AiAssistantComponent } from '../ai/ai-assistant.component';
 import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
 import { IconComponent } from '../shared/icon.component';
 import { ThemeService } from '../theme.service';
+import { SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { IcsService } from './ics.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, startOfWeek } from './date-utils';
@@ -42,28 +43,26 @@ import { TranslateService } from '../i18n/translate.service';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="flex h-screen flex-col bg-white text-gray-900">
+    <div class="flex h-screen flex-col bg-gray-50 text-gray-900">
       @if (state.loadError(); as msg) {
         <div class="flex items-center justify-between bg-red-50 px-4 py-2 text-sm text-red-700">
           <span class="flex items-center gap-2"><app-icon name="alert" />{{ msg }}</span>
-          <button type="button" (click)="state.reload()" class="rounded border border-red-300 px-2 py-0.5 hover:bg-red-100">
-            Thử lại
-          </button>
+          <button type="button" (click)="state.reload()" class="rounded border border-red-300 px-2 py-0.5 hover:bg-red-100">{{ tr.t('nav.retry') }}</button>
         </div>
       }
       @if (state.lastSavedConflicts().length > 0) {
         <div class="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm text-amber-800">
           <span class="flex items-center gap-2">
             <app-icon name="alert" />
-            Sự kiện vừa lưu bị trùng lịch với: {{ state.lastSavedConflicts().join(', ') }}
+            {{ tr.t('nav.conflictWarn') }} {{ state.lastSavedConflicts().join(', ') }}
           </span>
-          <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded p-1 hover:bg-amber-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
+          <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded p-1 hover:bg-amber-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
       }
       @if (importMsg(); as msg) {
         <div class="flex items-center justify-between bg-gray-50 px-4 py-2 text-sm text-gray-700">
           <span class="flex items-center gap-2"><app-icon name="inbox" />{{ msg }}</span>
-          <button type="button" (click)="importMsg.set('')" class="rounded p-1 hover:bg-gray-100" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
+          <button type="button" (click)="importMsg.set('')" class="rounded p-1 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
       }
 
@@ -73,8 +72,8 @@ import { TranslateService } from '../i18n/translate.service';
           type="button"
           (click)="sidebarOpen.set(!sidebarOpen())"
           class="tap rounded-full p-1.5 hover:bg-gray-100"
-          aria-label="Ẩn/hiện thanh bên"
-          title="Ẩn/hiện thanh bên"
+          [attr.aria-label]="tr.t('nav.toggleSidebar')"
+          [title]="tr.t('nav.toggleSidebar')"
         >
           <app-icon name="menu" class="h-5 w-5 text-gray-600" />
         </button>
@@ -89,11 +88,17 @@ import { TranslateService } from '../i18n/translate.service';
         >{{ tr.t('nav.today') }}</button>
 
         <div class="flex gap-1">
-          <button type="button" (click)="state.goPrev()" class="tap rounded-full p-1.5 hover:bg-gray-100" aria-label="Trước"><app-icon name="chevron-left" /></button>
-          <button type="button" (click)="state.goNext()" class="tap rounded-full p-1.5 hover:bg-gray-100" aria-label="Sau"><app-icon name="chevron-right" /></button>
+          <button type="button" (click)="state.goPrev()" class="tap rounded-full p-1.5 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.prev')"><app-icon name="chevron-left" /></button>
+          <button type="button" (click)="state.goNext()" class="tap rounded-full p-1.5 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.next')"><app-icon name="chevron-right" /></button>
         </div>
 
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
+
+        @if (seasonal.effectiveSeason(); as season) {
+          <span class="hidden items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 sm:inline-flex" [title]="season.when">
+            {{ season.emoji }} {{ season.name }}
+          </span>
+        }
 
         @if (state.isLoading()) {
           <span class="text-xs text-gray-400">{{ tr.t('nav.loading') }}</span>
@@ -116,7 +121,7 @@ import { TranslateService } from '../i18n/translate.service';
             @if (searchFocused() && searchQuery().trim()) {
               <div class="popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 @if (searchResults().length === 0) {
-                  <p class="px-3 py-2 text-sm text-gray-400">Không tìm thấy sự kiện nào.</p>
+                  <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
                 } @else {
                   @for (e of searchResults(); track e.id) {
                     <button
@@ -124,7 +129,7 @@ import { TranslateService } from '../i18n/translate.service';
                       (click)="goToSearchResult(e)"
                       class="block w-full px-3 py-2 text-left hover:bg-gray-50"
                     >
-                      <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || '(Không có tiêu đề)' }}</span>
+                      <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || tr.t('common.untitled') }}</span>
                       <span class="block truncate text-xs text-gray-500">{{ resultDateLabel(e) }}</span>
                     </button>
                   }
@@ -137,8 +142,8 @@ import { TranslateService } from '../i18n/translate.service';
             type="button"
             (click)="theme.toggle()"
             class="tap rounded-full p-1.5 hover:bg-gray-100"
-            [attr.aria-label]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
-            [title]="theme.isDark() ? 'Chế độ sáng' : 'Chế độ tối'"
+            [attr.aria-label]="theme.isDark() ? tr.t('nav.lightMode') : tr.t('nav.darkMode')"
+            [title]="theme.isDark() ? tr.t('nav.lightMode') : tr.t('nav.darkMode')"
           >
             @if (theme.isDark()) {
               <app-icon name="sun" class="h-5 w-5 text-amber-500" />
@@ -153,8 +158,8 @@ import { TranslateService } from '../i18n/translate.service';
               type="button"
               (click)="settingsMenuOpen.set(!settingsMenuOpen())"
               class="tap rounded-full p-1.5 hover:bg-gray-100"
-              title="Công cụ & cài đặt"
-              aria-label="Công cụ & cài đặt"
+              [title]="tr.t('nav.tools')"
+              [attr.aria-label]="tr.t('nav.tools')"
             >
               <app-icon name="dots" class="h-5 w-5 text-gray-600" />
             </button>
@@ -172,6 +177,18 @@ import { TranslateService } from '../i18n/translate.service';
                 <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="trash" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.trash') }}
                 </button>
+                <a routerLink="/tasks" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="check" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.tasks') }}
+                </a>
+                <a routerLink="/am-lich" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="moon" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.lunar') }}
+                </a>
+                <a routerLink="/notes" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="notes" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.notes') }}
+                </a>
+                <a routerLink="/invitations" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="mail" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.invitations') }}
+                </a>
                 <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="settings" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.settings') }}
                 </a>
@@ -316,6 +333,7 @@ export class CalendarPageComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly supabase = inject(SupabaseService);
   protected readonly theme = inject(ThemeService);
+  protected readonly seasonal = inject(SeasonalThemeService);
   protected readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);

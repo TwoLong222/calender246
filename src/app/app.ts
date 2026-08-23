@@ -1,11 +1,14 @@
 import { Component, effect, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { SeasonalDecorComponent } from './theme/seasonal-decor.component';
 import { ThemeService } from './theme.service';
+import { ThemeBuilderService } from './theme/theme-builder.service';
+import { SeasonalThemeService } from './theme/seasonal-theme.service';
 import { SupabaseService } from './auth/supabase.service';
 import { SettingsService } from './settings/settings.service';
 
 @Component({
-  imports: [RouterModule],
+  imports: [RouterModule, SeasonalDecorComponent],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -14,6 +17,10 @@ export class App {
   protected title = 'web';
   // Khởi tạo theme ngay khi mở app (áp dụng cho cả trang đăng nhập)
   private readonly theme = inject(ThemeService);
+  // Áp màu nhấn tùy chỉnh đã lưu (constructor tự đọc localStorage + set biến CSS)
+  private readonly themeBuilder = inject(ThemeBuilderService);
+  // Tự phủ tông màu theo dịp lễ (Tết, Trung thu, Halloween...) — chạy SAU themeBuilder
+  private readonly seasonal = inject(SeasonalThemeService);
   private readonly supabase = inject(SupabaseService);
   private readonly settings = inject(SettingsService);
 

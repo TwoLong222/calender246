@@ -6,10 +6,17 @@ import { isSameDay, startOfMonth } from './date-utils';
 import { HolidaysService } from './holidays.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { CalendarStateService } from './calendar-state.service';
+import { solarToLunar } from '../lunar/lunar.util';
 
 interface MonthCell {
   date: Date;
   inCurrentMonth: boolean;
+  /** Nhãn ngày âm: mùng 1 hiện "1/<tháng>", còn lại chỉ số ngày. */
+  lunarLabel: string;
+  isLunarStart: boolean;
+  holiday: string | null;
+  holidayPublic: boolean;
 }
 
 const MAX_CHIPS_PER_CELL = 3;
@@ -33,15 +40,35 @@ const MAX_CHIPS_PER_CELL = 3;
             [class.bg-gray-50]="!cell.inCurrentMonth"
             (click)="dateClicked.emit(cell.date)"
           >
-            <span
-              class="mb-1 flex h-6 w-6 items-center justify-center self-end rounded-full text-sm"
-              [class.text-gray-300]="!cell.inCurrentMonth"
-              [class.text-gray-700]="cell.inCurrentMonth && !isToday(cell.date)"
-              [class.bg-blue-700]="isToday(cell.date)"
-              [class.text-white]="isToday(cell.date)"
-            >
-              {{ cell.date.getDate() }}
-            </span>
+            <div class="mb-0.5 flex items-start justify-between">
+              <span
+                class="text-[10px] leading-5"
+                [class.text-gray-300]="!cell.inCurrentMonth"
+                [class.font-semibold]="cell.isLunarStart"
+                [class.text-amber-600]="cell.inCurrentMonth && cell.isLunarStart"
+                [class.text-gray-400]="cell.inCurrentMonth && !cell.isLunarStart"
+              >{{ cell.lunarLabel }}</span>
+              <span
+                class="flex h-6 w-6 items-center justify-center rounded-full text-sm"
+                [class.text-gray-300]="!cell.inCurrentMonth"
+                [class.text-red-600]="cell.inCurrentMonth && cell.holidayPublic && !isToday(cell.date)"
+                [class.text-gray-700]="cell.inCurrentMonth && !cell.holidayPublic && !isToday(cell.date)"
+                [class.bg-blue-700]="isToday(cell.date)"
+                [class.text-white]="isToday(cell.date)"
+              >
+                {{ cell.date.getDate() }}
+              </span>
+            </div>
+
+            @if (cell.holiday) {
+              <p
+                class="mb-0.5 truncate text-[10px] leading-tight"
+                [class.text-red-600]="cell.holidayPublic"
+                [class.text-gray-500]="!cell.holidayPublic"
+                [class.opacity-50]="!cell.inCurrentMonth"
+                [title]="cell.holiday"
+              >{{ cell.holiday }}</p>
+            }
 
             <div class="flex flex-1 flex-col gap-0.5 overflow-hidden">
               @for (e of eventsFor(cell.date); track e.id) {
@@ -51,7 +78,7 @@ const MAX_CHIPS_PER_CELL = 3;
                   class="truncate rounded px-1 text-left text-[11px] text-white"
                   [class]="colorClass(e.color)"
                 >
-                  {{ e.title || '(Không có tiêu đề)' }}
+                  @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
                 </button>
               }
               @if (overflowCount(cell.date) > 0) {
@@ -72,9 +99,25 @@ export class MonthViewComponent {
   eventClicked = output<CalendarEvent>();
 
   private readonly settings = inject(SettingsService);
-  private readonly tr = inject(TranslateService);
+  protected readonly tr = inject(TranslateService);
+  protected readonly state = inject(CalendarStateService);
+  private readonly holidays = inject(HolidaysService);
   readonly weekdayLabels = computed(() => this.tr.orderedWeekdays(this.settings.weekStartsOn()));
   private readonly today = new Date();
+
+  /** Dựng 1 ô lịch kèm sẵn ngày âm + ngày lễ (tính động cho mọi năm). */
+  private makeCell(date: Date, inCurrentMonth: boolean): MonthCell {
+    const lunar = solarToLunar(date.getDate(), date.getMonth() + 1, date.getFullYear());
+    const holiday = this.holidays.get(date);
+    return {
+      date,
+      inCurrentMonth,
+      lunarLabel: lunar.day === 1 ? `${lunar.day}/${lunar.month}` : `${lunar.day}`,
+      isLunarStart: lunar.day === 1,
+      holiday: holiday?.name ?? null,
+      holidayPublic: holiday?.isPublic ?? false,
+    };
+  }
 
   cells = computed<MonthCell[]>(() => {
     const monthStart = startOfMonth(this.viewedDate());
@@ -86,17 +129,14 @@ export class MonthViewComponent {
 
     const cells: MonthCell[] = [];
     for (let i = leading - 1; i >= 0; i--) {
-      cells.push({
-        date: new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, daysInPrevMonth - i),
-        inCurrentMonth: false,
-      });
+      cells.push(this.makeCell(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, daysInPrevMonth - i), false));
     }
     for (let d = 1; d <= daysInMonth; d++) {
-      cells.push({ date: new Date(monthStart.getFullYear(), monthStart.getMonth(), d), inCurrentMonth: true });
+      cells.push(this.makeCell(new Date(monthStart.getFullYear(), monthStart.getMonth(), d), true));
     }
     while (cells.length < 42) {
       const last = cells[cells.length - 1].date;
-      cells.push({ date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1), inCurrentMonth: false });
+      cells.push(this.makeCell(new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1), false));
     }
     return cells;
   });

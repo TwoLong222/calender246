@@ -3,7 +3,7 @@
 // (đúng quyền), hiện PREVIEW, người dùng bấm Xác nhận thì mới thực thi qua các
 // service có sẵn (auth + RLS). AI không bao giờ chạm thẳng database.
 
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
@@ -16,6 +16,9 @@ interface ChatMsg {
   role: 'user' | 'ai';
   text: string;
 }
+
+/** Key lưu lịch sử chat AI (giữ khi rời trang / mở lại). */
+const AI_CHAT_KEY = 'ai-chat-history';
 interface PlannedSlot {
   start: Date;
   end: Date;
@@ -52,12 +55,17 @@ type Pending =
           <span class="flex items-center gap-2 font-medium text-gray-800">
             <app-icon name="robot" class="h-5 w-5 text-blue-700" /> {{ tr.t('ai.title') }}
           </span>
-          <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
-            <app-icon name="x" class="h-4 w-4" />
-          </button>
+          <div class="flex items-center gap-1">
+            <button type="button" (click)="clearChat()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('ai.clear')" [title]="tr.t('ai.clear')">
+              <app-icon name="trash" class="h-4 w-4" />
+            </button>
+            <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+              <app-icon name="x" class="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        <div class="flex-1 space-y-2 overflow-y-auto px-3 py-3">
+        <div #scrollBox class="flex-1 space-y-2 overflow-y-auto px-3 py-3">
           @for (m of messages(); track $index) {
             <div [class]="m.role === 'user'
               ? 'ml-auto max-w-[85%] rounded-lg bg-blue-600 px-3 py-2 text-sm text-white'
@@ -138,12 +146,52 @@ export class AiAssistantComponent {
   input = signal('');
   loading = signal(false);
   pending = signal<Pending | null>(null);
-  messages = signal<ChatMsg[]>([
-    {
-      role: 'ai',
-      text: this.tr.t('ai.greeting'),
-    },
-  ]);
+  messages = signal<ChatMsg[]>(this.loadMessages());
+
+  private readonly scrollBox = viewChild<ElementRef<HTMLElement>>('scrollBox');
+
+  constructor() {
+    // Tự lưu lịch sử chat mỗi khi đổi -> rời trang/mở lại vẫn còn.
+    effect(() => this.saveMessages(this.messages()));
+    // Tự cuộn xuống tin mới nhất mỗi khi có tin/loading/mở panel.
+    effect(() => {
+      this.messages();
+      this.loading();
+      this.pending();
+      if (this.open()) this.scrollToBottom();
+    });
+  }
+
+  private scrollToBottom(): void {
+    // Đợi DOM cập nhật xong rồi cuộn mượt xuống cuối.
+    setTimeout(() => {
+      const el = this.scrollBox()?.nativeElement;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }, 0);
+  }
+
+  private loadMessages(): ChatMsg[] {
+    try {
+      const raw = localStorage.getItem(AI_CHAT_KEY);
+      const arr = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(arr) && arr.length) return arr as ChatMsg[];
+    } catch {
+      /* bỏ qua */
+    }
+    return [{ role: 'ai', text: this.tr.t('ai.greeting') }];
+  }
+  private saveMessages(m: ChatMsg[]): void {
+    try {
+      localStorage.setItem(AI_CHAT_KEY, JSON.stringify(m.slice(-50)));
+    } catch {
+      /* bỏ qua */
+    }
+  }
+  /** Xóa hội thoại, về lời chào ban đầu. */
+  clearChat(): void {
+    this.messages.set([{ role: 'ai', text: this.tr.t('ai.greeting') }]);
+    this.pending.set(null);
+  }
 
   private push(text: string): void {
     this.messages.update((m) => [...m, { role: 'ai', text }]);
@@ -316,12 +364,16 @@ export class AiAssistantComponent {
   send(): void {
     const text = this.input().trim();
     if (!text || this.loading()) return;
+    // Lịch sử vài lượt gần nhất (trước tin hiện tại) để AI nhớ ngữ cảnh.
+    const history = this.messages()
+      .slice(-8)
+      .map((m) => ({ role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', text: m.text }));
     this.messages.update((m) => [...m, { role: 'user', text }]);
     this.input.set('');
     this.pending.set(null);
     this.loading.set(true);
 
-    this.ai.chat(text).subscribe({
+    this.ai.chat(text, history).subscribe({
       next: (res) => {
         this.loading.set(false);
 

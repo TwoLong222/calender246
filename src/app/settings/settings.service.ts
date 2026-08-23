@@ -7,7 +7,7 @@
 // Áp dụng realtime: theme (qua ThemeService) và default view (qua CalendarStateService).
 // Cung cấp helper formatTime/formatDate/weekStartsOn cho các view lịch dùng (Lát sau).
 
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -27,6 +27,14 @@ export class SettingsService {
   readonly error = signal<string | null>(null);
 
   private defaultViewApplied = false;
+
+  constructor() {
+    // Đồng bộ cờ "hiện task đã hoàn thành" xuống CalendarState mỗi khi settings đổi
+    // (load / cập nhật lạc quan / khôi phục khi lỗi đều được phủ).
+    effect(() => {
+      this.calendar.showCompletedTasks.set(this.settings().show_completed_tasks);
+    });
+  }
 
   /** Helper phái sinh cho component khác đọc nhanh. */
   readonly weekStartsOn = computed(() => this.settings().start_of_week);

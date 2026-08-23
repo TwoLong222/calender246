@@ -6,15 +6,17 @@ import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
+import { AttachmentsApiService, EventAttachment } from './attachments-api.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { AttendeeStatus } from './calendar.types';
 import { IconComponent } from '../shared/icon.component';
+import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 
 @Component({
   selector: 'app-event-detail-popover',
   standalone: true,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent, DateTimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (event(); as e) {
@@ -96,6 +98,65 @@ import { IconComponent } from '../shared/icon.component';
             >
               {{ tr.t('rsvp.maybe') }}
             </button>
+          </div>
+
+          <!-- Tài liệu đính kèm -->
+          <div class="mt-4 border-t border-gray-100 pt-3">
+            <div class="mb-2 flex items-center justify-between">
+              <p class="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <app-icon name="notes" class="h-4 w-4" /> {{ tr.t('attach.title') }}
+              </p>
+              @if (canManage()) {
+                <label class="tap cursor-pointer rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50">
+                  {{ uploading() ? tr.t('attach.uploading') : tr.t('attach.add') }}
+                  <input type="file" class="hidden" (change)="onFileSelected($event)" [disabled]="uploading()" />
+                </label>
+              }
+            </div>
+            @if (canManage()) {
+              <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp) -->
+              <div class="mb-2 grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex flex-col gap-0.5 text-gray-500">
+                  {{ tr.t('attach.from') }}
+                  <app-datetime-picker [(ngModel)]="newFrom" />
+                </label>
+                <label class="flex flex-col gap-0.5 text-gray-500">
+                  {{ tr.t('attach.until') }}
+                  <app-datetime-picker [(ngModel)]="newUntil" />
+                </label>
+                <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
+              </div>
+            }
+            @if (attachments().length === 0) {
+              <p class="text-xs text-gray-400">{{ tr.t('attach.none') }}</p>
+            } @else {
+              <ul class="space-y-1">
+                @for (a of attachments(); track a.id) {
+                  <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-sm">
+                    @if (a.status === 'available' && a.url) {
+                      <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700 hover:underline">{{ a.file_name }}</a>
+                    } @else if (a.status === 'scheduled') {
+                      <span class="min-w-0 flex-1 truncate text-gray-500" [title]="tr.t('attach.opensAt') + ' ' + fmt(a.available_from)">🔒 {{ a.file_name }}</span>
+                    } @else if (a.status === 'expired') {
+                      <span class="min-w-0 flex-1 truncate text-gray-400 line-through" [title]="tr.t('attach.expired')">{{ a.file_name }}</span>
+                    } @else {
+                      <span class="min-w-0 flex-1 truncate text-gray-700">{{ a.file_name }}</span>
+                    }
+                    <span class="shrink-0 text-xs text-gray-400">{{ fileSize(a.size_bytes) }}</span>
+                    @if (canManage()) {
+                      <button type="button" (click)="removeAttachment(a.id)" class="tap shrink-0 rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-600" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
+                    }
+                  </li>
+                  @if (a.status === 'scheduled') {
+                    <li class="px-2 text-[11px] text-amber-600">🔒 {{ tr.t('attach.opensAt') }} {{ fmt(a.available_from) }}</li>
+                  } @else if (a.status === 'expired') {
+                    <li class="px-2 text-[11px] text-gray-400">{{ tr.t('attach.expired') }}</li>
+                  } @else if (a.available_until) {
+                    <li class="px-2 text-[11px] text-gray-400">{{ tr.t('attach.viewUntil') }} {{ fmt(a.available_until) }}</li>
+                  }
+                }
+              </ul>
+            }
           </div>
 
           <!-- Bình luận -->
@@ -188,6 +249,53 @@ export class EventDetailPopoverComponent {
   protected readonly comments = inject(CommentsService);
   private readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
+  private readonly attachmentsApi = inject(AttachmentsApiService);
+
+  // ----- Tài liệu đính kèm -----
+  protected readonly attachments = signal<EventAttachment[]>([]);
+  protected readonly uploading = signal(false);
+  /** Giờ hẹn cho file sẽ tải lên (datetime-local: "YYYY-MM-DDTHH:mm"). */
+  protected readonly newFrom = signal('');
+  protected readonly newUntil = signal('');
+
+  private loadAttachments(eventId: string): void {
+    this.attachmentsApi.list(eventId).subscribe({ next: (a) => this.attachments.set(a), error: () => this.attachments.set([]) });
+  }
+  protected onFileSelected(evt: Event): void {
+    const input = evt.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const e = this.event();
+    if (!file || !e) return;
+    this.uploading.set(true);
+    const schedule = {
+      availableFrom: this.newFrom() ? new Date(this.newFrom()).toISOString() : null,
+      availableUntil: this.newUntil() ? new Date(this.newUntil()).toISOString() : null,
+    };
+    this.attachmentsApi.upload(e.id, file, schedule).subscribe({
+      next: () => {
+        this.uploading.set(false);
+        this.loadAttachments(e.id);
+        input.value = '';
+        this.newFrom.set('');
+        this.newUntil.set('');
+      },
+      error: () => { this.uploading.set(false); input.value = ''; },
+    });
+  }
+  protected removeAttachment(attId: string): void {
+    const e = this.event();
+    if (!e) return;
+    this.attachmentsApi.remove(e.id, attId).subscribe({ next: () => this.loadAttachments(e.id), error: () => {} });
+  }
+  protected fileSize(bytes: number | null): string {
+    if (!bytes) return '';
+    return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  /** Định dạng ngày giờ ngắn gọn cho nhãn trạng thái file. */
+  protected fmt(iso?: string | null): string {
+    if (!iso) return '';
+    return this.settings.formatDate(new Date(iso)) + ' ' + this.settings.formatTime(new Date(iso));
+  }
 
   event = computed(() => this.state.selectedEvent());
 
@@ -248,8 +356,7 @@ export class EventDetailPopoverComponent {
   canManage = computed<boolean>(() => {
     const e = this.event();
     if (!e) return false;
-    if (!e.creatorEmail) return true;
-    return e.creatorEmail.toLowerCase() === this.supabase.user()?.email?.toLowerCase();
+    return this.state.canEditEvent(e);
   });
 
   /** Số khách đã đồng ý / chưa trả lời — tóm tắt cho người tạo dễ nhìn */
@@ -323,8 +430,10 @@ export class EventDetailPopoverComponent {
       const e = this.event();
       if (e) {
         this.comments.loadFor(e.id);
+        this.loadAttachments(e.id);
       } else {
         this.comments.clear();
+        this.attachments.set([]);
         this.editingId.set(null);
         this.deletingId.set(null);
         this.newComment.set('');

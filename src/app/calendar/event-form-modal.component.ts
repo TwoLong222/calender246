@@ -14,8 +14,11 @@ import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
+import { TimePickerComponent } from '../shared/time-picker.component';
+import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
+import { AttachmentsApiService } from './attachments-api.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -33,7 +36,7 @@ function toTimeInputValue(d: Date): string {
 @Component({
   selector: 'app-event-form-modal',
   standalone: true,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent, TimePickerComponent, DateTimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
@@ -70,10 +73,10 @@ function toTimeInputValue(d: Date): string {
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="w-5 text-center">🕐</span>
               <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1" [disabled]="isAllDay()" />
+              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay()" />
               <span>–</span>
               <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="endTime" class="rounded border border-gray-300 px-2 py-1" [disabled]="isAllDay()" />
+              <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay()" />
             </div>
             <label class="flex items-center gap-2 pl-7 text-sm text-gray-600">
               <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
@@ -90,6 +93,8 @@ function toTimeInputValue(d: Date): string {
                   <option value="monthly">{{ tr.t('form.monthly') }}</option>
                 </select>
                 @if (repeat() !== 'none') {
+                  <span>{{ tr.t('form.every') }}</span>
+                  <input type="number" min="1" max="30" [(ngModel)]="repeatInterval" class="w-14 rounded border border-gray-300 px-2 py-1" />
                   <span>×</span>
                   <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="w-16 rounded border border-gray-300 px-2 py-1" />
                   <span>{{ tr.t('form.times') }}</span>
@@ -181,13 +186,40 @@ function toTimeInputValue(d: Date): string {
               <app-icon name="bell" class="h-4 w-4 text-gray-500" />
               <select [ngModel]="reminderStr()" (ngModelChange)="setReminder($event)" class="rounded border border-gray-300 px-2 py-1">
                 <option value="none">{{ tr.t('notif.none') }}</option>
-                <option value="5">5 {{ tr.t('notif.min') }}</option>
-                <option value="10">10 {{ tr.t('notif.min') }}</option>
-                <option value="15">15 {{ tr.t('notif.min') }}</option>
-                <option value="30">30 {{ tr.t('notif.min') }}</option>
-                <option value="60">{{ tr.t('notif.hour') }}</option>
-                <option value="1440">{{ tr.t('notif.day') }}</option>
+                <option value="5">{{ tr.t('notif.r5') }}</option>
+                <option value="10">{{ tr.t('notif.r10') }}</option>
+                <option value="15">{{ tr.t('notif.r15') }}</option>
+                <option value="30">{{ tr.t('notif.r30') }}</option>
+                <option value="60">{{ tr.t('notif.r60') }}</option>
+                <option value="1440">{{ tr.t('notif.r1440') }}</option>
               </select>
+            </div>
+
+            <!-- Đính kèm tài liệu ngay lúc tạo (có thể hẹn giờ mở/đóng) -->
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-2 text-gray-500"><app-icon name="notes" class="h-4 w-4" /> {{ tr.t('attach.title') }}</span>
+                <label class="tap cursor-pointer rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50">
+                  {{ tr.t('attach.add') }}
+                  <input type="file" class="hidden" (change)="onStageFile($event)" />
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.from') }}
+                  <app-datetime-picker [(ngModel)]="stageFrom" />
+                </label>
+                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.until') }}
+                  <app-datetime-picker [(ngModel)]="stageUntil" />
+                </label>
+                <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
+              </div>
+              @for (s of stagedFiles(); track $index) {
+                <div class="flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs">
+                  <span class="min-w-0 flex-1 truncate">📎 {{ s.file.name }}</span>
+                  @if (s.from) { <span class="shrink-0 text-amber-600">🔒 {{ s.from }}</span> }
+                  <button type="button" (click)="removeStaged($index)" class="tap shrink-0 rounded p-0.5 text-gray-400 hover:text-red-600"><app-icon name="x" class="h-3.5 w-3.5" /></button>
+                </div>
+              }
             </div>
           </div>
         }
@@ -198,7 +230,7 @@ function toTimeInputValue(d: Date): string {
             <div class="flex items-center gap-2 text-sm">
               <app-icon name="target" class="h-4 w-4 text-gray-500" />
               <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1" />
+              <app-time-picker [(ngModel)]="startTime" />
             </div>
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
@@ -235,6 +267,36 @@ export class EventFormModalComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly tr = inject(TranslateService);
   private readonly settings = inject(SettingsService);
+  private readonly attachmentsApi = inject(AttachmentsApiService);
+
+  // ----- Tài liệu đính kèm ngay lúc tạo (xếp hàng, upload sau khi lưu) -----
+  protected readonly stagedFiles = signal<{ file: File; from: string; until: string }[]>([]);
+  protected readonly stageFrom = signal('');
+  protected readonly stageUntil = signal('');
+  protected onStageFile(evt: Event): void {
+    const input = evt.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.stagedFiles.update((l) => [...l, { file, from: this.stageFrom(), until: this.stageUntil() }]);
+    this.stageFrom.set('');
+    this.stageUntil.set('');
+    input.value = '';
+  }
+  protected removeStaged(i: number): void {
+    this.stagedFiles.update((l) => l.filter((_, idx) => idx !== i));
+  }
+  /** Upload các file đã xếp hàng vào event vừa tạo. */
+  private uploadStaged(eventId: string): void {
+    for (const s of this.stagedFiles()) {
+      this.attachmentsApi
+        .upload(eventId, s.file, {
+          availableFrom: s.from ? new Date(s.from).toISOString() : null,
+          availableUntil: s.until ? new Date(s.until).toISOString() : null,
+        })
+        .subscribe({ error: () => {} });
+    }
+    this.stagedFiles.set([]);
+  }
 
   reminderMinutes = signal<number | null>(null);
   reminderStr(): string {
@@ -265,6 +327,7 @@ export class EventFormModalComponent {
   color = signal('sky');
   repeat = signal<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   repeatCount = signal(4);
+  repeatInterval = signal(1);
   /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
   editing = signal(false);
 
@@ -316,6 +379,7 @@ export class EventFormModalComponent {
         this.color.set('sky');
         this.repeat.set('none');
         this.repeatCount.set(4);
+        this.repeatInterval.set(1);
         // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới.
         this.reminderMinutes.set(this.settings.settings().default_reminder);
       }
@@ -388,7 +452,11 @@ export class EventFormModalComponent {
     const repeat = this.repeat();
     const recurrence =
       !this.editingId && repeat !== 'none'
-        ? { repeat, count: Math.min(Math.max(this.repeatCount() || 1, 1), 52) }
+        ? {
+            repeat,
+            count: Math.min(Math.max(this.repeatCount() || 1, 1), 52),
+            interval: Math.min(Math.max(this.repeatInterval() || 1, 1), 30),
+          }
         : undefined;
 
     this.state.saveEvent(
@@ -406,6 +474,10 @@ export class EventFormModalComponent {
         reminderMinutes: this.reminderMinutes(),
       },
       recurrence,
+      // Sau khi lưu xong (có id) -> upload các file đã đính kèm trong form.
+      (event) => {
+        if (this.stagedFiles().length > 0) this.uploadStaged(event.id);
+      },
     );
   }
 }

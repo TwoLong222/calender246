@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SupabaseService } from './supabase.service';
 import { IconComponent } from '../shared/icon.component';
+import { TranslateService } from '../i18n/translate.service';
 
 @Component({
   selector: 'app-reset-password',
@@ -17,18 +18,18 @@ import { IconComponent } from '../shared/icon.component';
     <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div class="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h1 class="mb-1 flex items-center justify-center gap-2 text-center text-xl font-medium text-gray-800">
-          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> Lịch
+          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> {{ tr.t('nav.calendar') }}
         </h1>
-        <p class="mb-6 text-center text-sm text-gray-500">Đặt mật khẩu mới</p>
+        <p class="mb-6 text-center text-sm text-gray-500">{{ tr.t('reset.title') }}</p>
 
         @if (done()) {
           <p class="rounded-md bg-green-50 px-3 py-2 text-center text-sm text-green-700">
-            Đổi mật khẩu thành công! Đang chuyển vào ứng dụng...
+            {{ tr.t('reset.success') }}
           </p>
         } @else {
           <form (submit)="submit($event)" class="space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-gray-500">Mật khẩu mới</label>
+              <label class="mb-1 block text-xs text-gray-500">{{ tr.t('reset.newPw') }}</label>
               <input
                 type="password"
                 required
@@ -36,11 +37,11 @@ import { IconComponent } from '../shared/icon.component';
                 [(ngModel)]="password"
                 name="password"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                placeholder="Tối thiểu 6 ký tự"
+                [placeholder]="tr.t('login.min6')"
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-gray-500">Xác nhận mật khẩu</label>
+              <label class="mb-1 block text-xs text-gray-500">{{ tr.t('login.confirmPw') }}</label>
               <input
                 type="password"
                 required
@@ -48,7 +49,7 @@ import { IconComponent } from '../shared/icon.component';
                 [(ngModel)]="confirmPassword"
                 name="confirmPassword"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                placeholder="Nhập lại mật khẩu mới"
+                [placeholder]="tr.t('reset.reenter')"
               />
             </div>
 
@@ -61,7 +62,7 @@ import { IconComponent } from '../shared/icon.component';
               [disabled]="isLoading()"
               class="w-full rounded-md bg-blue-700 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
             >
-              {{ isLoading() ? 'Đang xử lý...' : 'Đổi mật khẩu' }}
+              {{ isLoading() ? tr.t('login.processing') : tr.t('acc.changePw') }}
             </button>
           </form>
         }
@@ -72,6 +73,7 @@ import { IconComponent } from '../shared/icon.component';
 export class ResetPasswordComponent {
   private readonly supabase = inject(SupabaseService);
   private readonly router = inject(Router);
+  protected readonly tr = inject(TranslateService);
 
   password = signal('');
   confirmPassword = signal('');
@@ -84,11 +86,11 @@ export class ResetPasswordComponent {
     this.errorMessage.set(null);
 
     if (this.password().length < 6) {
-      this.errorMessage.set('Mật khẩu cần tối thiểu 6 ký tự.');
+      this.errorMessage.set(this.tr.t('login.err.pw6'));
       return;
     }
     if (this.password() !== this.confirmPassword()) {
-      this.errorMessage.set('Mật khẩu xác nhận không khớp.');
+      this.errorMessage.set(this.tr.t('login.pwMismatch'));
       return;
     }
 
