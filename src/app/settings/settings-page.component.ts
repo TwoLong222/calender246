@@ -314,8 +314,8 @@ type Section =
                     <li
                       class="group flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-gray-50"
                       (click)="useSeason(se)"
-                      (mouseenter)="seasonal.preview(se)"
-                      (mouseleave)="seasonal.clearPreview()"
+                      (mouseenter)="seasonal.autoEnabled() && seasonal.preview(se)"
+                      (mouseleave)="seasonal.autoEnabled() && seasonal.clearPreview()"
                     >
                       <span class="text-lg">{{ se.emoji }}</span>
                       <div class="min-w-0 flex-1">
