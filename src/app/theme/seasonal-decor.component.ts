@@ -23,11 +23,7 @@ interface Flake {
   template: `
     @if (season(); as s) {
       <div class="seasonal-decor" aria-hidden="true">
-        <!-- Trang trí đứng yên dọc cạnh DƯỚI (tránh nút ở góc/header) -->
-        @for (p of pinned(); track $index) {
-          <span class="seasonal-pin" [style.left.%]="p.left">{{ p.emoji }}</span>
-        }
-        <!-- Vài emoji rơi nhẹ -->
+        <!-- Chỉ emoji rơi nhẹ (đã bỏ trang trí đứng yên theo yêu cầu) -->
         @for (f of flakes(); track $index) {
           <span
             class="seasonal-flake"
@@ -47,27 +43,17 @@ export class SeasonalDecorComponent {
 
   protected readonly season = computed(() => this.seasonal.effectiveSeason());
 
-  /** Trang trí đứng yên trải dọc cạnh dưới (6%..78% để chừa nút Trợ lý AI ở góc phải). */
-  protected readonly pinned = computed(() => {
-    const s = this.season();
-    if (!s) return [];
-    const items = s.pinned;
-    const n = items.length;
-    return items.map((p, i) => ({
-      emoji: p.emoji,
-      left: n <= 1 ? 8 : Math.round(6 + (i * 72) / (n - 1)),
-    }));
-  });
-
-  /** Danh sách emoji rơi (ít thôi, ~10). */
+  /** Danh sách emoji rơi (gộp emoji "rơi" + emoji đặc trưng của dịp cho phong phú). */
   protected readonly flakes = computed<Flake[]>(() => {
     const s = this.season();
-    if (!s || s.fall.length === 0) return [];
-    const N = 10;
+    if (!s) return [];
+    const pool = [...s.fall, ...s.pinned.map((p) => p.emoji)];
+    if (pool.length === 0) return [];
+    const N = 14;
     const out: Flake[] = [];
     for (let i = 0; i < N; i++) {
       out.push({
-        emoji: s.fall[i % s.fall.length],
+        emoji: pool[i % pool.length],
         left: Math.round((i / N) * 100 + (Math.random() * 6 - 3)),
         delay: +(Math.random() * 9).toFixed(2),
         dur: +(9 + Math.random() * 7).toFixed(2),
