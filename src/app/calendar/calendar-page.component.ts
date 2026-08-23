@@ -7,7 +7,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { Router, RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
-import { ChatService } from '../groups/chat.service';
+import { GroupChatService } from '../groups/chat.service';
 import { GroupPanelComponent } from '../groups/group-panel.component';
 import { MiniCalendarComponent } from './mini-calendar.component';
 import { TimeGridViewComponent } from './time-grid-view.component';
@@ -261,15 +261,22 @@ import { TranslateService } from '../i18n/translate.service';
             <ul class="space-y-1 text-sm text-gray-700">
               @for (g of groupsState.groups(); track g.id) {
                 <li class="flex items-center gap-2">
-                  <input type="checkbox" [checked]="groupsState.isVisible(g.id)" (change)="groupsState.toggleVisible(g.id)" />
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="groupDot(g.id)"></span>
+                  <input type="checkbox" [checked]="groupsState.isVisible(g.id)" (change)="groupsState.toggleVisible(g.id)" [class]="groupAccent(g.id)" />
                   <button type="button" (click)="groupsState.openPanel(g.id)" class="flex-1 truncate text-left hover:underline">{{ g.name }}</button>
-                  @if (chat.unreadOf(g.id) > 0) {
-                    <span class="shrink-0 rounded-full bg-red-600 px-1.5 text-xs font-medium text-white" title="Tin nhắn chưa đọc">{{ chat.unreadOf(g.id) }}</span>
-                  }
                   @if (groupsState.onlineCount(g.id) > 0) {
                     <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
                   }
+                  <button
+                    type="button"
+                    (click)="groupsState.openPanel(g.id, 'chat')"
+                    class="relative shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-100 hover:text-blue-700"
+                    title="Mở trò chuyện"
+                  >
+                    💬
+                    @if (chat.unreadOf(g.id) > 0) {
+                      <span class="absolute -right-1 -top-1 min-w-[1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-medium leading-4 text-white">{{ chat.unreadOf(g.id) }}</span>
+                    }
+                  </button>
                 </li>
               } @empty {
                 <li class="text-xs text-gray-400">Chưa có nhóm nào.</li>
@@ -365,7 +372,7 @@ import { TranslateService } from '../i18n/translate.service';
 export class CalendarPageComponent implements OnInit {
   protected readonly state = inject(CalendarStateService);
   protected readonly groupsState = inject(GroupsStateService);
-  protected readonly chat = inject(ChatService);
+  protected readonly chat = inject(GroupChatService);
   protected readonly supabase = inject(SupabaseService);
   protected readonly theme = inject(ThemeService);
   protected readonly settings = inject(SettingsService);
@@ -407,6 +414,18 @@ export class CalendarPageComponent implements OnInit {
       sky: 'bg-sky-600',
     };
     return map[this.groupsState.colorFor(groupId)] ?? 'bg-violet-600';
+  }
+
+  /** Màu cho checkbox của nhóm — để đồng bộ với phần "Hiển thị" (checkbox có màu). */
+  groupAccent(groupId: string): string {
+    const map: Record<string, string> = {
+      violet: 'accent-violet-600',
+      emerald: 'accent-emerald-600',
+      rose: 'accent-rose-600',
+      amber: 'accent-amber-600',
+      sky: 'accent-sky-600',
+    };
+    return map[this.groupsState.colorFor(groupId)] ?? 'accent-violet-600';
   }
 
   createGroup(name: string): void {

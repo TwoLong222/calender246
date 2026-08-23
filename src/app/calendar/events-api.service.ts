@@ -30,6 +30,7 @@ export interface ApiEvent {
   reminder_minutes?: number | null;
   deleted_at?: string | null;
   group_id?: string | null;
+  meet_link?: string | null;
   attendees?: ApiAttendee[];
 }
 
@@ -77,6 +78,7 @@ export function fromApiEvent(row: ApiEvent): CalendarEvent {
     reminderMinutes: row.reminder_minutes ?? null,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
     groupId: row.group_id ?? undefined,
+    meetLink: row.meet_link ?? undefined,
   };
 }
 
@@ -134,6 +136,16 @@ export class EventsApiService {
   /** Xóa vĩnh viễn 1 sự kiện trong thùng rác */
   purge(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${id}/purge`);
+  }
+
+  /** Gắn link Google Meet vào 1 sự kiện, trả về sự kiện đã cập nhật. */
+  setMeetLink(id: string, meetLink: string): Observable<CalendarEvent> {
+    return this.http.post<ApiEvent>(`${this.base}/${id}/meet`, { meetLink }).pipe(map(fromApiEvent));
+  }
+
+  /** Gỡ link Google Meet khỏi 1 sự kiện. */
+  removeMeetLink(id: string): Observable<CalendarEvent> {
+    return this.http.delete<ApiEvent>(`${this.base}/${id}/meet`).pipe(map(fromApiEvent));
   }
 
   /** User tự đặt trạng thái tham dự -> trả về danh sách khách mời mới (đã cập nhật) */

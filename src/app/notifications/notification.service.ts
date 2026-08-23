@@ -10,7 +10,11 @@ import { CalendarEvent } from '../calendar/calendar.types';
 interface Toast {
   id: string;
   title: string;
-  timeLabel: string;
+  /** Cho toast nhắc lịch */
+  timeLabel?: string;
+  /** Cho toast tự do (vd tin nhắn nhóm mới) */
+  body?: string;
+  kind: 'reminder' | 'chat';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -49,7 +53,7 @@ export class NotificationService {
   private fire(e: CalendarEvent): void {
     const timeLabel = e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const toastId = `${e.id}:${Date.now()}`;
-    this.toasts.update((t) => [...t, { id: toastId, title: e.title || '(không tiêu đề)', timeLabel }]);
+    this.toasts.update((t) => [...t, { id: toastId, title: e.title || '(không tiêu đề)', timeLabel, kind: 'reminder' }]);
     setTimeout(() => this.dismiss(toastId), 15_000); // tự ẩn sau 15s
 
     this.playBeep();
@@ -88,6 +92,27 @@ export class NotificationService {
       setTimeout(() => ctx.close(), 800);
     } catch {
       /* trình duyệt chặn âm thanh khi chưa có tương tác -> bỏ qua */
+    }
+  }
+
+  /**
+   * Thông báo chung (dùng cho tin nhắn nhóm mới):
+   * - Luôn hiện toast nổi trong app + kêu bíp nhẹ.
+   * - Nếu người dùng đang ở tab/cửa sổ KHÁC (tab ẩn) và đã cấp quyền -> báo thêm desktop.
+   */
+  notifyMessage(title: string, body: string): void {
+    const toastId = `chat:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    this.toasts.update((t) => [...t, { id: toastId, title, body, kind: 'chat' }]);
+    setTimeout(() => this.dismiss(toastId), 8_000); // tự ẩn sau 8s
+    this.playBeep();
+
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    if (hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(title, { body });
+      } catch {
+        /* một số trình duyệt yêu cầu ServiceWorker cho Notification — bỏ qua nếu lỗi */
+      }
     }
   }
 

@@ -1,8 +1,5 @@
-// RealtimeService: kết nối WebSocket (socket.io) tới NestJS gateway cho tính năng nhóm.
-// - Kết nối kèm access token của Supabase để backend xác thực.
-// - joinGroup/leaveGroup: vào/ra "phòng" của từng nhóm.
-// - groupEvents$: luồng sự kiện nhóm real-time (created/updated/deleted).
-// - presence: signal map groupId -> danh sách email đang online.
+// GroupRealtimeService — "Đường dây" thời gian thực của nhóm.
+// Giữ kết nối tới máy chủ để nhận ngay sự kiện mới, tin nhắn, ai đang gõ và ai đang online.
 
 import { Injectable, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
@@ -13,6 +10,7 @@ import { CalendarEvent } from '../calendar/calendar.types';
 import { ApiEvent, fromApiEvent } from '../calendar/events-api.service';
 import { GroupMessage } from './groups.types';
 
+// Một thay đổi sự kiện nhóm nhận real-time (tạo / sửa / xóa).
 export interface GroupEventMessage {
   type: 'created' | 'updated' | 'deleted';
   groupId: string;
@@ -33,7 +31,7 @@ export interface TypingSignal {
 }
 
 @Injectable({ providedIn: 'root' })
-export class RealtimeService {
+export class GroupRealtimeService {
   private readonly supabase = inject(SupabaseService);
 
   private socket?: Socket;
@@ -47,9 +45,9 @@ export class RealtimeService {
    *  — kể cả từ tab khác hoặc do người khác thao tác — để tự tải lại, không cần F5. */
   readonly groupsChanged$ = new Subject<void>();
 
-  /** Luồng tin nhắn chat real-time — ChatService lắng nghe để cập nhật khung chat */
+  /** Luồng tin nhắn chat real-time — GroupChatService lắng nghe để cập nhật khung chat */
   readonly chat$ = new Subject<ChatMessage>();
-  /** Luồng "đang gõ" — ChatService gom lại thành trạng thái hiển thị tạm thời */
+  /** Luồng "đang gõ" — GroupChatService gom lại thành trạng thái hiển thị tạm thời */
   readonly typing$ = new Subject<TypingSignal>();
 
   /** Địa chỉ socket = origin của apiUrl (bỏ hậu tố /api) */

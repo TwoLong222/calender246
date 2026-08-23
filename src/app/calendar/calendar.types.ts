@@ -38,4 +38,6 @@ export interface CalendarEvent {
   deletedAt?: Date | null;
   /** Nếu là sự kiện NHÓM -> id của nhóm; undefined = sự kiện cá nhân */
   groupId?: string;
+  /** Link phòng họp Google Meet (nếu có) -> hiện nút "Tham gia Meet" */
+  meetLink?: string;
 }

@@ -157,7 +157,7 @@ function toTimeInputValue(d: Date): string {
 
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="2" [placeholder]="tr.t('form.addDesc')" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
 
             <!-- Chọn màu cho sự kiện -->
@@ -202,7 +202,7 @@ function toTimeInputValue(d: Date): string {
             </div>
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="2" [placeholder]="tr.t('form.addDesc')" class="flex-1 rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
           </div>
         }

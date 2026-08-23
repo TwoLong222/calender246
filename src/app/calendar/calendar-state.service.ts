@@ -10,11 +10,13 @@ import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.t
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { GoogleMeetService } from '../groups/google-meet.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
   private readonly supabase = inject(SupabaseService);
+  private readonly meet = inject(GoogleMeetService);
 
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
@@ -111,6 +113,40 @@ export class CalendarStateService {
         this.loadError.set('Không tải được danh sách sự kiện. Kiểm tra lại NestJS server đã chạy và đã đăng nhập chưa.');
         this.isLoading.set(false);
       },
+    });
+  }
+
+  /** Tạo phòng Google Meet cho 1 sự kiện rồi lưu link vào sự kiện đó. */
+  async createMeetForEvent(eventId: string): Promise<void> {
+    this.loadError.set(null);
+    try {
+      const link = await this.meet.createSpace(); // gọi Google Meet API (cần token Google + quyền Meet)
+      this.api.setMeetLink(eventId, link).subscribe({
+        next: (saved) => {
+          this.markLocalChange();
+          this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e)));
+        },
+        error: () => this.loadError.set('Lưu link Meet thất bại.'),
+      });
+    } catch (e: any) {
+      // Chưa cấp quyền Meet -> chuyển sang Google xin quyền, xong quay lại bấm "Tạo Meet" lần nữa.
+      if (e?.code === 'NEED_CONSENT') {
+        await this.meet.requestAccess();
+        return;
+      }
+      this.loadError.set(e?.message || 'Tạo Google Meet thất bại.');
+    }
+  }
+
+  /** Gỡ link Google Meet khỏi 1 sự kiện. */
+  removeMeetForEvent(eventId: string): void {
+    this.loadError.set(null);
+    this.api.removeMeetLink(eventId).subscribe({
+      next: (saved) => {
+        this.markLocalChange();
+        this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e)));
+      },
+      error: () => this.loadError.set('Gỡ link Meet thất bại.'),
     });
   }
 

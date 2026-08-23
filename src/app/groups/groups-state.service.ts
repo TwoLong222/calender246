@@ -1,18 +1,18 @@
-// GroupsStateService: quản lý toàn bộ state của tính năng nhóm bằng Angular Signals.
-// - Tải danh sách nhóm, sự kiện nhóm; gán màu phân biệt cho từng nhóm.
-// - Lắng nghe RealtimeService (WebSocket) để cập nhật sự kiện nhóm TỨC THÌ.
-// - Cung cấp API cho UI: tạo/tham gia/mời/xóa nhóm; CRUD sự kiện nhóm.
+// GroupsStateService — Bộ nhớ tạm cho tính năng nhóm.
+// Giữ danh sách nhóm và các sự kiện nhóm để hiển thị lên lịch; xử lý tạo/tham gia/mời/xóa nhóm.
 
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { GroupsApiService } from './groups-api.service';
-import { RealtimeService, GroupEventMessage } from './realtime.service';
+import { GoogleMeetService } from './google-meet.service';
+import { GroupRealtimeService, GroupEventMessage } from './realtime.service';
 import { GROUP_COLORS, Group } from './groups.types';
 
 @Injectable({ providedIn: 'root' })
 export class GroupsStateService {
   private readonly api = inject(GroupsApiService);
-  private readonly realtime = inject(RealtimeService);
+  private readonly meet = inject(GoogleMeetService);
+  private readonly realtime = inject(GroupRealtimeService);
 
   readonly groups = signal<Group[]>([]);
   readonly error = signal<string | null>(null);
@@ -24,6 +24,10 @@ export class GroupsStateService {
   /** Nhóm nào đang mở panel chi tiết */
   readonly panelGroupId = signal<string | null>(null);
   readonly panelGroup = signal<Group | null>(null);
+  /** Tab muốn mở sẵn khi bật panel ('events' | 'chat') */
+  readonly panelInitialTab = signal<'events' | 'chat'>('events');
+  /** Tăng mỗi lần mở panel — để panel áp dụng lại tab mong muốn kể cả khi mở lại cùng nhóm */
+  readonly panelOpenSeq = signal(0);
 
   /** Sự kiện theo nhóm: groupId -> danh sách CalendarEvent */
   private readonly groupEvents = signal<Record<string, CalendarEvent[]>>({});
@@ -146,7 +150,9 @@ export class GroupsStateService {
   }
 
   // ---------- Panel chi tiết ----------
-  openPanel(groupId: string): void {
+  openPanel(groupId: string, tab: 'events' | 'chat' = 'events'): void {
+    this.panelInitialTab.set(tab);
+    this.panelOpenSeq.update((n) => n + 1);
     this.panelGroupId.set(groupId);
     this.panelGroup.set(this.groups().find((g) => g.id === groupId) ?? null);
     this.api.get(groupId).subscribe({
@@ -190,8 +196,13 @@ export class GroupsStateService {
 
   invite(groupId: string, email: string): void {
     this.api.invite(groupId, email).subscribe({
-      next: () => this.openPanel(groupId),
-      error: () => this.error.set('Mời thành viên thất bại.'),
+      next: () => {
+        this.openPanel(groupId); // tải lại danh sách thành viên (hiện người vừa mời với nhãn "đã mời")
+        this.flash.set(`Đã mời ${email}. Người này sẽ vào nhóm khi đăng nhập bằng email đó.`);
+        this.autoClearFlash();
+      },
+      // Hiện lỗi THẬT từ máy chủ để dễ chẩn đoán (vd 403 nếu không phải chủ nhóm, email sai...).
+      error: (e) => this.error.set('Mời thất bại: ' + (e?.error?.message || e?.message || 'lỗi không rõ')),
     });
   }
 
@@ -252,6 +263,38 @@ export class GroupsStateService {
     this.api.deleteEvent(groupId, eventId).subscribe({
       next: () => this.removeEvent(groupId, eventId),
       error: () => this.error.set('Xóa sự kiện nhóm thất bại.'),
+    });
+  }
+
+  /** Tạo phòng Google Meet cho 1 sự kiện nhóm rồi lưu link (mọi thành viên thấy nút "Tham gia Meet"). */
+  async createMeetForEvent(groupId: string, eventId: string): Promise<void> {
+    this.error.set(null);
+    try {
+      const link = await this.meet.createSpace(); // gọi Google Meet API (cần quyền + token Google)
+      this.api.setMeetLink(groupId, eventId, link).subscribe({
+        next: (saved) => {
+          this.upsertEvent(groupId, saved);
+          this.flash.set('Đã tạo Google Meet cho sự kiện.');
+          this.autoClearFlash();
+        },
+        error: () => this.error.set('Lưu link Meet thất bại.'),
+      });
+    } catch (e: any) {
+      // Chưa cấp quyền Meet -> chuyển sang Google xin quyền, xong quay lại bấm "Tạo Meet" lần nữa.
+      if (e?.code === 'NEED_CONSENT') {
+        await this.meet.requestAccess();
+        return;
+      }
+      this.error.set(e?.message || 'Tạo Google Meet thất bại.');
+    }
+  }
+
+  /** Gỡ link Google Meet khỏi 1 sự kiện nhóm (cả nhóm cập nhật real-time). */
+  removeMeetForEvent(groupId: string, eventId: string): void {
+    this.error.set(null);
+    this.api.removeMeetLink(groupId, eventId).subscribe({
+      next: (saved) => this.upsertEvent(groupId, saved),
+      error: () => this.error.set('Gỡ link Meet thất bại.'),
     });
   }
 

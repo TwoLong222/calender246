@@ -1,7 +1,9 @@
-// Kiểu dữ liệu cho tính năng "Nhóm lên lịch cùng nhau".
+// Mô tả hình dạng các dữ liệu của tính năng nhóm (để code gợi ý và bắt lỗi giúp).
 
+// Vai trò trong nhóm: 'owner' = chủ nhóm, 'member' = thành viên thường.
 export type GroupRole = 'owner' | 'member';
 
+// GroupMember — Một thành viên trong nhóm.
 export interface GroupMember {
   user_id: string | null;
   email: string;
@@ -9,6 +11,7 @@ export interface GroupMember {
   joined_at: string | null;
 }
 
+// Group — Thông tin một nhóm.
 export interface Group {
   id: string;
   name: string;
@@ -23,7 +26,7 @@ export interface Group {
   members?: GroupMember[];
 }
 
-/** 1 tin nhắn chat trong nhóm (khớp bảng group_messages ở backend). */
+// GroupMessage — Một tin nhắn trong khung trò chuyện của nhóm.
 export interface GroupMessage {
   id: string;
   group_id: string;

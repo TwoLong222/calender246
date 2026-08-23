@@ -1,6 +1,5 @@
-// GroupsApiService: cầu nối REST giữa Angular và NestJS cho tính năng nhóm.
-// Tái dùng fromApiEvent/toApiPayload/ApiEvent của EventsApiService để map sự kiện nhóm
-// (dùng chung bảng events nên cùng định dạng).
+// GroupsApiService — Nơi gọi máy chủ cho tính năng nhóm.
+// Gửi và nhận dữ liệu: tạo/tham gia/mời nhóm, sự kiện nhóm và tin nhắn.
 
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
@@ -84,6 +83,18 @@ export class GroupsApiService {
 
   deleteEvent(id: string, eventId: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${id}/events/${eventId}`);
+  }
+
+  /** Lưu link Google Meet cho 1 sự kiện nhóm (backend phát cập nhật real-time). */
+  setMeetLink(id: string, eventId: string, meetLink: string): Observable<CalendarEvent> {
+    return this.http
+      .post<ApiEvent>(`${this.base}/${id}/events/${eventId}/meet`, { meetLink })
+      .pipe(map(fromApiEvent));
+  }
+
+  /** Gỡ link Google Meet khỏi 1 sự kiện nhóm. */
+  removeMeetLink(id: string, eventId: string): Observable<CalendarEvent> {
+    return this.http.delete<ApiEvent>(`${this.base}/${id}/events/${eventId}/meet`).pipe(map(fromApiEvent));
   }
 
   // ---------- Chat nhóm ----------

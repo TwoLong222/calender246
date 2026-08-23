@@ -1,7 +1,5 @@
-// GroupPanelComponent: bảng điều khiển 1 nhóm (mở từ sidebar).
-// - Xem/ mời/ xóa thành viên; copy mã & link tham gia.
-// - Danh sách sự kiện nhóm + form thêm nhanh (hiện real-time cho mọi thành viên).
-// - Chủ nhóm có thể giải tán nhóm.
+// GroupPanelComponent — Bảng chi tiết của một nhóm (mở từ sidebar).
+// Gồm 2 tab: "Sự kiện" (thành viên + lịch nhóm) và "Trò chuyện" (nhắn tin).
 
 import {
   ChangeDetectionStrategy,
@@ -16,7 +14,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GroupsStateService } from './groups-state.service';
-import { ChatService } from './chat.service';
+import { GroupChatService } from './chat.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { GroupMessage } from './groups.types';
 
@@ -28,9 +26,9 @@ import { GroupMessage } from './groups.types';
   template: `
     @if (group(); as g) {
       <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-16" (click)="state.closePanel()">
-        <div class="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
+        <div class="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
           <!-- Header -->
-          <div class="mb-3 flex items-start justify-between gap-3">
+          <div class="mb-3 flex shrink-0 items-start justify-between gap-3">
             <div>
               <div class="flex items-center gap-2">
                 <span class="h-3 w-3 rounded-full" [class]="dotClass()"></span>
@@ -45,7 +43,7 @@ import { GroupMessage } from './groups.types';
           </div>
 
           <!-- Mã & link tham gia -->
-          <div class="mb-4 rounded-lg bg-gray-50 p-3">
+          <div class="mb-4 shrink-0 rounded-lg bg-gray-50 p-3">
             <p class="mb-1 text-xs font-medium text-gray-600">Mời bằng mã / link</p>
             <div class="flex items-center gap-2">
               <code class="flex-1 rounded border border-gray-200 bg-white px-2 py-1 text-sm">{{ g.join_code }}</code>
@@ -59,7 +57,7 @@ import { GroupMessage } from './groups.types';
           </div>
 
           <!-- Tabs: Sự kiện / Trò chuyện -->
-          <div class="mb-3 flex gap-1 border-b border-gray-200 text-sm">
+          <div class="mb-3 flex shrink-0 gap-1 border-b border-gray-200 text-sm">
             <button
               type="button"
               (click)="tab.set('events')"
@@ -88,6 +86,7 @@ import { GroupMessage } from './groups.types';
           </div>
 
           @if (tab() === 'events') {
+          <div class="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
           <!-- Thành viên -->
           <div class="mb-4">
             <p class="mb-2 text-sm font-medium text-gray-700">Thành viên</p>
@@ -122,6 +121,10 @@ import { GroupMessage } from './groups.types';
                 />
                 <button type="button" (click)="doInvite(g.id)" class="rounded bg-blue-700 px-3 py-1 text-sm text-white hover:bg-blue-800">Mời</button>
               </div>
+              @if (state.error(); as err) {
+                <p class="mt-1 text-xs text-red-600">{{ err }}</p>
+              }
+              <p class="mt-1 text-xs text-gray-400">Người được mời sẽ tự vào nhóm khi đăng nhập bằng email đó.</p>
             }
           </div>
 
@@ -133,12 +136,20 @@ import { GroupMessage } from './groups.types';
             } @else {
               <ul class="space-y-1">
                 @for (e of events(); track e.id) {
-                  <li class="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-gray-50">
+                  <li class="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-gray-50">
                     <span class="min-w-0">
                       <span class="block truncate font-medium text-gray-800">{{ e.title || '(Không có tiêu đề)' }}</span>
                       <span class="block text-xs text-gray-500">{{ rangeLabel(e) }}</span>
                     </span>
-                    <button type="button" (click)="state.deleteGroupEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" aria-label="Xóa">🗑️</button>
+                    <span class="flex shrink-0 items-center gap-2">
+                      @if (e.meetLink) {
+                        <a [href]="e.meetLink" target="_blank" rel="noopener" class="rounded bg-emerald-600 px-2 py-0.5 text-xs text-white hover:bg-emerald-700">📹 Tham gia Meet</a>
+                        <button type="button" (click)="state.removeMeetForEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet">✕</button>
+                      } @else {
+                        <button type="button" (click)="state.createMeetForEvent(g.id, e.id)" class="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100" title="Tạo phòng họp Google Meet">📹 Tạo Meet</button>
+                      }
+                      <button type="button" (click)="state.deleteGroupEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" aria-label="Xóa">🗑️</button>
+                    </span>
                   </li>
                 }
               </ul>
@@ -156,12 +167,13 @@ import { GroupMessage } from './groups.types';
               </div>
             </div>
           </div>
+          </div>
 
           }
 
           @if (tab() === 'chat') {
           <!-- Trò chuyện nhóm -->
-          <div class="mb-3">
+          <div class="flex min-h-0 flex-1 flex-col">
             <!-- Nút xem tin cũ hơn -->
             @if (chat.hasMore()[g.id]) {
               <div class="mb-2 text-center">
@@ -170,7 +182,7 @@ import { GroupMessage } from './groups.types';
             }
 
             <!-- Danh sách tin nhắn -->
-            <div #msgList class="flex max-h-[45vh] min-h-[12rem] flex-col gap-2 overflow-y-auto rounded-lg bg-gray-50 p-3">
+            <div #msgList class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-lg bg-gray-50 p-3">
               @for (msg of messages(); track msg.id) {
                 <div class="flex flex-col" [class.items-end]="chat.isMine(msg)">
                   <div
@@ -226,7 +238,7 @@ import { GroupMessage } from './groups.types';
             }
 
             <!-- Ô nhập tin -->
-            <div class="mt-2 flex gap-2">
+            <div class="mt-2 flex shrink-0 gap-2">
               <input
                 type="text"
                 [(ngModel)]="draft"
@@ -241,7 +253,7 @@ import { GroupMessage } from './groups.types';
           }
 
           @if (isOwner()) {
-            <div class="border-t border-gray-100 pt-3 text-right">
+            <div class="mt-2 shrink-0 border-t border-gray-100 pt-3 text-right">
               <button type="button" (click)="confirmDelete(g.id, g.name)" class="text-sm text-red-600 hover:underline">Giải tán nhóm</button>
             </div>
           }
@@ -252,7 +264,7 @@ import { GroupMessage } from './groups.types';
 })
 export class GroupPanelComponent implements OnDestroy {
   protected readonly state = inject(GroupsStateService);
-  protected readonly chat = inject(ChatService);
+  protected readonly chat = inject(GroupChatService);
 
   @ViewChild('msgList') private msgList?: ElementRef<HTMLDivElement>;
 
@@ -287,6 +299,11 @@ export class GroupPanelComponent implements OnDestroy {
   });
 
   constructor() {
+    // Áp dụng tab mong muốn mỗi lần mở panel (vd bấm nút 💬 -> mở thẳng tab "Trò chuyện").
+    effect(() => {
+      this.state.panelOpenSeq(); // chạy lại mỗi lần mở panel
+      this.tab.set(this.state.panelInitialTab());
+    });
     // Mở khung chat của đúng nhóm mỗi khi chuyển sang tab "Trò chuyện" (hoặc đổi nhóm).
     effect(() => {
       const g = this.group();
@@ -343,8 +360,12 @@ export class GroupPanelComponent implements OnDestroy {
   }
 
   doInvite(groupId: string): void {
-    const email = this.inviteEmail().trim();
-    if (!email || !email.includes('@')) return;
+    const email = this.inviteEmail().trim().toLowerCase();
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      this.state.error.set('Email không hợp lệ. Nhập đúng dạng ten@gmail.com');
+      return;
+    }
+    this.state.error.set(null); // xóa lỗi cũ trước khi mời
     this.state.invite(groupId, email);
     this.inviteEmail.set('');
   }

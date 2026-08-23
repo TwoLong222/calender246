@@ -1,18 +1,12 @@
-// ChatService: quản lý toàn bộ state chat nhóm bằng Angular Signals.
-// - Tải lịch sử tin nhắn (phân trang cuộn lên), gửi/sửa/thu hồi tin.
-// - Nghe RealtimeService (WebSocket) để hiện tin mới / sửa / thu hồi TỨC THÌ.
-// - Đếm số tin chưa đọc theo từng nhóm (badge sidebar) + trạng thái "đang gõ".
-//
-// Phối hợp REST + WebSocket:
-//   REST  -> lo phần "chắc chắn": lưu tin, lấy lịch sử, đánh dấu đã đọc.
-//   WS    -> lo phần "tức thì": mọi thành viên online thấy ngay.
-// Gửi/sửa/thu hồi đều gọi REST; kết quả được backend phát lại qua WS cho cả phòng
-// (kể cả chính mình). Khử trùng theo id nên không bị nhân đôi tin.
+// GroupChatService — Phần trò chuyện của nhóm.
+// Lo việc hiện tin nhắn, gửi/sửa/thu hồi tin, đếm tin chưa đọc và báo "đang gõ".
 
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { SupabaseService } from '../auth/supabase.service';
+import { NotificationService } from '../notifications/notification.service';
 import { GroupsApiService } from './groups-api.service';
-import { RealtimeService, ChatMessage } from './realtime.service';
+import { GroupsStateService } from './groups-state.service';
+import { GroupRealtimeService, ChatMessage } from './realtime.service';
 import { GroupMessage } from './groups.types';
 
 const PAGE_SIZE = 30;
@@ -20,10 +14,12 @@ const TYPING_TTL = 4000; // ms — "đang gõ" tự ẩn nếu không có tín h
 const TYPING_THROTTLE = 1500; // ms — giãn cách tối thiểu giữa 2 lần báo "đang gõ"
 
 @Injectable({ providedIn: 'root' })
-export class ChatService {
+export class GroupChatService {
   private readonly api = inject(GroupsApiService);
-  private readonly realtime = inject(RealtimeService);
+  private readonly realtime = inject(GroupRealtimeService);
   private readonly supabase = inject(SupabaseService);
+  private readonly notifications = inject(NotificationService);
+  private readonly groupsState = inject(GroupsStateService);
 
   /** Tin nhắn theo nhóm: groupId -> danh sách (cũ -> mới) */
   private readonly messages = signal<Record<string, GroupMessage[]>>({});
@@ -195,8 +191,16 @@ export class ChatService {
         this.markRead(groupId); // đang mở -> coi như đã đọc
       } else if (!this.isMine(m.message)) {
         this.unread.update((u) => ({ ...u, [groupId]: (u[groupId] ?? 0) + 1 }));
+        this.notifyNewMessage(groupId, m.message); // toast trong app + desktop (nếu tab ẩn)
       }
     }
+  }
+
+  /** Bắn thông báo cho 1 tin nhắn mới ở nhóm mà người dùng KHÔNG đang mở chat. */
+  private notifyNewMessage(groupId: string, msg: GroupMessage): void {
+    const groupName = this.groupsState.groups().find((g) => g.id === groupId)?.name ?? 'Nhóm';
+    const sender = (msg.sender_email ?? '').split('@')[0] || 'Ai đó';
+    this.notifications.notifyMessage(`💬 ${groupName}`, `${sender}: ${msg.content}`);
   }
 
   /** Thêm hoặc thay tin theo id, giữ thứ tự cũ -> mới. */
