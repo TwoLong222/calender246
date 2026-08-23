@@ -163,10 +163,10 @@ export class AiAssistantComponent {
   }
 
   private scrollToBottom(): void {
-    // Đợi DOM cập nhật xong rồi mới cuộn.
+    // Đợi DOM cập nhật xong rồi cuộn mượt xuống cuối.
     setTimeout(() => {
       const el = this.scrollBox()?.nativeElement;
-      if (el) el.scrollTop = el.scrollHeight;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, 0);
   }
 
