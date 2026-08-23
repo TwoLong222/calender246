@@ -16,6 +16,7 @@ import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
+import { SupabaseService } from '../auth/supabase.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -69,12 +70,15 @@ function toTimeInputValue(d: Date): string {
           <div class="space-y-4">
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="w-5 text-center">🕐</span>
-              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1" [disabled]="isAllDay()" />
+              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+              <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="isAllDay() || !canEditTime()" />
               <span>–</span>
-              <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1" />
-              <input type="time" [(ngModel)]="endTime" class="rounded border border-gray-300 px-2 py-1" [disabled]="isAllDay()" />
+              <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+              <input type="time" [(ngModel)]="endTime" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="isAllDay() || !canEditTime()" />
             </div>
+            @if (!canEditTime()) {
+              <p class="pl-7 text-xs text-gray-500">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
+            }
             <label class="flex items-center gap-2 pl-7 text-sm text-gray-600">
               <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
             </label>
@@ -235,6 +239,20 @@ export class EventFormModalComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly tr = inject(TranslateService);
   private readonly settings = inject(SettingsService);
+  private readonly supabase = inject(SupabaseService);
+
+  /**
+   * Chỉ NGƯỜI TẠO mới được đổi giờ bắt đầu/kết thúc. Khi tạo mới -> luôn cho phép.
+   * Khi sửa -> so email người tạo với email đang đăng nhập (không xác định được thì cho
+   * phép, để backend là nơi quyết định cuối cùng).
+   */
+  canEditTime = computed(() => {
+    if (!this.editing()) return true;
+    const creator = this.state.editingEvent()?.creatorEmail;
+    const me = this.supabase.user()?.email;
+    if (!creator || !me) return true;
+    return creator.toLowerCase() === me.toLowerCase();
+  });
 
   reminderMinutes = signal<number | null>(null);
   reminderStr(): string {

@@ -5,7 +5,8 @@
 // các thao tác BẤT ĐỒNG BỘ (gọi HTTP), nhưng interface bên ngoài (component gọi
 // state.saveEvent(...)) không đổi — component không cần sửa gì thêm.
 
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
@@ -56,9 +57,20 @@ export class CalendarStateService {
   /** "Ghim" vị trí event vừa kéo trong ~2.5s: dù reload trả dữ liệu cũ vẫn giữ vị trí mới -> không giật */
   private readonly recentlyMoved = new Map<string, { start: Date; end: Date; until: number }>();
 
+  private realtimeChannel?: RealtimeChannel;
+
   constructor() {
     this.reload();
-    this.subscribeRealtime();
+    // QUAN TRỌNG: chỉ đăng ký Realtime SAU khi đã có token đăng nhập, và gắn token cho kênh
+    // (setAuth). Nếu đăng ký lúc chưa đăng nhập, kênh chạy quyền ẩn danh -> RLS chặn -> KHÔNG
+    // nhận được thay đổi của người khác (vd khách vừa Đồng ý) nên phải F5 mới thấy.
+    // Đăng ký LẠI khi token đổi (đăng nhập lại / refresh token mỗi giờ) để kênh luôn hợp lệ.
+    effect(() => {
+      const token = this.supabase.session()?.access_token;
+      if (!token) return;
+      this.supabase.client.realtime.setAuth(token);
+      this.subscribeRealtime();
+    });
   }
 
   /**
@@ -67,7 +79,12 @@ export class CalendarStateService {
    * Gom nhiều thay đổi liên tiếp (vd tạo event lặp) vào 1 lần tải bằng debounce ~400ms.
    */
   private subscribeRealtime(): void {
-    this.supabase.client
+    // Bỏ kênh cũ trước khi tạo kênh mới (tránh đăng ký trùng khi token đổi).
+    if (this.realtimeChannel) {
+      this.supabase.client.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = undefined;
+    }
+    this.realtimeChannel = this.supabase.client
       .channel('calendar-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => this.scheduleReload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees' }, () => this.scheduleReload())
