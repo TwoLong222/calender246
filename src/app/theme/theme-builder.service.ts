@@ -25,6 +25,7 @@ export interface AccentPreset {
 
 /** Các preset dựng sẵn (lấy từ bảng màu Tailwind). */
 export const ACCENT_PRESETS: AccentPreset[] = [
+  { id: 'navy', name: 'Xanh navy', palette: { 50: '#eef2f8', 100: '#d7e0ef', 500: '#3a5ca0', 600: '#22407d', 700: '#1a3260', 800: '#132549' } },
   { id: 'blue', name: 'Xanh dương', palette: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af' } },
   { id: 'indigo', name: 'Chàm', palette: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3' } },
   { id: 'violet', name: 'Tím', palette: { 50: '#f5f3ff', 100: '#ede9fe', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6' } },
@@ -38,8 +39,8 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 const STORAGE_KEY = 'accent-theme';
 const VAR_KEYS: (keyof AccentPalette)[] = [50, 100, 500, 600, 700, 800];
 
-/** Nền trang mặc định (gray-50) khi không dùng theme dịp lễ. */
-const DEFAULT_APP_BG = '#f9fafb';
+/** Nền trang mặc định (tông giấy ấm, đồng bộ landing) khi không dùng theme dịp lễ. */
+const DEFAULT_APP_BG = '#f5f3ee';
 
 interface StoredAccent {
   /** id preset, 'custom', hoặc 'palette' (lưu nguyên bảng màu, vd theme dịp lễ). */
@@ -54,10 +55,10 @@ interface StoredAccent {
 
 @Injectable({ providedIn: 'root' })
 export class ThemeBuilderService {
-  /** id đang chọn ('blue' mặc định, 'custom', hoặc 'palette'). */
-  readonly accentId = signal<string>('blue');
+  /** id đang chọn ('navy' mặc định, 'custom', hoặc 'palette'). */
+  readonly accentId = signal<string>('navy');
   /** màu gốc khi dùng tùy chỉnh (hex, = sắc 600). */
-  readonly customBase = signal<string>('#2563eb');
+  readonly customBase = signal<string>('#22407d');
   /** Bảng màu + nền ĐANG áp (dùng để reapply chính xác sau khi seasonal nhường lại). */
   private currentPalette: AccentPalette = ACCENT_PRESETS[0].palette;
   private currentBg: string = DEFAULT_APP_BG;
@@ -99,9 +100,9 @@ export class ThemeBuilderService {
     if (persist) this.save({ id: 'palette', palette, bg });
   }
 
-  /** Về mặc định (xanh dương). */
+  /** Về mặc định (xanh navy). */
   reset(): void {
-    this.setPreset('blue');
+    this.setPreset('navy');
   }
 
   /** Áp lại đúng màu người dùng đang chọn (dùng khi hết dịp lễ, seasonal nhường lại). */

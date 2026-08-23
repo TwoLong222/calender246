@@ -5,18 +5,21 @@
 // các thao tác BẤT ĐỒNG BỘ (gọi HTTP), nhưng interface bên ngoài (component gọi
 // state.saveEvent(...)) không đổi — component không cần sửa gì thêm.
 
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { SharingApiService } from '../sharing/sharing-api.service';
+import { GoogleMeetService } from '../groups/google-meet.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
   private readonly supabase = inject(SupabaseService);
   private readonly sharingApi = inject(SharingApiService);
+  private readonly meet = inject(GoogleMeetService);
 
   /** Các lịch được chia sẻ CHO mình (kèm vai trò) — để phân biệt & phân quyền editor. */
   readonly sharedCalendars = signal<{ id: string; role: 'viewer' | 'editor' }[]>([]);
@@ -101,10 +104,21 @@ export class CalendarStateService {
   /** "Ghim" vị trí event vừa kéo trong ~2.5s: dù reload trả dữ liệu cũ vẫn giữ vị trí mới -> không giật */
   private readonly recentlyMoved = new Map<string, { start: Date; end: Date; until: number }>();
 
+  private realtimeChannel?: RealtimeChannel;
+
   constructor() {
     this.reload();
     this.loadSharedCalendars();
-    this.subscribeRealtime();
+    // QUAN TRỌNG: chỉ đăng ký Realtime SAU khi đã có token đăng nhập, và gắn token cho kênh
+    // (setAuth). Nếu đăng ký lúc chưa đăng nhập, kênh chạy quyền ẩn danh -> RLS chặn -> KHÔNG
+    // nhận được thay đổi của người khác (vd khách vừa Đồng ý) nên phải F5 mới thấy.
+    // Đăng ký LẠI khi token đổi (đăng nhập lại / refresh token mỗi giờ) để kênh luôn hợp lệ.
+    effect(() => {
+      const token = this.supabase.session()?.access_token;
+      if (!token) return;
+      this.supabase.client.realtime.setAuth(token);
+      this.subscribeRealtime();
+    });
   }
 
   /**
@@ -113,7 +127,12 @@ export class CalendarStateService {
    * Gom nhiều thay đổi liên tiếp (vd tạo event lặp) vào 1 lần tải bằng debounce ~400ms.
    */
   private subscribeRealtime(): void {
-    this.supabase.client
+    // Bỏ kênh cũ trước khi tạo kênh mới (tránh đăng ký trùng khi token đổi).
+    if (this.realtimeChannel) {
+      this.supabase.client.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = undefined;
+    }
+    this.realtimeChannel = this.supabase.client
       .channel('calendar-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => this.scheduleReload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees' }, () => this.scheduleReload())
@@ -159,6 +178,40 @@ export class CalendarStateService {
         this.loadError.set('Không tải được danh sách sự kiện. Kiểm tra lại NestJS server đã chạy và đã đăng nhập chưa.');
         this.isLoading.set(false);
       },
+    });
+  }
+
+  /** Tạo phòng Google Meet cho 1 sự kiện rồi lưu link vào sự kiện đó. */
+  async createMeetForEvent(eventId: string): Promise<void> {
+    this.loadError.set(null);
+    try {
+      const link = await this.meet.createSpace(); // gọi Google Meet API (cần token Google + quyền Meet)
+      this.api.setMeetLink(eventId, link).subscribe({
+        next: (saved) => {
+          this.markLocalChange();
+          this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e)));
+        },
+        error: () => this.loadError.set('Lưu link Meet thất bại.'),
+      });
+    } catch (e: any) {
+      // Chưa cấp quyền Meet -> chuyển sang Google xin quyền, xong quay lại bấm "Tạo Meet" lần nữa.
+      if (e?.code === 'NEED_CONSENT') {
+        await this.meet.requestAccess();
+        return;
+      }
+      this.loadError.set(e?.message || 'Tạo Google Meet thất bại.');
+    }
+  }
+
+  /** Gỡ link Google Meet khỏi 1 sự kiện. */
+  removeMeetForEvent(eventId: string): void {
+    this.loadError.set(null);
+    this.api.removeMeetLink(eventId).subscribe({
+      next: (saved) => {
+        this.markLocalChange();
+        this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e)));
+      },
+      error: () => this.loadError.set('Gỡ link Meet thất bại.'),
     });
   }
 

@@ -3,9 +3,12 @@
 // CẬP NHẬT SO VỚI BẢN TRƯỚC: thêm banner nhỏ hiển thị lỗi tải dữ liệu (loadError)
 // và cảnh báo trùng lịch do SERVER xác nhận sau khi lưu (lastSavedConflicts).
 
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
+import { GroupsStateService } from '../groups/groups-state.service';
+import { GroupChatService } from '../groups/chat.service';
+import { GroupPanelComponent } from '../groups/group-panel.component';
 import { MiniCalendarComponent } from './mini-calendar.component';
 import { TimeGridViewComponent } from './time-grid-view.component';
 import { MonthViewComponent } from './month-view.component';
@@ -39,6 +42,7 @@ import { TranslateService } from '../i18n/translate.service';
     AiAssistantComponent,
     NotificationToastsComponent,
     IconComponent,
+    GroupPanelComponent,
     RouterLink,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,7 +82,21 @@ import { TranslateService } from '../i18n/translate.service';
           <app-icon name="menu" class="h-5 w-5 text-gray-600" />
         </button>
         <span class="flex items-center gap-2 text-lg font-medium text-gray-700">
-          <app-icon name="calendar" class="h-6 w-6 text-blue-600" /> {{ tr.t('nav.calendar') }}
+          <svg viewBox="0 0 32 32" class="h-7 w-7" aria-hidden="true">
+            <rect x="9.2" y="3" width="2.6" height="6" rx="1.3" fill="var(--accent-600)"/>
+            <rect x="20.2" y="3" width="2.6" height="6" rx="1.3" fill="var(--accent-600)"/>
+            <rect x="3.5" y="6.5" width="25" height="22" rx="6" fill="var(--accent-600)"/>
+            <rect x="3.5" y="6.5" width="25" height="6.5" rx="6" fill="var(--accent-500)"/>
+            <g fill="#fff" opacity=".9">
+              <rect x="7" y="16.4" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="14.2" y="16.4" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="21.4" y="16.4" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="7" y="21.8" width="3.6" height="3.6" rx="1.1"/>
+              <rect x="21.4" y="21.8" width="3.6" height="3.6" rx="1.1"/>
+            </g>
+            <rect x="14.2" y="21.8" width="3.6" height="3.6" rx="1.1" fill="#dc2626"/>
+          </svg>
+          {{ tr.t('nav.calendar') }}
         </span>
 
         <button
@@ -267,6 +285,50 @@ import { TranslateService } from '../i18n/translate.service';
             </ul>
           </div>
 
+          <!-- Nhóm lên lịch cùng nhau -->
+          <div class="mt-6">
+            <p class="mb-2 text-sm font-medium text-gray-700">Nhóm</p>
+
+            <ul class="space-y-1 text-sm text-gray-700">
+              @for (g of groupsState.groups(); track g.id) {
+                <li class="flex items-center gap-2">
+                  <input type="checkbox" [checked]="groupsState.isVisible(g.id)" (change)="groupsState.toggleVisible(g.id)" [class]="groupAccent(g.id)" />
+                  <button type="button" (click)="groupsState.openPanel(g.id)" class="flex-1 truncate text-left hover:underline">{{ g.name }}</button>
+                  @if (groupsState.onlineCount(g.id) > 0) {
+                    <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
+                  }
+                  <button
+                    type="button"
+                    (click)="groupsState.openPanel(g.id, 'chat')"
+                    class="relative shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-100 hover:text-blue-700"
+                    title="Mở trò chuyện"
+                  >
+                    💬
+                    @if (chat.unreadOf(g.id) > 0) {
+                      <span class="absolute -right-1 -top-1 min-w-[1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-medium leading-4 text-white">{{ chat.unreadOf(g.id) }}</span>
+                    }
+                  </button>
+                </li>
+              } @empty {
+                <li class="text-xs text-gray-400">Chưa có nhóm nào.</li>
+              }
+            </ul>
+
+            <!-- Tạo nhóm -->
+            <div class="mt-2 flex gap-1">
+              <input #gname type="text" placeholder="Tên nhóm mới" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1 text-sm" (keydown.enter)="createGroup(gname.value); gname.value=''" />
+              <button type="button" (click)="createGroup(gname.value); gname.value=''" class="shrink-0 rounded bg-blue-700 px-2 py-1 text-sm text-white hover:bg-blue-800">Tạo</button>
+            </div>
+            <!-- Tham gia bằng mã -->
+            <div class="mt-1 flex gap-1">
+              <input #gcode type="text" placeholder="Nhập mã tham gia" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1 text-sm" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
+              <button type="button" (click)="joinGroup(gcode.value); gcode.value=''" class="shrink-0 rounded border border-gray-300 px-2 py-1 text-sm hover:bg-gray-50">Vào</button>
+            </div>
+            @if (groupsState.error(); as err) {
+              <p class="mt-1 text-xs text-red-600">{{ err }}</p>
+            }
+          </div>
+
         </aside>
 
         <!-- Main view -->
@@ -278,7 +340,7 @@ import { TranslateService } from '../i18n/translate.service';
                 @case ('day') {
                   <app-time-grid-view
                     [dates]="[state.viewedDate()]"
-                    [events]="state.visibleEvents()"
+                    [events]="mergedEvents()"
                     (slotClicked)="onSlotClicked($event)"
                     (eventClicked)="onEventClicked($event)"
                     (eventTimesChanged)="onEventTimesChanged($event)"
@@ -288,7 +350,7 @@ import { TranslateService } from '../i18n/translate.service';
                 @case ('week') {
                   <app-time-grid-view
                     [dates]="weekDates()"
-                    [events]="state.visibleEvents()"
+                    [events]="mergedEvents()"
                     (slotClicked)="onSlotClicked($event)"
                     (eventClicked)="onEventClicked($event)"
                     (eventTimesChanged)="onEventTimesChanged($event)"
@@ -298,13 +360,13 @@ import { TranslateService } from '../i18n/translate.service';
                 @case ('month') {
                   <app-month-view
                     [viewedDate]="state.viewedDate()"
-                    [events]="state.visibleEvents()"
+                    [events]="mergedEvents()"
                     (dateClicked)="onMonthDateClicked($event)"
                     (eventClicked)="onEventClicked($event)"
                   />
                 }
                 @case ('year') {
-                  <app-year-view [viewedDate]="state.viewedDate()" [events]="state.visibleEvents()" (dateClicked)="onYearDateClicked($event)" />
+                  <app-year-view [viewedDate]="state.viewedDate()" [events]="mergedEvents()" (dateClicked)="onYearDateClicked($event)" />
                 }
               }
             </div>
@@ -327,10 +389,21 @@ import { TranslateService } from '../i18n/translate.service';
       <app-ai-assistant />
     }
     <app-notification-toasts />
+
+    @if (groupsState.panelGroupId()) {
+      <app-group-panel />
+    }
+    @if (groupsState.flash(); as msg) {
+      <div class="popup-in fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">
+        <span>👥</span> {{ msg }}
+      </div>
+    }
   `,
 })
-export class CalendarPageComponent {
+export class CalendarPageComponent implements OnInit {
   protected readonly state = inject(CalendarStateService);
+  protected readonly groupsState = inject(GroupsStateService);
+  protected readonly chat = inject(GroupChatService);
   protected readonly supabase = inject(SupabaseService);
   protected readonly theme = inject(ThemeService);
   protected readonly seasonal = inject(SeasonalThemeService);
@@ -342,6 +415,60 @@ export class CalendarPageComponent {
   protected readonly sidebarOpen = signal(true);
   protected readonly settingsMenuOpen = signal(false);
   protected readonly importMsg = signal('');
+
+  /** Sự kiện hiển thị trên lịch = sự kiện cá nhân (đã lọc) + sự kiện của các nhóm đang hiện */
+  protected readonly mergedEvents = computed<CalendarEvent[]>(() => [
+    ...this.state.visibleEvents(),
+    ...this.groupsState.visibleGroupEvents(),
+  ]);
+
+  ngOnInit(): void {
+    // Khởi động tính năng nhóm: đồng bộ lời mời, tải nhóm, kết nối WebSocket.
+    this.groupsState.start();
+    // Nạp số tin nhắn chưa đọc để hiện badge ở sidebar.
+    this.chat.loadUnread();
+    // Nếu mở bằng link mời (?join=CODE) -> tự tham gia nhóm rồi dọn URL.
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('join');
+    if (code) {
+      this.groupsState.joinByCode(code);
+      history.replaceState(null, '', window.location.pathname);
+    }
+  }
+
+  /** Tên class màu cho chấm tròn của nhóm ở sidebar */
+  groupDot(groupId: string): string {
+    const map: Record<string, string> = {
+      violet: 'bg-violet-600',
+      emerald: 'bg-emerald-600',
+      rose: 'bg-rose-600',
+      amber: 'bg-amber-600',
+      sky: 'bg-sky-600',
+    };
+    return map[this.groupsState.colorFor(groupId)] ?? 'bg-violet-600';
+  }
+
+  /** Màu cho checkbox của nhóm — để đồng bộ với phần "Hiển thị" (checkbox có màu). */
+  groupAccent(groupId: string): string {
+    const map: Record<string, string> = {
+      violet: 'accent-violet-600',
+      emerald: 'accent-emerald-600',
+      rose: 'accent-rose-600',
+      amber: 'accent-amber-600',
+      sky: 'accent-sky-600',
+    };
+    return map[this.groupsState.colorFor(groupId)] ?? 'accent-violet-600';
+  }
+
+  createGroup(name: string): void {
+    const n = name.trim();
+    if (n) this.groupsState.createGroup(n);
+  }
+
+  joinGroup(code: string): void {
+    const c = code.trim();
+    if (c) this.groupsState.joinByCode(c);
+  }
 
   onExport(): void {
     this.ics.exportToFile(this.state.events());
@@ -474,12 +601,21 @@ export class CalendarPageComponent {
   }
 
   onEventClicked(event: CalendarEvent): void {
-    this.state.selectEvent(event.id);
+    // Sự kiện nhóm -> mở panel nhóm; sự kiện cá nhân -> popover chi tiết như cũ
+    if (event.groupId) {
+      this.groupsState.openPanel(event.groupId);
+    } else {
+      this.state.selectEvent(event.id);
+    }
   }
 
   /** Người dùng kéo co giãn 1 sự kiện xong -> lưu giờ mới (optimistic, không giật) */
   onEventTimesChanged(event: CalendarEvent): void {
-    this.state.updateEventTimes(event);
+    if (event.groupId) {
+      this.groupsState.updateGroupEventTimes(event);
+    } else {
+      this.state.updateEventTimes(event);
+    }
   }
 
   openCreate(kind: EventKind): void {

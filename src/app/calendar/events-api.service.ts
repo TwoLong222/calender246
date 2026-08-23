@@ -15,7 +15,7 @@ interface ApiAttendee {
   status: AttendeeStatus;
 }
 
-interface ApiEvent {
+export interface ApiEvent {
   id: string;
   calendar_id?: string;
   title: string;
@@ -31,6 +31,8 @@ interface ApiEvent {
   reminder_minutes?: number | null;
   completed?: boolean;
   deleted_at?: string | null;
+  group_id?: string | null;
+  meet_link?: string | null;
   attendees?: ApiAttendee[];
 }
 
@@ -45,7 +47,7 @@ interface SaveResult {
   conflictTitles: string[];
 }
 
-function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
+export function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
   return {
     title: e.title,
     description: e.description,
@@ -61,7 +63,7 @@ function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
   };
 }
 
-function fromApiEvent(row: ApiEvent): CalendarEvent {
+export function fromApiEvent(row: ApiEvent): CalendarEvent {
   return {
     id: row.id,
     kind: row.kind,
@@ -83,6 +85,8 @@ function fromApiEvent(row: ApiEvent): CalendarEvent {
     reminderMinutes: row.reminder_minutes ?? null,
     completed: row.completed ?? false,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
+    groupId: row.group_id ?? undefined,
+    meetLink: row.meet_link ?? undefined,
   };
 }
 
@@ -167,6 +171,16 @@ export class EventsApiService {
   /** Lời mời chưa trả lời của user (để bấm Đồng ý/Từ chối ở trang Lời mời) */
   listInvitations(): Observable<Invitation[]> {
     return this.http.get<Invitation[]>(`${this.base}/invitations`);
+  }
+
+  /** Gắn link Google Meet vào 1 sự kiện, trả về sự kiện đã cập nhật. */
+  setMeetLink(id: string, meetLink: string): Observable<CalendarEvent> {
+    return this.http.post<ApiEvent>(`${this.base}/${id}/meet`, { meetLink }).pipe(map(fromApiEvent));
+  }
+
+  /** Gỡ link Google Meet khỏi 1 sự kiện. */
+  removeMeetLink(id: string): Observable<CalendarEvent> {
+    return this.http.delete<ApiEvent>(`${this.base}/${id}/meet`).pipe(map(fromApiEvent));
   }
 
   /** User tự đặt trạng thái tham dự -> trả về danh sách khách mời mới (đã cập nhật) */
