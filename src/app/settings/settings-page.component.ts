@@ -427,6 +427,17 @@ type Section =
                   <label class="flex items-center justify-between text-sm"><span>{{ tr.t('ai.delete') }}</span><input type="checkbox" [checked]="s().ai_settings.allow_delete" (change)="toggleAi('allow_delete')" class="accent-blue-600" /></label>
                   <p class="text-xs text-gray-400">{{ tr.t('ai.note') }}</p>
                 </div>
+
+                <!-- Lịch sử trò chuyện với AI -->
+                <div class="flex items-center justify-between border-t border-gray-200 pt-3">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">{{ tr.t('ai.history') }}</p>
+                    <p class="text-xs text-gray-400">{{ tr.t('ai.historyHint') }}</p>
+                  </div>
+                  <button type="button" (click)="clearAiChat()" class="shrink-0 rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
+                    {{ aiCleared() ? tr.t('ai.cleared') : tr.t('ai.clear') }}
+                  </button>
+                </div>
               </section>
             }
           }
@@ -522,6 +533,13 @@ export class SettingsPageComponent {
   protected readonly accentPresets = ACCENT_PRESETS;
   protected readonly seasonal = inject(SeasonalThemeService);
   protected readonly seasons = SEASONS;
+  /** Xóa lịch sử chat AI (lưu trên máy). */
+  protected readonly aiCleared = signal(false);
+  protected clearAiChat(): void {
+    try { localStorage.removeItem('ai-chat-history'); } catch { /* bỏ qua */ }
+    this.aiCleared.set(true);
+    setTimeout(() => this.aiCleared.set(false), 2000);
+  }
   /** Đổi màu nhấn tùy chỉnh từ ô chọn màu -> bỏ trang trí dịp lễ đang chọn tay. */
   protected onCustomAccent(ev: Event): void {
     const value = (ev.target as HTMLInputElement).value;

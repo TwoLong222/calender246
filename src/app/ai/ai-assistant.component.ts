@@ -3,7 +3,7 @@
 // (đúng quyền), hiện PREVIEW, người dùng bấm Xác nhận thì mới thực thi qua các
 // service có sẵn (auth + RLS). AI không bao giờ chạm thẳng database.
 
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
@@ -16,6 +16,9 @@ interface ChatMsg {
   role: 'user' | 'ai';
   text: string;
 }
+
+/** Key lưu lịch sử chat AI (giữ khi rời trang / mở lại). */
+const AI_CHAT_KEY = 'ai-chat-history';
 interface PlannedSlot {
   start: Date;
   end: Date;
@@ -52,9 +55,14 @@ type Pending =
           <span class="flex items-center gap-2 font-medium text-gray-800">
             <app-icon name="robot" class="h-5 w-5 text-blue-700" /> {{ tr.t('ai.title') }}
           </span>
-          <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
-            <app-icon name="x" class="h-4 w-4" />
-          </button>
+          <div class="flex items-center gap-1">
+            <button type="button" (click)="clearChat()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('ai.clear')" [title]="tr.t('ai.clear')">
+              <app-icon name="trash" class="h-4 w-4" />
+            </button>
+            <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+              <app-icon name="x" class="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div class="flex-1 space-y-2 overflow-y-auto px-3 py-3">
@@ -138,12 +146,35 @@ export class AiAssistantComponent {
   input = signal('');
   loading = signal(false);
   pending = signal<Pending | null>(null);
-  messages = signal<ChatMsg[]>([
-    {
-      role: 'ai',
-      text: this.tr.t('ai.greeting'),
-    },
-  ]);
+  messages = signal<ChatMsg[]>(this.loadMessages());
+
+  constructor() {
+    // Tự lưu lịch sử chat mỗi khi đổi -> rời trang/mở lại vẫn còn.
+    effect(() => this.saveMessages(this.messages()));
+  }
+
+  private loadMessages(): ChatMsg[] {
+    try {
+      const raw = localStorage.getItem(AI_CHAT_KEY);
+      const arr = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(arr) && arr.length) return arr as ChatMsg[];
+    } catch {
+      /* bỏ qua */
+    }
+    return [{ role: 'ai', text: this.tr.t('ai.greeting') }];
+  }
+  private saveMessages(m: ChatMsg[]): void {
+    try {
+      localStorage.setItem(AI_CHAT_KEY, JSON.stringify(m.slice(-50)));
+    } catch {
+      /* bỏ qua */
+    }
+  }
+  /** Xóa hội thoại, về lời chào ban đầu. */
+  clearChat(): void {
+    this.messages.set([{ role: 'ai', text: this.tr.t('ai.greeting') }]);
+    this.pending.set(null);
+  }
 
   private push(text: string): void {
     this.messages.update((m) => [...m, { role: 'ai', text }]);
