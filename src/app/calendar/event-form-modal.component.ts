@@ -16,6 +16,7 @@ import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
+import { AttachmentsApiService } from './attachments-api.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -191,6 +192,33 @@ function toTimeInputValue(d: Date): string {
                 <option value="1440">{{ tr.t('notif.r1440') }}</option>
               </select>
             </div>
+
+            <!-- Đính kèm tài liệu ngay lúc tạo (có thể hẹn giờ mở/đóng) -->
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-2 text-gray-500"><app-icon name="notes" class="h-4 w-4" /> {{ tr.t('attach.title') }}</span>
+                <label class="tap cursor-pointer rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50">
+                  {{ tr.t('attach.add') }}
+                  <input type="file" class="hidden" (change)="onStageFile($event)" />
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.from') }}
+                  <input type="datetime-local" [(ngModel)]="stageFrom" class="rounded border border-gray-300 px-1 py-0.5" />
+                </label>
+                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.until') }}
+                  <input type="datetime-local" [(ngModel)]="stageUntil" class="rounded border border-gray-300 px-1 py-0.5" />
+                </label>
+                <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
+              </div>
+              @for (s of stagedFiles(); track $index) {
+                <div class="flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs">
+                  <span class="min-w-0 flex-1 truncate">📎 {{ s.file.name }}</span>
+                  @if (s.from) { <span class="shrink-0 text-amber-600">🔒 {{ s.from }}</span> }
+                  <button type="button" (click)="removeStaged($index)" class="tap shrink-0 rounded p-0.5 text-gray-400 hover:text-red-600"><app-icon name="x" class="h-3.5 w-3.5" /></button>
+                </div>
+              }
+            </div>
           </div>
         }
 
@@ -237,6 +265,36 @@ export class EventFormModalComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly tr = inject(TranslateService);
   private readonly settings = inject(SettingsService);
+  private readonly attachmentsApi = inject(AttachmentsApiService);
+
+  // ----- Tài liệu đính kèm ngay lúc tạo (xếp hàng, upload sau khi lưu) -----
+  protected readonly stagedFiles = signal<{ file: File; from: string; until: string }[]>([]);
+  protected readonly stageFrom = signal('');
+  protected readonly stageUntil = signal('');
+  protected onStageFile(evt: Event): void {
+    const input = evt.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.stagedFiles.update((l) => [...l, { file, from: this.stageFrom(), until: this.stageUntil() }]);
+    this.stageFrom.set('');
+    this.stageUntil.set('');
+    input.value = '';
+  }
+  protected removeStaged(i: number): void {
+    this.stagedFiles.update((l) => l.filter((_, idx) => idx !== i));
+  }
+  /** Upload các file đã xếp hàng vào event vừa tạo. */
+  private uploadStaged(eventId: string): void {
+    for (const s of this.stagedFiles()) {
+      this.attachmentsApi
+        .upload(eventId, s.file, {
+          availableFrom: s.from ? new Date(s.from).toISOString() : null,
+          availableUntil: s.until ? new Date(s.until).toISOString() : null,
+        })
+        .subscribe({ error: () => {} });
+    }
+    this.stagedFiles.set([]);
+  }
 
   reminderMinutes = signal<number | null>(null);
   reminderStr(): string {
@@ -414,6 +472,10 @@ export class EventFormModalComponent {
         reminderMinutes: this.reminderMinutes(),
       },
       recurrence,
+      // Sau khi lưu xong (có id) -> upload các file đã đính kèm trong form.
+      (event) => {
+        if (this.stagedFiles().length > 0) this.uploadStaged(event.id);
+      },
     );
   }
 }

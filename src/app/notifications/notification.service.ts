@@ -6,16 +6,23 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
+import { AttachmentsApiService } from '../calendar/attachments-api.service';
 
 interface Toast {
   id: string;
+  /** 'event' = nhắc lịch; 'file' = tài liệu vừa mở. */
+  kind: 'event' | 'file';
   title: string;
-  timeLabel: string;
+  /** Dòng phụ: giờ bắt đầu (event) hoặc tên sự kiện (file). */
+  detail: string;
 }
+
+const SEEN_FILES_KEY = 'notified-file-open';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly state = inject(CalendarStateService);
+  private readonly attachmentsApi = inject(AttachmentsApiService);
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
@@ -31,6 +38,55 @@ export class NotificationService {
       this.state.events();
       this.check();
     });
+    // Quét tài liệu vừa mở: ngay khi mở app + mỗi 5 phút.
+    setTimeout(() => this.checkAttachments(), 4_000);
+    setInterval(() => this.checkAttachments(), 5 * 60_000);
+  }
+
+  /** Quét tài liệu đính kèm vừa tới giờ mở -> toast (mỗi file chỉ báo 1 lần/ máy). */
+  private checkAttachments(): void {
+    this.attachmentsApi.recentAvailable().subscribe({
+      next: (list) => {
+        const seen = this.loadSeenFiles();
+        for (const a of list) {
+          if (seen.has(a.id)) continue;
+          seen.add(a.id);
+          this.fireFile(a.file_name, a.event_title);
+        }
+        this.saveSeenFiles(seen);
+      },
+      error: () => {},
+    });
+  }
+
+  private loadSeenFiles(): Set<string> {
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem(SEEN_FILES_KEY) ?? '[]'));
+    } catch {
+      return new Set<string>();
+    }
+  }
+  private saveSeenFiles(s: Set<string>): void {
+    try {
+      // giữ tối đa 200 id gần nhất cho gọn
+      localStorage.setItem(SEEN_FILES_KEY, JSON.stringify([...s].slice(-200)));
+    } catch {
+      /* bỏ qua */
+    }
+  }
+
+  private fireFile(fileName: string, eventTitle: string): void {
+    const toastId = `file:${fileName}:${Date.now()}`;
+    this.toasts.update((t) => [...t, { id: toastId, kind: 'file', title: fileName, detail: eventTitle }]);
+    setTimeout(() => this.dismiss(toastId), 15_000);
+    this.playBeep();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(`📎 Tài liệu đã mở: ${fileName}`, { body: eventTitle });
+      } catch {
+        /* bỏ qua */
+      }
+    }
   }
 
   private check(): void {
@@ -52,7 +108,7 @@ export class NotificationService {
   private fire(e: CalendarEvent): void {
     const timeLabel = e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const toastId = `${e.id}:${Date.now()}`;
-    this.toasts.update((t) => [...t, { id: toastId, title: e.title || '(không tiêu đề)', timeLabel }]);
+    this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel }]);
     setTimeout(() => this.dismiss(toastId), 15_000); // tự ẩn sau 15s
 
     this.playBeep();

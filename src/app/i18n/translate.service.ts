@@ -114,7 +114,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'trash.empty': 'Thùng rác trống.', 'trash.desc': 'Sự kiện đã xóa được giữ ở đây. Bạn có thể khôi phục hoặc xóa vĩnh viễn.',
     'trash.confirmQ': 'Xóa hẳn?', 'trash.delete': 'Xóa', 'trash.restore': 'Khôi phục', 'trash.purge': 'Xóa vĩnh viễn', 'trash.deletedAt': 'đã xóa',
     // Toast + common
-    'toast.upcoming': 'Sắp tới', 'toast.startsAt': 'Bắt đầu lúc',
+    'toast.upcoming': 'Sắp tới', 'toast.startsAt': 'Bắt đầu lúc', 'toast.fileOpen': 'Tài liệu đã mở', 'toast.ofEvent': 'Sự kiện:',
     'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
     // Event form
     'form.addTitle': 'Thêm tiêu đề', 'form.noRepeat': 'Không lặp', 'form.daily': 'Hàng ngày',
@@ -132,6 +132,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'detail.writeComment': 'Viết bình luận...', 'detail.send': 'Gửi',
     'detail.deleteEvent': 'Xóa sự kiện này?', 'detail.deleteThis': 'Xóa sự kiện này', 'detail.deleteSeries': 'Xóa cả chuỗi lặp',
     'attach.title': 'Tài liệu', 'attach.add': 'Thêm tệp', 'attach.none': 'Chưa có tệp.', 'attach.uploading': 'Đang tải lên…',
+    'attach.from': 'Mở từ', 'attach.until': 'Đến', 'attach.scheduleHint': 'Để trống = xem ngay, không giới hạn. Đặt giờ cho tệp thêm kế tiếp.',
+    'attach.opensAt': 'Mở lúc', 'attach.expired': 'Đã hết hạn xem', 'attach.viewUntil': 'Xem đến',
     'rsvp.yes': 'Có', 'rsvp.no': 'Không', 'rsvp.maybe': 'Có thể',
     'rsvp.accepted': 'Đồng ý', 'rsvp.declined': 'Từ chối', 'rsvp.tentative': 'Có thể', 'rsvp.needsAction': 'Chưa trả lời',
     // AI assistant chat
@@ -235,7 +237,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'reset.newPw': 'New password', 'reset.reenter': 'Re-enter new password', 'auth.signingIn': 'Signing in...',
     'trash.empty': 'Trash is empty.', 'trash.desc': 'Deleted events are kept here. You can restore them or delete permanently.',
     'trash.confirmQ': 'Delete for good?', 'trash.delete': 'Delete', 'trash.restore': 'Restore', 'trash.purge': 'Delete permanently', 'trash.deletedAt': 'deleted',
-    'toast.upcoming': 'Upcoming', 'toast.startsAt': 'Starts at',
+    'toast.upcoming': 'Upcoming', 'toast.startsAt': 'Starts at', 'toast.fileOpen': 'File available', 'toast.ofEvent': 'Event:',
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
     'form.addTitle': 'Add title', 'form.noRepeat': "Doesn't repeat", 'form.daily': 'Daily',
     'form.weekly': 'Weekly', 'form.monthly': 'Monthly', 'form.times': 'times', 'form.every': 'every',
@@ -251,6 +253,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'detail.writeComment': 'Write a comment...', 'detail.send': 'Send',
     'detail.deleteEvent': 'Delete this event?', 'detail.deleteThis': 'Delete this event', 'detail.deleteSeries': 'Delete entire series',
     'attach.title': 'Files', 'attach.add': 'Add file', 'attach.none': 'No files.', 'attach.uploading': 'Uploading…',
+    'attach.from': 'Open from', 'attach.until': 'Until', 'attach.scheduleHint': 'Leave blank = view now, no limit. Applies to the next file added.',
+    'attach.opensAt': 'Opens at', 'attach.expired': 'Viewing expired', 'attach.viewUntil': 'View until',
     'rsvp.yes': 'Yes', 'rsvp.no': 'No', 'rsvp.maybe': 'Maybe',
     'rsvp.accepted': 'Accepted', 'rsvp.declined': 'Declined', 'rsvp.tentative': 'Maybe', 'rsvp.needsAction': 'No reply',
     'ai.title': 'Calendar assistant', 'ai.thinking': 'Thinking…', 'ai.createEvent': 'Create event:',

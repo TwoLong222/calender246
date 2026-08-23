@@ -244,7 +244,11 @@ export class CalendarStateService {
     });
   }
 
-  saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }, recurrence?: RecurrenceOptions): void {
+  saveEvent(
+    draft: Omit<CalendarEvent, 'id'> & { id?: string },
+    recurrence?: RecurrenceOptions,
+    afterSave?: (event: CalendarEvent) => void,
+  ): void {
     this.markLocalChange();
     const { id, ...rest } = draft;
     const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
@@ -261,6 +265,8 @@ export class CalendarStateService {
           });
         }
         this.lastSavedConflicts.set(conflictTitles);
+        // Cho phép caller làm tiếp sau khi lưu (vd: upload file đính kèm vào event mới).
+        afterSave?.(event);
         this.closeForm();
       },
       error: () => {
