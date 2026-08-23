@@ -3,7 +3,7 @@
 // (đúng quyền), hiện PREVIEW, người dùng bấm Xác nhận thì mới thực thi qua các
 // service có sẵn (auth + RLS). AI không bao giờ chạm thẳng database.
 
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
@@ -65,7 +65,7 @@ type Pending =
           </div>
         </div>
 
-        <div class="flex-1 space-y-2 overflow-y-auto px-3 py-3">
+        <div #scrollBox class="flex-1 space-y-2 overflow-y-auto px-3 py-3">
           @for (m of messages(); track $index) {
             <div [class]="m.role === 'user'
               ? 'ml-auto max-w-[85%] rounded-lg bg-blue-600 px-3 py-2 text-sm text-white'
@@ -148,9 +148,26 @@ export class AiAssistantComponent {
   pending = signal<Pending | null>(null);
   messages = signal<ChatMsg[]>(this.loadMessages());
 
+  private readonly scrollBox = viewChild<ElementRef<HTMLElement>>('scrollBox');
+
   constructor() {
     // Tự lưu lịch sử chat mỗi khi đổi -> rời trang/mở lại vẫn còn.
     effect(() => this.saveMessages(this.messages()));
+    // Tự cuộn xuống tin mới nhất mỗi khi có tin/loading/mở panel.
+    effect(() => {
+      this.messages();
+      this.loading();
+      this.pending();
+      if (this.open()) this.scrollToBottom();
+    });
+  }
+
+  private scrollToBottom(): void {
+    // Đợi DOM cập nhật xong rồi mới cuộn.
+    setTimeout(() => {
+      const el = this.scrollBox()?.nativeElement;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 0);
   }
 
   private loadMessages(): ChatMsg[] {
