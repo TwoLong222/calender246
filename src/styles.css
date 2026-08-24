@@ -278,6 +278,36 @@ body { background-color: var(--app-bg); }
 .hover\:border-blue-600:hover { border-color: var(--accent-600); }
 
 /* ============================================================
+   BỀ MẶT ẤM — ĐỒNG BỘ "CHẤT" VỚI LANDING PAGE
+   Landing dùng thẻ màu kem trên nền giấy, viền be ấm và bóng mềm.
+   App vốn dùng thẻ trắng + viền xám (Tailwind mặc định) nên nhìn
+   "lạnh" và khác landing. Ở đây remap các class bề mặt trung tính
+   sang đúng token của landing — chỉ áp cho LIGHT mode, vì dark mode
+   đã có rule riêng (.dark .bg-white ...) với độ ưu tiên cao hơn nên
+   không bị ảnh hưởng.
+   ============================================================ */
+:root {
+  --surface-card: #fbfaf7;        /* = --card của landing */
+  --surface-line: #dad5ca;        /* = --line */
+  --surface-line-strong: #c7c0b2; /* = --line-strong */
+  --surface-shadow: 0 1px 2px rgba(20, 18, 16, 0.04), 0 12px 34px -18px rgba(20, 18, 16, 0.22);
+}
+
+/* Thẻ trắng -> kem ấm (nổi nhẹ trên nền giấy nhờ viền + bóng) */
+.bg-white { background-color: var(--surface-card); }
+
+/* Viền xám trung tính -> viền be ấm như landing */
+.border-gray-100,
+.border-gray-200 { border-color: var(--surface-line); }
+.border-gray-300 { border-color: var(--surface-line-strong); }
+
+/* Bóng mềm, ấm hơn thay cho bóng xám mặc định */
+.shadow-sm { box-shadow: 0 1px 2px rgba(20, 18, 16, 0.05); }
+.shadow-md,
+.shadow-lg,
+.shadow-xl { box-shadow: var(--surface-shadow); }
+
+/* ============================================================
    TRANG TRÍ LỄ HỘI — emoji rơi nhẹ (Tết, Halloween, Noel...).
    Lớp phủ toàn màn hình, không chặn thao tác (pointer-events:none).
    ============================================================ */

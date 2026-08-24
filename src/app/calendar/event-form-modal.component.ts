@@ -18,7 +18,7 @@ import { TimePickerComponent } from '../shared/time-picker.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
-import { AttachmentsApiService } from './attachments-api.service';
+import { AttachmentsApiService, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { SupabaseService } from '../auth/supabase.service';
 
 function toDateInputValue(d: Date): string {
@@ -198,18 +198,19 @@ function toTimeInputValue(d: Date): string {
               </div>
             </div>
 
-            <!-- Nhắc trước giờ bắt đầu -->
-            <div class="flex items-center gap-2 text-sm">
+            <!-- Nhắc trước giờ bắt đầu — nhập số phút tuỳ ý -->
+            <div class="flex flex-wrap items-center gap-2 text-sm">
               <app-icon name="bell" class="h-4 w-4 text-gray-500" />
-              <select [ngModel]="reminderStr()" (ngModelChange)="setReminder($event)" class="rounded border border-gray-300 px-2 py-1">
-                <option value="none">{{ tr.t('notif.none') }}</option>
-                <option value="5">{{ tr.t('notif.r5') }}</option>
-                <option value="10">{{ tr.t('notif.r10') }}</option>
-                <option value="15">{{ tr.t('notif.r15') }}</option>
-                <option value="30">{{ tr.t('notif.r30') }}</option>
-                <option value="60">{{ tr.t('notif.r60') }}</option>
-                <option value="1440">{{ tr.t('notif.r1440') }}</option>
-              </select>
+              <label class="flex items-center gap-1.5">
+                <input type="checkbox" [checked]="reminderMinutes() !== null" (change)="toggleReminder($event)" class="accent-blue-600" />
+                {{ tr.t('notif.remindBefore') }}
+              </label>
+              @if (reminderMinutes() !== null) {
+                <input type="number" min="0" inputmode="numeric" [ngModel]="reminderMinutes()" (ngModelChange)="setReminderNum($event)" class="w-20 rounded border border-gray-300 px-2 py-1" />
+                <span class="text-gray-500">{{ tr.t('notif.minutesBefore') }}</span>
+              } @else {
+                <span class="text-gray-400">{{ tr.t('notif.remindOff') }}</span>
+              }
             </div>
 
             <!-- Đính kèm tài liệu ngay lúc tạo (có thể hẹn giờ mở/đóng) -->
@@ -221,6 +222,10 @@ function toTimeInputValue(d: Date): string {
                   <input type="file" class="hidden" (change)="onStageFile($event)" />
                 </label>
               </div>
+              <p class="text-[11px] text-gray-400">{{ tr.t('attach.limit') }}</p>
+              @if (stageError()) {
+                <p class="rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ stageError() }}</p>
+              }
               <div class="grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
                 <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.from') }}
                   <app-datetime-picker [(ngModel)]="stageFrom" />
@@ -300,10 +305,19 @@ export class EventFormModalComponent {
   protected readonly stagedFiles = signal<{ file: File; from: string; until: string }[]>([]);
   protected readonly stageFrom = signal('');
   protected readonly stageUntil = signal('');
+  /** Lỗi khi chọn tệp không hợp lệ (vd quá dung lượng). */
+  protected readonly stageError = signal('');
   protected onStageFile(evt: Event): void {
     const input = evt.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+    // Chặn file vượt giới hạn ngay tại client.
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      this.stageError.set(this.tr.t('attach.tooLarge'));
+      input.value = '';
+      return;
+    }
+    this.stageError.set('');
     this.stagedFiles.update((l) => [...l, { file, from: this.stageFrom(), until: this.stageUntil() }]);
     this.stageFrom.set('');
     this.stageUntil.set('');
@@ -339,12 +353,14 @@ export class EventFormModalComponent {
   });
 
   reminderMinutes = signal<number | null>(null);
-  reminderStr(): string {
-    const r = this.reminderMinutes();
-    return r == null ? 'none' : String(r);
+  /** Bật/tắt nhắc: bật -> lấy mặc định (hoặc 10 phút); tắt -> null (không nhắc). */
+  toggleReminder(evt: Event): void {
+    const on = (evt.target as HTMLInputElement).checked;
+    this.reminderMinutes.set(on ? (this.settings.settings().default_reminder ?? 10) : null);
   }
-  setReminder(v: string): void {
-    this.reminderMinutes.set(v === 'none' ? null : +v);
+  /** Nhập số phút tuỳ ý (>= 0). */
+  setReminderNum(v: number | string): void {
+    this.reminderMinutes.set(Math.max(0, Math.floor(Number(v) || 0)));
   }
 
   readonly tabs: { key: EventKind; label: string }[] = [

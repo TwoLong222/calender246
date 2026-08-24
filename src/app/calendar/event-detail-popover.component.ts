@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
-import { AttachmentsApiService, EventAttachment } from './attachments-api.service';
+import { AttachmentsApiService, EventAttachment, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { AttendeeStatus } from './calendar.types';
@@ -125,6 +125,12 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 </label>
               }
             </div>
+            @if (canManage()) {
+              <p class="mb-1 text-[11px] text-gray-400">{{ tr.t('attach.limit') }}</p>
+            }
+            @if (uploadError()) {
+              <p class="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ uploadError() }}</p>
+            }
             @if (canManage()) {
               <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp) -->
               <div class="mb-2 grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
@@ -266,6 +272,8 @@ export class EventDetailPopoverComponent implements OnDestroy {
   // ----- Tài liệu đính kèm -----
   protected readonly attachments = signal<EventAttachment[]>([]);
   protected readonly uploading = signal(false);
+  /** Thông báo lỗi khi chọn tệp không hợp lệ (vd quá dung lượng). */
+  protected readonly uploadError = signal('');
   /** Giờ hẹn cho file sẽ tải lên (datetime-local: "YYYY-MM-DDTHH:mm"). */
   protected readonly newFrom = signal('');
   protected readonly newUntil = signal('');
@@ -321,6 +329,13 @@ export class EventDetailPopoverComponent implements OnDestroy {
     const file = input.files?.[0];
     const e = this.event();
     if (!file || !e) return;
+    // Chặn ngay ở client nếu file vượt giới hạn -> khỏi tải lên vô ích rồi mới lỗi.
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      this.uploadError.set(this.tr.t('attach.tooLarge'));
+      input.value = '';
+      return;
+    }
+    this.uploadError.set('');
     this.uploading.set(true);
     const schedule = {
       availableFrom: this.newFrom() ? new Date(this.newFrom()).toISOString() : null,

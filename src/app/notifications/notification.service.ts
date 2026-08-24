@@ -64,10 +64,9 @@ export class NotificationService {
   private readonly startedAt = Date.now();
 
   constructor() {
-    // Xin quyền thông báo trình duyệt (nếu chưa hỏi)
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
-    }
+    // KHÔNG tự xin quyền thông báo lúc mở app — chỉ xin khi người dùng bật công tắc
+    // "Thông báo trình duyệt" trong Cài đặt (toggleBrowserNotif). Nhờ vậy chưa bật thì
+    // không có thông báo desktop nào bật ra.
     setInterval(() => this.check(), 30_000);
     // Quét lại ngay khi danh sách event thay đổi (tạo/sửa/realtime)
     effect(() => {
@@ -157,7 +156,7 @@ export class NotificationService {
     this.toasts.update((t) => [...t, { id: toastId, kind: 'file', title: fileName, detail: eventTitle }]);
     setTimeout(() => this.dismiss(toastId), 15_000);
     this.playBeep();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (this.canDesktopNotify()) {
       try {
         new Notification(`📎 Tài liệu đã mở: ${fileName}`, { body: eventTitle });
       } catch {
@@ -175,7 +174,7 @@ export class NotificationService {
     ]);
     setTimeout(() => this.dismiss(toastId), 60_000);
     this.playBeep();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (this.canDesktopNotify()) {
       try {
         new Notification(`📩 Lời mời mới: ${iv.title || 'Sự kiện'}`, { body: iv.creatorEmail ? `Từ ${iv.creatorEmail}` : '' });
       } catch {
@@ -212,7 +211,7 @@ export class NotificationService {
     this.toasts.update((t) => [...t, { id, kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: safeTitle }]);
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (this.canDesktopNotify()) {
       try {
         new Notification(`❌ ${this.tr.t('notif.cancelled')}`, { body: safeTitle });
       } catch {
@@ -229,7 +228,7 @@ export class NotificationService {
     this.toasts.update((t) => [...t, { id, kind: 'changed', title: safeTitle, body: lines.join(', ') }]);
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (this.canDesktopNotify()) {
       try {
         new Notification(`✏️ ${this.tr.t('notif.changed')}: ${safeTitle}`, { body: lines.join(', ') });
       } catch {
@@ -276,7 +275,7 @@ export class NotificationService {
 
     this.playBeep();
 
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (this.canDesktopNotify()) {
       try {
         new Notification(`⏰ Sắp tới: ${e.title || 'Sự kiện'}`, { body: `Bắt đầu lúc ${timeLabel}` });
       } catch {
@@ -325,7 +324,7 @@ export class NotificationService {
     this.playBeep();
 
     const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-    if (hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (hidden && this.canDesktopNotify()) {
       try {
         new Notification(title, { body });
       } catch {
@@ -336,5 +335,19 @@ export class NotificationService {
 
   dismiss(id: string): void {
     this.toasts.update((t) => t.filter((x) => x.id !== id));
+  }
+
+  /**
+   * Chỉ bắn thông báo DESKTOP (Notification API của trình duyệt) khi CẢ HAI điều kiện:
+   *  1) Người dùng đã BẬT công tắc "Thông báo trình duyệt" trong Cài đặt.
+   *  2) Trình duyệt đã cấp quyền.
+   * Toast nổi trong app + tiếng bíp vẫn hiện bình thường (đó là UI của chính app).
+   */
+  private canDesktopNotify(): boolean {
+    return (
+      this.settings.settings().browser_notifications === true &&
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'granted'
+    );
   }
 }

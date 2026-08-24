@@ -232,7 +232,14 @@ import { TranslateService } from '../i18n/translate.service';
           </select>
 
           @if (supabase.user(); as user) {
-            <span class="text-sm text-gray-500">{{ user.email }}</span>
+            <div class="flex items-center gap-2" [title]="user.email">
+              @if (avatarUrl(user); as pic) {
+                <img [src]="pic" alt="avatar" referrerpolicy="no-referrer" class="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200" />
+              } @else {
+                <span class="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-xs font-semibold text-white">{{ userInitial(user) }}</span>
+              }
+              <span class="hidden text-sm text-gray-500 sm:inline">{{ user.email }}</span>
+            </div>
           }
           <button type="button" (click)="logout()" class="tap rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
             {{ tr.t('priv.logout') }}
@@ -626,6 +633,17 @@ export class CalendarPageComponent implements OnInit {
   openCreate(kind: EventKind): void {
     this.createMenuOpen.set(false);
     this.state.openCreateForm(kind, this.state.viewedDate());
+  }
+
+  /** URL ảnh đại diện từ tài khoản Google (Supabase lưu ở user_metadata). null nếu không có. */
+  protected avatarUrl(user: { user_metadata?: Record<string, unknown> } | null): string | null {
+    const m = user?.user_metadata ?? {};
+    return ((m['avatar_url'] as string) || (m['picture'] as string) || null) || null;
+  }
+  /** Chữ cái đầu (tên hoặc email) để hiện khi không có ảnh. */
+  protected userInitial(user: { email?: string; user_metadata?: Record<string, unknown> } | null): string {
+    const name = ((user?.user_metadata?.['full_name'] as string) || user?.email || '?').trim();
+    return name.charAt(0).toUpperCase() || '?';
   }
 
   async logout(): Promise<void> {

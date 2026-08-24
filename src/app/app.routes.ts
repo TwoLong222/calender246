@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { CalendarPageComponent } from './calendar/calendar-page.component';
 import { AuthCallbackComponent } from './auth/auth-callback.component';
 import { authGuard } from './auth/auth.guard';
+import { homeGuard } from './auth/home.guard';
 import { LoginPageComponent } from './auth/login-page.component';
 import { ResetPasswordComponent } from './auth/reset-password.component';
 import { SettingsPageComponent } from './settings/settings-page.component';
@@ -21,5 +22,5 @@ export const appRoutes: Routes = [
   { path: 'am-lich', component: LunarPageComponent, canActivate: [authGuard] },
   { path: 'notes', component: NotesPageComponent, canActivate: [authGuard] },
   { path: 'invitations', component: InvitationsPageComponent, canActivate: [authGuard] },
-  { path: '', component: CalendarPageComponent, canActivate: [authGuard] },
+  { path: '', component: CalendarPageComponent, canActivate: [homeGuard] },
 ];

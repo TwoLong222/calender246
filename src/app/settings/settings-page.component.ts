@@ -20,6 +20,7 @@ import { SettingsService } from './settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
+import { AttachmentsApiService, EventFileGroup } from '../calendar/attachments-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
 import { TimePickerComponent } from '../shared/time-picker.component';
 import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
@@ -33,6 +34,7 @@ type Section =
   | 'appearance'
   | 'privacy'
   | 'email'
+  | 'files'
   | 'ai';
 
 @Component({
@@ -209,15 +211,18 @@ type Section =
                 @if (notifMsg(); as m) { <p class="text-xs text-gray-400">{{ m }}</p> }
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('notif.defaultReminder') }}</label>
-                  <select [ngModel]="reminderValue()" (ngModelChange)="setReminder($event)" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="none">{{ tr.t('notif.none') }}</option>
-                    <option value="5">{{ tr.t('notif.r5') }}</option>
-                    <option value="10">{{ tr.t('notif.r10') }}</option>
-                    <option value="15">{{ tr.t('notif.r15') }}</option>
-                    <option value="30">{{ tr.t('notif.r30') }}</option>
-                    <option value="60">{{ tr.t('notif.r60') }}</option>
-                    <option value="1440">{{ tr.t('notif.r1440') }}</option>
-                  </select>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <label class="flex items-center gap-1.5 text-sm">
+                      <input type="checkbox" [checked]="s().default_reminder !== null" (change)="toggleDefaultReminder($event)" class="accent-blue-600" />
+                      {{ tr.t('notif.remindBefore') }}
+                    </label>
+                    @if (s().default_reminder !== null) {
+                      <input type="number" min="0" inputmode="numeric" [ngModel]="s().default_reminder" (ngModelChange)="setReminderNum($event)" class="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                      <span class="text-sm text-gray-500">{{ tr.t('notif.minutesBefore') }}</span>
+                    } @else {
+                      <span class="text-sm text-gray-400">{{ tr.t('notif.remindOff') }}</span>
+                    }
+                  </div>
                   <p class="mt-1 text-xs text-gray-400">{{ tr.t('notif.reminderNote') }}</p>
                 </div>
               </section>
@@ -412,6 +417,60 @@ type Section =
               </section>
             }
 
+            @case ('files') {
+              <section class="rounded-lg border border-gray-200 bg-white p-5">
+                <div class="mb-1 flex items-center gap-2">
+                  <h2 class="text-base font-semibold">{{ tr.t('sec.files') }}</h2>
+                  @if (fileTotal() > 0) {
+                    <span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{{ fileTotal() }} {{ tr.t('files.unit') }}</span>
+                  }
+                </div>
+                <p class="mb-4 text-xs text-gray-400">{{ tr.t('files.sub') }}</p>
+
+                @if (filesLoading()) {
+                  <p class="text-sm text-gray-500">{{ tr.t('files.loading') }}</p>
+                } @else if (fileGroups().length === 0) {
+                  <div class="flex flex-col items-center gap-2 py-10 text-center">
+                    <app-icon name="inbox" class="h-8 w-8 text-gray-300" />
+                    <p class="text-sm text-gray-500">{{ tr.t('files.empty') }}</p>
+                  </div>
+                } @else {
+                  <div class="space-y-5">
+                    @for (g of fileGroups(); track g.event_id) {
+                      <div>
+                        <div class="mb-2 flex items-baseline gap-2 border-b border-gray-100 pb-1">
+                          <app-icon name="calendar" class="h-4 w-4 shrink-0 text-blue-600" />
+                          <span class="truncate text-sm font-medium text-gray-800">{{ g.event_title }}</span>
+                          @if (g.event_start) { <span class="ml-auto shrink-0 text-xs text-gray-400">{{ fmtDateTime(g.event_start) }}</span> }
+                        </div>
+                        <ul class="space-y-1">
+                          @for (f of g.files; track f.id) {
+                            <li class="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-gray-50">
+                              <app-icon name="download" class="h-4 w-4 shrink-0 text-gray-400" />
+                              <div class="min-w-0 flex-1">
+                                <div class="truncate text-sm text-gray-700">{{ f.file_name }}</div>
+                                <div class="text-xs text-gray-400">
+                                  {{ fmtSize(f.size_bytes) }}
+                                  @if (f.status === 'scheduled') { · <span class="text-amber-600">{{ tr.t('files.scheduled') }}</span> }
+                                  @if (f.status === 'expired') { · <span class="text-gray-500">{{ tr.t('files.expired') }}</span> }
+                                </div>
+                              </div>
+                              @if (f.url) {
+                                <a [href]="f.url" target="_blank" rel="noopener" class="tap shrink-0 rounded-md px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50">{{ tr.t('files.download') }}</a>
+                              }
+                              <button type="button" (click)="deleteFile(f.event_id, f.id)" class="tap shrink-0 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" [title]="tr.t('files.delete')">
+                                <app-icon name="trash" class="h-4 w-4" />
+                              </button>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </div>
+                }
+              </section>
+            }
+
             @case ('ai') {
               <section class="rounded-lg border border-gray-200 bg-white p-5 space-y-3">
                 <h2 class="text-base font-semibold">{{ tr.t('sec.ai') }}</h2>
@@ -511,6 +570,46 @@ export class SettingsPageComponent {
     this.sharingApi.removeMember(email).subscribe({ next: () => this.loadMembers(), error: () => {} });
   }
 
+  // ----- Tệp đính kèm: gom tất cả file theo sự kiện -----
+  private readonly attachmentsApi = inject(AttachmentsApiService);
+  protected readonly fileGroups = signal<EventFileGroup[]>([]);
+  protected readonly filesLoading = signal(false);
+  /** Tổng số file trên tất cả sự kiện (hiện ở tiêu đề mục). */
+  protected readonly fileTotal = computed(() =>
+    this.fileGroups().reduce((sum, g) => sum + g.files.length, 0),
+  );
+
+  private loadFiles(): void {
+    this.filesLoading.set(true);
+    this.attachmentsApi.listAllGrouped().subscribe({
+      next: (g) => { this.fileGroups.set(g); this.filesLoading.set(false); },
+      error: () => { this.fileGroups.set([]); this.filesLoading.set(false); },
+    });
+  }
+  protected deleteFile(eventId: string, attId: string): void {
+    // Xoá lạc quan: bỏ khỏi danh sách ngay, gọi API; lỗi thì nạp lại cho khớp server.
+    this.fileGroups.update((groups) =>
+      groups
+        .map((g) => (g.event_id === eventId ? { ...g, files: g.files.filter((f) => f.id !== attId) } : g))
+        .filter((g) => g.files.length > 0),
+    );
+    this.attachmentsApi.remove(eventId, attId).subscribe({ error: () => this.loadFiles() });
+  }
+  /** Dung lượng byte -> chuỗi gọn (KB/MB). */
+  protected fmtSize(bytes: number | null): string {
+    if (!bytes || bytes <= 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  /** ISO -> chuỗi ngày giờ gọn cho tiêu đề nhóm sự kiện. */
+  protected fmtDateTime(iso: string | null): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString('vi-VN', {
+      day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+  }
+
   protected readonly section = signal<Section>('general');
   protected readonly now = new Date();
   protected readonly timezones = COMMON_TIMEZONES;
@@ -525,6 +624,7 @@ export class SettingsPageComponent {
     { id: 'appearance', icon: 'palette' },
     { id: 'privacy', icon: 'shield' },
     { id: 'email', icon: 'mail' },
+    { id: 'files', icon: 'inbox' },
     { id: 'ai', icon: 'robot' },
   ];
 
@@ -598,18 +698,21 @@ export class SettingsPageComponent {
       error: () => {},
     });
     this.loadMembers();
+    this.loadFiles();
   }
 
   protected set(patch: Parameters<SettingsService['update']>[0]): void {
     void this.settings.update(patch);
   }
 
-  protected reminderValue(): string {
-    const r = this.s().default_reminder;
-    return r == null ? 'none' : String(r);
+  /** Bật/tắt nhắc mặc định. Bật -> 10 phút; tắt -> null. */
+  protected toggleDefaultReminder(evt: Event): void {
+    const on = (evt.target as HTMLInputElement).checked;
+    this.set({ default_reminder: on ? (this.s().default_reminder ?? 10) : null });
   }
-  protected setReminder(v: string): void {
-    this.set({ default_reminder: v === 'none' ? null : +v });
+  /** Nhập số phút mặc định tuỳ ý (>= 0). */
+  protected setReminderNum(v: number | string): void {
+    this.set({ default_reminder: Math.max(0, Math.floor(Number(v) || 0)) });
   }
 
   protected toggleWorkingDay(day: number): void {
