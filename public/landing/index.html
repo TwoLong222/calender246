@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oryzo — Trợ lý lịch phức tạp không cần thiết nhất thế giới</title>
+<meta name="description" content="Oryzo là trợ lý AI lập lịch. Bạn nói, Oryzo hiểu, sự kiện xuất hiện. Ngớ ngẩn đơn giản. Phức tạp một cách không cần thiết." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='6.5' width='24' height='21.5' rx='6' fill='%2322407D'/%3E%3Crect x='4' y='6.5' width='24' height='6.5' rx='6' fill='%234568A8'/%3E%3Ccircle cx='21.5' cy='23.5' r='2.1' fill='%23D6482F'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<style>
+:root{
+  --paper:#F5F3EE;
+  --paper-2:#EEEBE3;
+  --card:#FBFAF7;
+  --ink:#161514;
+  --ink-soft:#3A3833;
+  --muted:#78736B;
+  --line:#DAD5CA;
+  --line-strong:#C7C0B2;
+  --accent:#22407D;
+  --accent-soft:#4568A8;
+  --today:#D6482F;
+  --ok:#3E8E6E;
+  --warn:#B67A22;
+  --ev-blue:#3E6DB0;    --ev-blue-bg:#E3EBF6;
+  --ev-green:#3E8E6E;   --ev-green-bg:#E0EFE7;
+  --ev-amber:#B67A22;   --ev-amber-bg:#F4E9D3;
+  --ev-violet:#6A55A6;  --ev-violet-bg:#EAE5F4;
+  --ev-rose:#B8506B;    --ev-rose-bg:#F6E3E9;
+  --shadow:0 1px 2px rgba(20,18,16,.04),0 12px 34px -18px rgba(20,18,16,.22);
+  --shadow-lg:0 2px 6px rgba(20,18,16,.06),0 30px 60px -28px rgba(20,18,16,.28);
+  color-scheme:light;
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --paper:#0F1013;    --paper-2:#15171B;    --card:#181A1F;
+    --ink:#F3F1EC;      --ink-soft:#CFCcC4;   --muted:#8E8A82;
+    --line:#252830;     --line-strong:#363A44;
+    --accent:#8AA9E0;   --accent-soft:#6E8CC7;
+    --today:#F0644B;    --ok:#7FC7A6;         --warn:#E0B36A;
+    --ev-blue:#8CB0E6;    --ev-blue-bg:#1D2634;
+    --ev-green:#7FC7A6;   --ev-green-bg:#16271F;
+    --ev-amber:#E0B36A;   --ev-amber-bg:#2C2416;
+    --ev-violet:#AC98E0;  --ev-violet-bg:#22203A;
+    --ev-rose:#E594AC;    --ev-rose-bg:#2E1D24;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -20px rgba(0,0,0,.7);
+    --shadow-lg:0 2px 6px rgba(0,0,0,.5),0 40px 80px -30px rgba(0,0,0,.85);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1013;    --paper-2:#15171B;    --card:#181A1F;
+  --ink:#F3F1EC;      --ink-soft:#CFCcC4;   --muted:#8E8A82;
+  --line:#252830;     --line-strong:#363A44;
+  --accent:#8AA9E0;   --accent-soft:#6E8CC7;
+  --today:#F0644B;    --ok:#7FC7A6;         --warn:#E0B36A;
+  --ev-blue:#8CB0E6;    --ev-blue-bg:#1D2634;
+  --ev-green:#7FC7A6;   --ev-green-bg:#16271F;
+  --ev-amber:#E0B36A;   --ev-amber-bg:#2C2416;
+  --ev-violet:#AC98E0;  --ev-violet-bg:#22203A;
+  --ev-rose:#E594AC;    --ev-rose-bg:#2E1D24;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -20px rgba(0,0,0,.7);
+  --shadow-lg:0 2px 6px rgba(0,0,0,.5),0 40px 80px -30px rgba(0,0,0,.85);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Hanken Grotesk",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  font-size:17px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{animation:none !important;transition:none !important}}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;line-height:1.02;letter-spacing:-.025em;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+.wrap{width:min(1180px,92vw);margin-inline:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:50;
+  background:color-mix(in srgb,var(--paper) 88%,transparent);
+  backdrop-filter:saturate(1.2) blur(14px);
+  border-bottom:1px solid transparent;transition:border-color .25s ease}
+.nav.is-stuck{border-bottom-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:72px}
+.brand{display:inline-flex;align-items:center;gap:11px;font-weight:700;font-family:"Bricolage Grotesque",sans-serif;font-size:20px;letter-spacing:-.01em}
+.nav-links{display:flex;align-items:center;gap:26px}
+.nav-links a{color:var(--ink-soft);font-size:15px}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{display:flex;align-items:center;gap:10px}
+@media (max-width:720px){.nav-links{display:none}}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  font-family:inherit;font-weight:600;font-size:15px;
+  padding:12px 20px;border-radius:11px;border:1px solid transparent;cursor:pointer;
+  transition:transform .15s ease,background .2s,border-color .2s,color .2s,box-shadow .2s;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-primary:hover{background:var(--accent);box-shadow:0 10px 24px -12px var(--accent)}
+.btn-ghost{border-color:var(--line-strong);color:var(--ink);background:transparent}
+.btn-ghost:hover{border-color:var(--ink);background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.btn-lg{padding:15px 26px;font-size:16px;border-radius:13px}
+
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);display:inline-flex;align-items:center;gap:8px}
+.eyebrow::before{content:"";width:22px;height:1px;background:currentColor;opacity:.6}
+
+.section{padding:120px 0;position:relative}
+.section-tight{padding:80px 0}
+.section-alt{background:var(--paper-2)}
+.section-head{max-width:760px}
+.section-head h2{font-size:clamp(30px,4.6vw,52px)}
+.section-head p{color:var(--muted);margin-top:18px;font-size:19px}
+
+.theme-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line-strong);
+  background:transparent;cursor:pointer;color:var(--ink);
+  display:grid;place-items:center;transition:border-color .2s,background .2s}
+.theme-btn:hover{border-color:var(--ink);background:color-mix(in srgb,var(--ink) 5%,transparent)}
+
+/* --- HERO --- */
+.hero{padding:110px 0 60px;position:relative;text-align:center}
+.hero::before{content:"";position:absolute;inset:-10% -10% auto -10%;height:600px;pointer-events:none;
+  background:
+    radial-gradient(50% 55% at 30% 40%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 65%),
+    radial-gradient(50% 45% at 80% 30%,color-mix(in srgb,var(--today) 10%,transparent),transparent 60%);z-index:0}
+.hero .wrap{position:relative;z-index:1}
+.hero h1{font-size:clamp(52px,9vw,116px);font-weight:700;letter-spacing:-.035em;line-height:.94}
+.hero h1 .l2{display:block;color:var(--muted)}
+.hero h1 .l2 em{font-style:normal;color:var(--today)}
+.hero .kicker{font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:22px;display:inline-flex;align-items:center;gap:10px}
+.hero .kicker::before,.hero .kicker::after{content:"";width:26px;height:1px;background:currentColor;opacity:.6}
+.hero .lede{max-width:640px;margin:32px auto 0;color:var(--muted);font-size:20px}
+.hero .cta-row{display:flex;justify-content:center;gap:12px;margin-top:34px;flex-wrap:wrap}
+.hero .disclaim{margin-top:22px;color:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em}
+
+/* hero device */
+.hero-device{margin:70px auto 0;max-width:940px;position:relative}
+.hero-device::before{content:"";position:absolute;inset:auto 8% -30px 8%;height:60px;
+  background:radial-gradient(60% 100% at 50% 0,color-mix(in srgb,var(--accent) 22%,transparent),transparent 70%);filter:blur(20px);z-index:0}
+.chat{position:relative;z-index:1;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow-lg);display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media (max-width:800px){.chat{grid-template-columns:1fr}}
+.chat-panel{display:flex;flex-direction:column;gap:12px;text-align:left}
+.chat-head{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.chat-head .avatar{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-soft));display:grid;place-items:center;color:#fff;font-weight:700;font-family:"Bricolage Grotesque",sans-serif}
+.chat-head b{font-family:"Bricolage Grotesque",sans-serif;font-size:15px}
+.chat-head small{color:var(--muted);font-size:12px;margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.msg{max-width:92%;padding:11px 14px;border-radius:13px;font-size:14.5px;line-height:1.5}
+.msg-user{align-self:flex-end;background:var(--ink);color:var(--paper);border-bottom-right-radius:6px}
+.msg-bot{align-self:flex-start;background:var(--paper-2);color:var(--ink);border:1px solid var(--line);border-bottom-left-radius:6px}
+.msg-bot .tool{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:3px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);margin-bottom:6px}
+.msg-card{margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--card);border-left:3px solid var(--ev-blue);font-size:13.5px}
+.msg-card b{font-family:"Bricolage Grotesque",sans-serif}
+.msg-card .meta{color:var(--muted);font-size:12px;margin-top:2px}
+
+/* --- POWERED BY AI --- */
+.pill-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.pill{padding:6px 12px;border-radius:999px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);border:1px solid var(--line);background:var(--card)}
+.cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:56px}
+@media (max-width:900px){.cap-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:600px){.cap-grid{grid-template-columns:1fr}}
+.cap{padding:28px;border-radius:20px;background:var(--card);border:1px solid var(--line);
+  transition:transform .3s,box-shadow .3s,border-color .3s;position:relative;overflow:hidden}
+.cap:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--line-strong)}
+.cap .num{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.14em}
+.cap .ico{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;margin:12px 0 16px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)}
+.cap h3{font-size:21px;margin-bottom:10px}
+.cap p{color:var(--muted);font-size:15px}
+.cap .demo{margin-top:16px;padding:11px 13px;border-radius:10px;background:var(--paper-2);border:1px dashed var(--line-strong);
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);line-height:1.55}
+.cap .demo .arr{color:var(--accent);font-weight:600}
+
+/* --- TDM section (fake research diagram) --- */
+.tdm{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;margin-top:56px}
+@media (max-width:960px){.tdm{grid-template-columns:1fr;gap:40px}}
+.tdm .txt h2{font-size:clamp(28px,3.8vw,42px)}
+.tdm .txt p{color:var(--muted);margin-top:16px;font-size:17.5px}
+.tdm .meta-row{display:flex;gap:8px;margin-top:22px;flex-wrap:wrap}
+.tdm .meta-row .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:5px 10px;border-radius:6px;background:var(--paper-2);border:1px solid var(--line);color:var(--ink-soft)}
+.diagram{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:var(--shadow)}
+.diagram-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+.diagram-head b{font-family:"Bricolage Grotesque",sans-serif;font-size:15px}
+.diagram-head small{color:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:11px}
+.heatgrid{display:grid;grid-template-columns:36px repeat(12,1fr);gap:4px;font-family:"IBM Plex Mono",monospace;font-size:10px}
+.heatgrid .hd{color:var(--muted);text-align:center;padding:2px 0}
+.heatgrid .lbl{color:var(--muted);text-align:right;padding-right:6px;line-height:20px}
+.cell{height:20px;border-radius:4px;background:var(--paper-2)}
+.cell[data-v="1"]{background:color-mix(in srgb,var(--accent) 12%,var(--paper-2))}
+.cell[data-v="2"]{background:color-mix(in srgb,var(--accent) 28%,var(--paper-2))}
+.cell[data-v="3"]{background:color-mix(in srgb,var(--accent) 50%,var(--paper-2))}
+.cell[data-v="4"]{background:color-mix(in srgb,var(--accent) 75%,var(--paper-2))}
+.cell[data-v="5"]{background:var(--accent)}
+.cell[data-v="B"]{background:color-mix(in srgb,var(--today) 65%,var(--paper-2));position:relative}
+.cell[data-v="B"]::after{content:"";position:absolute;inset:2px;border:1.5px dashed var(--paper);border-radius:3px;opacity:.6}
+.diagram-legend{display:flex;gap:14px;margin-top:14px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.diagram-legend span{display:inline-flex;align-items:center;gap:6px}
+.diagram-legend i{width:12px;height:12px;border-radius:3px;background:var(--accent);display:inline-block}
+.diagram-legend i.busy{background:color-mix(in srgb,var(--today) 65%,var(--paper-2))}
+.diagram-legend i.low{background:color-mix(in srgb,var(--accent) 25%,var(--paper-2))}
+
+/* --- FLOW --- */
+.flow{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:56px;counter-reset:step}
+@media (max-width:900px){.flow{grid-template-columns:1fr}}
+.step{position:relative;padding:32px 28px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
+.step::before{counter-increment:step;content:counter(step,decimal-leading-zero);position:absolute;top:24px;right:26px;font-family:"IBM Plex Mono",monospace;font-size:44px;font-weight:500;color:color-mix(in srgb,var(--accent) 30%,transparent);line-height:1}
+.step h3{font-size:20px;margin:8px 0 10px;max-width:82%}
+.step p{color:var(--muted);font-size:15px}
+.step .tags{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}
+.step .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:4px 9px;border-radius:6px;background:var(--paper-2);color:var(--ink-soft);border:1px solid var(--line)}
+
+/* --- TESTIMONIALS --- */
+.tst-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:56px}
+@media (max-width:900px){.tst-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:600px){.tst-grid{grid-template-columns:1fr}}
+.tst{padding:24px;border-radius:18px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+.tst .quote{font-size:16px;line-height:1.55}
+.tst .who{display:flex;align-items:center;gap:12px;margin-top:auto}
+.tst .who b{font-family:"Bricolage Grotesque",sans-serif;font-size:14.5px}
+.tst .who small{color:var(--muted);font-size:12.5px;display:block}
+.av{width:46px;height:46px;border-radius:50%;flex-shrink:0;position:relative;overflow:hidden;border:1px solid var(--line)}
+.av svg{display:block;width:100%;height:100%}
+
+/* --- TIERS --- */
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:56px;align-items:stretch}
+@media (max-width:900px){.tiers{grid-template-columns:1fr}}
+.tier{padding:32px 28px;border-radius:22px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:16px;position:relative}
+.tier.featured{border-color:var(--ink);box-shadow:var(--shadow-lg)}
+.tier.featured::after{content:"Được yêu thích";position:absolute;top:-11px;left:28px;padding:4px 10px;border-radius:999px;background:var(--ink);color:var(--paper);font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em}
+.tier .tname{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:22px}
+.tier .tblurb{color:var(--muted);font-size:14.5px}
+.tier .price{font-family:"Bricolage Grotesque",sans-serif;font-size:44px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.tier .price small{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);font-weight:400;letter-spacing:.08em;margin-left:4px}
+.tier ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.tier ul li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px}
+.tier ul li svg{flex-shrink:0;margin-top:3px;color:var(--ok)}
+.tier .cta-btn{margin-top:auto}
+
+/* --- PAPER (mock research) --- */
+.paper{
+  background:var(--card);border:1px solid var(--line);border-radius:22px;padding:40px;margin-top:56px;
+  display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center;
+}
+@media (max-width:900px){.paper{grid-template-columns:1fr;padding:32px}}
+.paper h3{font-size:26px;margin-bottom:12px}
+.paper .authors{color:var(--muted);font-size:14px;margin-top:8px;font-family:"IBM Plex Mono",monospace}
+.paper .abstract{color:var(--muted);font-size:15px;margin-top:16px}
+.paper .paper-cta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+.bibtex{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.7;color:var(--ink-soft);overflow-x:auto;white-space:pre}
+.bibtex .k{color:var(--accent)}
+.bibtex .s{color:var(--ev-green)}
+
+/* --- CTA --- */
+.cta-band{margin:0 auto;padding:72px 48px;border-radius:28px;
+  background:linear-gradient(140deg,var(--ink) 0%,var(--accent) 100%);
+  color:var(--paper);text-align:center;position:relative;overflow:hidden}
+.cta-band::before{content:"";position:absolute;inset:-40% -20% auto -20%;height:400px;
+  background:radial-gradient(50% 60% at 50% 30%,color-mix(in srgb,var(--today) 40%,transparent),transparent 70%);opacity:.5;pointer-events:none}
+.cta-band .eyebrow{color:color-mix(in srgb,var(--paper) 80%,transparent)}
+.cta-band h2{font-size:clamp(34px,5.5vw,60px);margin-top:14px;position:relative}
+.cta-band p{color:color-mix(in srgb,var(--paper) 78%,transparent);max-width:520px;margin:18px auto 0;position:relative}
+.cta-band .cta-row{margin-top:32px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;position:relative}
+.cta-band .btn-primary{background:var(--paper);color:var(--ink)}
+.cta-band .btn-primary:hover{background:#fff;box-shadow:0 10px 30px -10px rgba(255,255,255,.4)}
+.cta-band .btn-ghost{border-color:color-mix(in srgb,var(--paper) 40%,transparent);color:var(--paper)}
+.cta-band .btn-ghost:hover{border-color:var(--paper);background:color-mix(in srgb,var(--paper) 10%,transparent)}
+
+/* footer */
+footer{padding:48px 0 40px;border-top:1px solid var(--line);margin-top:100px;color:var(--muted);font-size:13.5px}
+footer .wrap{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+footer .links{display:flex;gap:22px}
+footer .links a:hover{color:var(--ink)}
+footer .disclaimer{width:100%;padding-top:20px;margin-top:20px;border-top:1px dashed var(--line);font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.7;color:var(--muted)}
+
+/* reveal */
+[data-reveal]{opacity:0;transform:translateY(18px);transition:opacity .7s,transform .7s}
+[data-reveal].on{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<!-- glyph -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="glyph" viewBox="0 0 32 32">
+    <rect x="9" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/>
+    <rect x="20.4" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/>
+    <rect x="4" y="6.5" width="24" height="21.5" rx="6" fill="var(--accent)"/>
+    <rect x="4" y="6.5" width="24" height="6.5" rx="6" fill="var(--accent-soft)"/>
+    <g fill="#fff" opacity=".92">
+      <circle cx="10.5" cy="18.5" r="1.5"/><circle cx="16" cy="18.5" r="1.5"/>
+      <circle cx="10.5" cy="23.5" r="1.5"/><circle cx="16" cy="23.5" r="1.5"/>
+      <circle cx="21.5" cy="18.5" r="1.5"/>
+    </g>
+    <circle cx="21.5" cy="23.5" r="2.1" fill="var(--today)"/>
+  </symbol>
+</svg>
+
+<a id="top"></a>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg width="30" height="30"><use href="#glyph"/></svg>
+      Oryzo
+    </a>
+    <nav class="nav-links" aria-label="Điều hướng chính">
+      <a href="#ai">Powered by AI</a>
+      <a href="#tdm">TDM</a>
+      <a href="#reviews">Đánh giá</a>
+      <a href="#tiers">Bảng giá</a>
+      <a href="#paper">Bài báo</a>
+    </nav>
+    <div class="nav-cta">
+      <button class="theme-btn" id="themeBtn" aria-label="Đổi giao diện sáng/tối" title="Đổi giao diện">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <a class="btn btn-ghost" href="/login">Đăng nhập</a>
+      <a class="btn btn-primary" href="/login">Dùng thử</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="kicker">Sinh ra vì cuộc họp · Sống vì deadline</div>
+    <h1 data-reveal>
+      Made for chaos.
+      <span class="l2">Built for <em>calendars.</em></span>
+    </h1>
+    <p class="lede" data-reveal>
+      Trợ lý lịch phức tạp một cách không cần thiết nhất thế giới. Bạn nói. Oryzo hiểu.
+      Sự kiện xuất hiện. Không có phép màu — chỉ là AI, được huấn luyện quá mức trên chính lịch trình của bạn.
+    </p>
+    <div class="cta-row" data-reveal>
+      <a class="btn btn-primary btn-lg" href="/login">
+        Bắt đầu miễn phí
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+      <a class="btn btn-ghost btn-lg" href="#ai">Xem Oryzo làm việc</a>
+    </div>
+    <p class="disclaim">v2.4.1 · SOTA trên benchmark "Lịch sáng thứ Hai" · miễn phí, mãi mãi</p>
+
+    <!-- hero device: split chat + calendar preview -->
+    <div class="hero-device" data-reveal aria-hidden="true">
+      <div class="chat">
+        <div class="chat-panel">
+          <div class="chat-head">
+            <div class="avatar">O</div>
+            <b>Oryzo</b>
+            <small>online</small>
+          </div>
+          <div class="msg msg-user">họp với marketing 2h chiều mai, 45 phút</div>
+          <div class="msg msg-bot">
+            <div class="tool">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              check_conflict → clear
+            </div>
+            Đã tạo:
+            <div class="msg-card">
+              <b>Họp team marketing</b>
+              <div class="meta">Thứ Ba, 25/08/2026 · 14:00 – 14:45</div>
+            </div>
+          </div>
+          <div class="msg msg-user">đổi sang thứ 5 cùng giờ</div>
+          <div class="msg msg-bot">
+            <div class="tool">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              update_event
+            </div>
+            Đã dời sang <b>27/08 · 14:00</b>. Đã báo 4 người tham dự.
+          </div>
+        </div>
+
+        <div class="chat-panel">
+          <div class="chat-head">
+            <b>Thứ Năm, 27/08</b>
+            <small>3 sự kiện</small>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <div style="padding:10px 12px;border-radius:10px;background:var(--ev-blue-bg);color:var(--ev-blue);border-left:3px solid var(--ev-blue);font-size:13.5px">
+              <div style="font-family:'Bricolage Grotesque';font-weight:600">Daily standup</div>
+              <div style="font-family:'IBM Plex Mono';font-size:11px;opacity:.85">09:30 – 09:45</div>
+            </div>
+            <div style="padding:10px 12px;border-radius:10px;background:var(--ev-amber-bg);color:var(--ev-amber);border-left:3px solid var(--ev-amber);font-size:13.5px">
+              <div style="font-family:'Bricolage Grotesque';font-weight:600">Deep work — spec Q4</div>
+              <div style="font-family:'IBM Plex Mono';font-size:11px;opacity:.85">10:00 – 12:00</div>
+            </div>
+            <div style="padding:10px 12px;border-radius:10px;background:var(--ev-green-bg);color:var(--ev-green);border-left:3px solid var(--ev-green);font-size:13.5px;position:relative">
+              <div style="font-family:'Bricolage Grotesque';font-weight:600">Họp team marketing ✨</div>
+              <div style="font-family:'IBM Plex Mono';font-size:11px;opacity:.85">14:00 – 14:45 · vừa tạo bởi Oryzo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- POWERED BY AI -->
+<section class="section" id="ai">
+  <div class="wrap">
+    <div class="section-head" style="text-align:center;margin-inline:auto">
+      <div class="pill-row">
+        <span class="pill">transformer</span>
+        <span class="pill">function-calling</span>
+        <span class="pill">RAG cá nhân</span>
+        <span class="pill">context-aware</span>
+      </div>
+      <h2 data-reveal>Powered by AI.<br>(cụ thể là AI hiểu bạn muốn ngủ nướng.)</h2>
+      <p data-reveal>Oryzo isn't just a calendar. Nó là kết quả của những đột phá AI chưa từng có — được áp dụng vào một việc tưởng chừng đơn giản: hỏi bạn khi nào bạn rảnh, rồi ghi lại chỗ đó.</p>
+    </div>
+
+    <div class="cap-grid">
+      <article class="cap" data-reveal>
+        <div class="num">01 / NLP</div>
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <h3>Natural Language Scheduling</h3>
+        <p>Nói "chiều mai" hay "sau bữa trưa thứ 6" — Oryzo hiểu và quy đổi ra ISO timestamp, ngay cả khi bạn vừa mới ngủ dậy và chưa uống cà phê.</p>
+        <div class="demo">"nhắc gọi khách 3h chiều mai"<br><span class="arr">→</span> <b>Gọi khách hàng</b> · 25/08 · 15:00–15:30</div>
+      </article>
+
+      <article class="cap" data-reveal>
+        <div class="num">02 / CONFLICT</div>
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <h3>Proactive Conflict Resolution</h3>
+        <p>Zero-drama. Trước khi lưu, Oryzo rà toàn khung giờ. Nếu trùng — không ghi đè, không phán xét, chỉ đề xuất 2–3 slot trống khả thi.</p>
+        <div class="demo"><span style="color:var(--today)">✗</span> trùng Họp Tech 10:00<br><span class="arr">→</span> gợi ý: 11:30 hoặc 14:00</div>
+      </article>
+
+      <article class="cap" data-reveal>
+        <div class="num">03 / OPTIMIZE</div>
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3>Smart Time Optimization</h3>
+        <p>Học từ pattern làm việc của bạn. Deep-work sáng, gọi ngắn cuối chiều, không ai đụng khung 12:00–13:30 — vì trưa là để ngủ, không phải để họp.</p>
+        <div class="demo">deep-work → 09:00 · 90m<br>call ngắn → 16:00 · 15m</div>
+      </article>
+
+      <article class="cap" data-reveal>
+        <div class="num">04 / CONTEXT</div>
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
+        <h3>Contextual Event Mgmt</h3>
+        <p>"Huỷ họp chiều nay" — Oryzo biết bạn nói cái nào. Không hỏi lại 3 lần. Không cần copy-paste event ID như năm 2015.</p>
+        <div class="demo">"dời deadline sang thứ 6"<br><span class="arr">→</span> update_event #4821</div>
+      </article>
+
+      <article class="cap" data-reveal>
+        <div class="num">05 / MEMORY</div>
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0 3 3 0 0 0-6 0z"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></div>
+        <h3>Personal Working Memory</h3>
+        <p>Oryzo nhớ bạn thường họp thứ 3, không thích họp trước 9h, và luôn cần 15 phút giữa các cuộc. Nhớ giúp bạn, không phán xét.</p>
+        <div class="demo">insight: 87% cuộc họp tuần này ngoài giờ deep-work</div>
+      </article>
+
+      <article class="cap" data-reveal>
+        <div class="num">06 / DIGEST</div>
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></div>
+        <h3>Morning & Weekly Brief</h3>
+        <p>Mỗi sáng, Oryzo tóm tắt ngày của bạn trong 3 dòng. Không dashboard. Không biểu đồ. Chỉ những gì bạn thật sự cần biết.</p>
+        <div class="demo">"Hôm nay 3 cuộc — 1 quan trọng. Buổi chiều rảnh sau 16:00."</div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- TDM DIAGRAM -->
+<section class="section section-alt" id="tdm">
+  <div class="wrap">
+    <div class="tdm">
+      <div class="txt">
+        <span class="eyebrow">Handles extremes with ease</span>
+        <h2 data-reveal style="margin-top:14px">Time Diffusion Model™.<br>Nghe rất ngầu. Thật ra chỉ là bản đồ nhiệt các khung giờ rảnh.</h2>
+        <p data-reveal>TDM phân tích lịch 4 tuần gần nhất, cross-reference với thói quen tập trung của bạn, và tạo ra "energy heatmap" — cho biết khung giờ nào phù hợp cho loại việc gì. Nghiêm túc mà nói, nó khá hữu ích.</p>
+        <div class="meta-row" data-reveal>
+          <span class="tag">32 chiều</span>
+          <span class="tag">latency &lt; 220ms</span>
+          <span class="tag">on-device</span>
+          <span class="tag">calibrated</span>
+        </div>
+      </div>
+
+      <div class="diagram" data-reveal>
+        <div class="diagram-head">
+          <b>fig. 1 — TDM output, tuần 34/2026</b>
+          <small>oryzo-tdm-v2</small>
+        </div>
+        <div class="heatgrid" id="heatgrid">
+          <!-- header row -->
+          <div class="hd"></div>
+          <div class="hd">9</div><div class="hd">10</div><div class="hd">11</div><div class="hd">12</div>
+          <div class="hd">13</div><div class="hd">14</div><div class="hd">15</div><div class="hd">16</div>
+          <div class="hd">17</div><div class="hd">18</div><div class="hd">19</div><div class="hd">20</div>
+        </div>
+        <div class="diagram-legend">
+          <span><i class="low"></i> low energy</span>
+          <span><i></i> focus zone</span>
+          <span><i class="busy"></i> busy</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOW -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Agent workflow</span>
+      <h2 data-reveal>Ba bước. Mỗi lần bạn nói.</h2>
+      <p data-reveal>Oryzo hoạt động theo quy trình đơn giản đến khó chịu: hiểu — kiểm tra — làm. Bạn luôn nhìn thấy nó đang làm gì.</p>
+    </div>
+    <div class="flow">
+      <article class="step" data-reveal>
+        <h3>Parse intent</h3>
+        <p>Trích xuất tiêu đề, thời gian, thời lượng, người tham dự, địa điểm. Quy đổi mọi mốc tương đối thành timestamp tuyệt đối.</p>
+        <div class="tags"><span class="tag">title</span><span class="tag">start_time</span><span class="tag">duration</span></div>
+      </article>
+      <article class="step" data-reveal>
+        <h3>Availability check</h3>
+        <p>Gọi <span class="mono" style="color:var(--accent)">check_conflict</span>. Clear → đi tiếp. Trùng → dừng, đề xuất slot trống. Không tự ghi đè.</p>
+        <div class="tags"><span class="tag">check_conflict</span><span class="tag">find_free_slots</span></div>
+      </article>
+      <article class="step" data-reveal>
+        <h3>Execute & confirm</h3>
+        <p>Gọi đúng function (<span class="mono">create</span> / <span class="mono">update</span> / <span class="mono">delete</span>). Phản hồi ngắn gọn, có đủ chi tiết.</p>
+        <div class="tags"><span class="tag">create_event</span><span class="tag">update_event</span><span class="tag">delete_event</span></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="section section-alt" id="reviews">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">People say</span>
+      <h2 data-reveal>Người dùng khắp nơi yêu Oryzo.<br>(hoặc ít nhất là không còn ghét lịch nữa.)</h2>
+    </div>
+    <div class="tst-grid">
+      <article class="tst" data-reveal>
+        <p class="quote">"Đây là app calendar cinematic nhất mình từng dùng. We are so cooked."</p>
+        <div class="who">
+          <div class="av">
+            <svg viewBox="0 0 46 46"><rect width="46" height="46" fill="#EAE5F4"/><circle cx="23" cy="19" r="8" fill="#6A55A6"/><path d="M8 46c0-9 7-14 15-14s15 5 15 14" fill="#6A55A6"/><circle cx="20" cy="18" r="1.5" fill="#fff"/><circle cx="26" cy="18" r="1.5" fill="#fff"/></svg>
+          </div>
+          <div><b>Jamie R.</b><small>Đạo diễn, Hà Nội</small></div>
+        </div>
+      </article>
+
+      <article class="tst" data-reveal>
+        <p class="quote">"Mình đã bỏ 3 app calendar khác. Oryzo hiểu 'thứ 3 tuần sau' mà không cần mình chọn ngày trên popup lịch."</p>
+        <div class="who">
+          <div class="av">
+            <svg viewBox="0 0 46 46"><rect width="46" height="46" fill="#E3EBF6"/><circle cx="23" cy="20" r="9" fill="#3E6DB0"/><path d="M6 46c0-9 8-14 17-14s17 5 17 14" fill="#3E6DB0"/><rect x="16" y="16" width="14" height="4" rx="2" fill="#fff" opacity=".8"/></svg>
+          </div>
+          <div><b>Edan K.</b><small>PM, Sài Gòn</small></div>
+        </div>
+      </article>
+
+      <article class="tst" data-reveal>
+        <p class="quote">"Oryzo phát hiện mình luôn đặt lịch trùng bữa trưa. Rồi im lặng dời hết ra khỏi khung 12–13h. Cảm ơn."</p>
+        <div class="who">
+          <div class="av">
+            <svg viewBox="0 0 46 46"><rect width="46" height="46" fill="#E0EFE7"/><circle cx="23" cy="20" r="9" fill="#3E8E6E"/><path d="M6 46c0-9 8-14 17-14s17 5 17 14" fill="#3E8E6E"/><path d="M18 20 Q23 24 28 20" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <div><b>Mai H.</b><small>Freelance designer</small></div>
+        </div>
+      </article>
+
+      <article class="tst" data-reveal>
+        <p class="quote">"Từ ngày dùng Oryzo, mình chưa lỡ cuộc họp nào. Điều duy nhất mình lỡ là cái cảm giác quên họp."</p>
+        <div class="who">
+          <div class="av">
+            <svg viewBox="0 0 46 46"><rect width="46" height="46" fill="#F4E9D3"/><circle cx="23" cy="20" r="9" fill="#B67A22"/><path d="M6 46c0-9 8-14 17-14s17 5 17 14" fill="#B67A22"/><circle cx="19" cy="18" r="2" fill="#fff"/><circle cx="27" cy="18" r="2" fill="#fff"/></svg>
+          </div>
+          <div><b>Trần Long</b><small>Founder, startup B2B</small></div>
+        </div>
+      </article>
+
+      <article class="tst" data-reveal>
+        <p class="quote">"Có lần Oryzo tự tạo lịch 'nghỉ 15 phút' giữa 2 cuộc họp back-to-back của mình. Không hỏi. Không xin lỗi. Đúng cái mình cần."</p>
+        <div class="who">
+          <div class="av">
+            <svg viewBox="0 0 46 46"><rect width="46" height="46" fill="#F6E3E9"/><circle cx="23" cy="20" r="9" fill="#B8506B"/><path d="M6 46c0-9 8-14 17-14s17 5 17 14" fill="#B8506B"/><path d="M18 22 L23 26 L28 22" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <div><b>Ngọc Anh</b><small>Head of People</small></div>
+        </div>
+      </article>
+
+      <article class="tst" data-reveal>
+        <p class="quote">"Là dev, mình thích cái phần tool badge. Nhìn agent gọi function trước mắt mà thấy yên tâm."</p>
+        <div class="who">
+          <div class="av">
+            <svg viewBox="0 0 46 46"><rect width="46" height="46" fill="#F5F3EE"/><circle cx="23" cy="20" r="9" fill="#161514"/><path d="M6 46c0-9 8-14 17-14s17 5 17 14" fill="#161514"/><path d="M17 18 L14 21 L17 24 M29 18 L32 21 L29 24 M25 16 L21 26" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <div><b>duy_hoang</b><small>Senior engineer</small></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- TIERS -->
+<section class="section" id="tiers">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Three tiers, one job, done beautifully</span>
+      <h2 data-reveal>Ba gói. Ba mức độ cam kết.<br>Đều miễn phí. Bạn không đọc nhầm đâu.</h2>
+      <p data-reveal>Chúng tôi vẫn làm bảng giá vì đó là quy chuẩn của mọi landing SaaS. Nhưng thật sự — không có ai trả tiền cho cái này cả.</p>
+    </div>
+
+    <div class="tiers">
+      <div class="tier" data-reveal>
+        <div>
+          <div class="tname">Oryzo</div>
+          <div class="tblurb">One calendar. One job. Done beautifully.</div>
+        </div>
+        <div class="price">0đ <small>/ MÃI MÃI</small></div>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Natural language scheduling</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Conflict detection</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Đồng bộ Google Calendar</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Dark mode & âm lịch</li>
+        </ul>
+        <a class="btn btn-ghost cta-btn" href="/login">Bắt đầu</a>
+      </div>
+
+      <div class="tier featured" data-reveal>
+        <div>
+          <div class="tname">Oryzo Pro</div>
+          <div class="tblurb">Twice the tokens. Twice the commitment. Still effortless.</div>
+        </div>
+        <div class="price">0đ <small>/ MÃI MÃI</small></div>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Tất cả tính năng bản Oryzo</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Time Diffusion Model™</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Morning brief hằng ngày</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Mời & booking công khai</li>
+        </ul>
+        <a class="btn btn-primary cta-btn" href="/login">Bắt đầu miễn phí</a>
+      </div>
+
+      <div class="tier" data-reveal>
+        <div>
+          <div class="tname">Oryzo Pro Max</div>
+          <div class="tblurb">Three layers of confidence. For people who like their calendars slightly above it all.</div>
+        </div>
+        <div class="price">0đ <small>/ MÃI MÃI</small></div>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Tất cả tính năng bản Pro</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Lịch nhóm & phân quyền</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Working memory không giới hạn</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>API cá nhân · webhooks</li>
+        </ul>
+        <a class="btn btn-ghost cta-btn" href="/login">Bắt đầu</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAPER -->
+<section class="section section-alt" id="paper">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Đọc thêm</span>
+      <h2 data-reveal>Chúng tôi có viết cả một bài báo.<br>(bạn không cần đọc.)</h2>
+      <p data-reveal>Nhưng nếu bạn thuộc kiểu người cần citation trước khi tin một cái app calendar, thì đây là BibTeX. Cite thoải mái.</p>
+    </div>
+
+    <div class="paper">
+      <div>
+        <span class="eyebrow">arXiv:2608.14251</span>
+        <h3 style="margin-top:14px">Oryzo: A Foundation Model for Consumer-Grade Temporal Reasoning in Vietnamese</h3>
+        <p class="authors">D. L. Cu, et al. · 2026</p>
+        <p class="abstract">We introduce Oryzo, a decoder-only temporal reasoning model fine-tuned for informal Vietnamese scheduling utterances. On the OryzoBench-1k eval suite, Oryzo-v2 achieves 94.3% intent-parse accuracy and 88.1% conflict-avoidance F1, outperforming GPT-Y and Gemini-Z baselines while running fully on-device.</p>
+        <div class="paper-cta">
+          <a class="btn btn-ghost" href="/login">Đọc bài báo (giả)</a>
+          <a class="btn btn-ghost" href="/login">Xem code</a>
+        </div>
+      </div>
+      <pre class="bibtex" aria-hidden="true">@article{<span class="k">oryzo2026</span>,
+  title   = <span class="s">"Oryzo: Consumer-Grade Temporal Reasoning"</span>,
+  author  = <span class="s">"D. L. Cu and Contributors"</span>,
+  journal = <span class="s">"Proc. of Landing Pages, 2026"</span>,
+  year    = <span class="k">2026</span>,
+  note    = <span class="s">"cite responsibly"</span>
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section-tight">
+  <div class="wrap">
+    <div class="cta-band" data-reveal>
+      <span class="eyebrow">Được rồi, tới lượt bạn.</span>
+      <h2>Nói. Oryzo nghe.<br>Lịch xuất hiện.</h2>
+      <p>Miễn phí mãi mãi. Không thẻ tín dụng. Không quảng cáo. Không có gói "Pro Max Ultra" trong tương lai đâu, hứa.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary btn-lg" href="/login">
+          Bắt đầu miễn phí
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a class="btn btn-ghost btn-lg" href="#ai">Xem lại tính năng</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg width="26" height="26"><use href="#glyph"/></svg>
+      Oryzo
+    </a>
+    <div class="links">
+      <a href="#ai">Powered by AI</a>
+      <a href="#tdm">TDM</a>
+      <a href="#reviews">Đánh giá</a>
+      <a href="#tiers">Bảng giá</a>
+      <a href="/login">Đăng nhập</a>
+    </div>
+    <p>© 2026 Oryzo Calendar Agent.</p>
+    <p class="disclaimer">
+      Miễn tuyên bố · Oryzo được xây dựng bởi con người thật, cho lịch trình thật. Time Diffusion Model™, benchmark "Lịch sáng thứ Hai" và bài báo trên arXiv có nồng độ châm biếm cao — vui lòng không cite trong luận văn thật của bạn. Nếu cần chức năng calendar không có yếu tố hài hước, đây vẫn là cùng một app.
+    </p>
+  </div>
+</footer>
+
+<script>
+  // theme toggle
+  (function(){
+    const root = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const stored = localStorage.getItem('oryzo-theme');
+    if (stored) root.setAttribute('data-theme', stored);
+    btn.addEventListener('click', () => {
+      const cur = root.getAttribute('data-theme');
+      const isDark = cur === 'dark' || (!cur && matchMedia('(prefers-color-scheme: dark)').matches);
+      const next = isDark ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      localStorage.setItem('oryzo-theme', next);
+    });
+  })();
+
+  // sticky nav
+  (function(){
+    const nav = document.getElementById('nav');
+    const onScroll = () => nav.classList.toggle('is-stuck', window.scrollY > 8);
+    onScroll(); window.addEventListener('scroll', onScroll, {passive:true});
+  })();
+
+  // reveal
+  (function(){
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting){ e.target.classList.add('on'); io.unobserve(e.target); }
+    }, {rootMargin:'0px 0px -8% 0px', threshold:.12});
+    document.querySelectorAll('[data-reveal]').forEach(el => io.observe(el));
+  })();
+
+  // TDM heatmap: 5 rows (Mon–Fri) × 12 cols (9–20h)
+  (function(){
+    const grid = document.getElementById('heatgrid');
+    if (!grid) return;
+    const days = ['Mon','Tue','Wed','Thu','Fri'];
+    // hand-tuned pattern: focus zones morning, busy midday, low late afternoon
+    const rows = [
+      ['4','5','5','B','B','2','3','3','1','1','0','0'], // Mon
+      ['3','5','4','2','B','B','3','2','1','0','0','0'], // Tue
+      ['5','5','5','3','1','B','2','4','2','1','0','0'], // Wed
+      ['4','4','5','B','1','2','B','B','3','1','0','0'], // Thu
+      ['5','5','3','2','1','1','3','2','1','1','0','0'], // Fri
+    ];
+    rows.forEach((r, i) => {
+      const lbl = document.createElement('div');
+      lbl.className = 'lbl'; lbl.textContent = days[i]; grid.appendChild(lbl);
+      r.forEach(v => {
+        const c = document.createElement('div');
+        c.className = 'cell';
+        if (v !== '0') c.dataset.v = v;
+        grid.appendChild(c);
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
