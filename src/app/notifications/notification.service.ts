@@ -11,7 +11,7 @@ import { SupabaseService } from '../auth/supabase.service';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 
-interface Toast {
+export interface Toast {
   id: string;
   /** 'event' nhắc lịch; 'file' tài liệu; 'chat' tin nhắn; 'invite' lời mời; 'cancelled' hủy; 'changed' cập nhật. */
   kind: 'event' | 'file' | 'chat' | 'invite' | 'cancelled' | 'changed';

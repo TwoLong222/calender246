@@ -117,6 +117,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'trash.confirmQ': 'Xóa hẳn?', 'trash.delete': 'Xóa', 'trash.restore': 'Khôi phục', 'trash.purge': 'Xóa vĩnh viễn', 'trash.deletedAt': 'đã xóa',
     // Toast + common
     'toast.upcoming': 'Sắp tới', 'toast.startsAt': 'Bắt đầu lúc', 'toast.fileOpen': 'Tài liệu đã mở', 'toast.ofEvent': 'Sự kiện:',
+    'toast.catReminder': 'Nhắc lịch', 'toast.catInvite': 'Lời mời', 'toast.catChanged': 'Sự kiện sửa',
+    'toast.catCancelled': 'Sự kiện hủy', 'toast.catFile': 'Tài liệu', 'toast.catChat': 'Tin nhắn',
     'notif.cancelled': 'Sự kiện đã bị hủy', 'notif.changed': 'Sự kiện cập nhật', 'notif.fTitle': 'Tiêu đề', 'notif.fStart': 'Ngày giờ bắt đầu', 'notif.fEnd': 'Ngày giờ kết thúc', 'notif.fLocation': 'Địa điểm',
     'notif.secInvites': 'Lời mời', 'notif.secChanged': 'Sự kiện bị sửa', 'notif.secCancelled': 'Sự kiện bị hủy', 'notif.empty': 'Không có thông báo nào.', 'notif.clearAll': 'Xóa hết',
     'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
@@ -244,6 +246,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'trash.empty': 'Trash is empty.', 'trash.desc': 'Deleted events are kept here. You can restore them or delete permanently.',
     'trash.confirmQ': 'Delete for good?', 'trash.delete': 'Delete', 'trash.restore': 'Restore', 'trash.purge': 'Delete permanently', 'trash.deletedAt': 'deleted',
     'toast.upcoming': 'Upcoming', 'toast.startsAt': 'Starts at', 'toast.fileOpen': 'File available', 'toast.ofEvent': 'Event:',
+    'toast.catReminder': 'Reminder', 'toast.catInvite': 'Invitation', 'toast.catChanged': 'Event changed',
+    'toast.catCancelled': 'Event cancelled', 'toast.catFile': 'Document', 'toast.catChat': 'Message',
     'notif.cancelled': 'Event cancelled', 'notif.changed': 'Event updated', 'notif.fTitle': 'Title', 'notif.fStart': 'Start date & time', 'notif.fEnd': 'End date & time', 'notif.fLocation': 'Location',
     'notif.secInvites': 'Invitations', 'notif.secChanged': 'Edited events', 'notif.secCancelled': 'Cancelled events', 'notif.empty': 'No notifications.', 'notif.clearAll': 'Clear all',
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
