@@ -19,6 +19,9 @@ import { SupabaseService } from './supabase.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="login-scene auth-fade-in flex min-h-screen">
+      <!-- Dải gradient thương hiệu (đúng màu logo: tím -> chàm -> ngọc) nối liền 2 nửa -->
+      <div class="fixed inset-x-0 top-0 z-30 h-[3px]" style="background: linear-gradient(90deg, #4338ca, #7c3aed 45%, #22d3ee)" aria-hidden="true"></div>
+
       <!-- ================= NỬA TRÁI — thương hiệu (chỉ hiện lg+) ================= -->
       <div class="relative hidden w-full max-w-xl shrink-0 flex-col justify-between overflow-hidden bg-[#0b0c10] p-10 lg:flex xl:max-w-2xl xl:p-14">
         <div
@@ -61,21 +64,43 @@ import { SupabaseService } from './supabase.service';
             Foresight gom mọi lịch, sự kiện và lời nhắc vào một nơi — mời cộng sự, theo dõi ai đã nhận, và luôn nhìn trước những gì sắp tới.
           </p>
 
-          <!-- Preview lịch nhỏ — chỉ để gợi nhớ đây là app lịch, không phải dữ liệu thật -->
-          <div class="mt-8 max-w-sm rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
-            <div class="mb-3 flex items-center justify-between">
-              <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Tuần này</span>
-              <div class="flex gap-1"><i class="h-1.5 w-1.5 rounded-full bg-rose-400/80"></i><i class="h-1.5 w-1.5 rounded-full bg-amber-400/80"></i><i class="h-1.5 w-1.5 rounded-full bg-emerald-400/80"></i></div>
+          <!-- Preview lịch nhỏ — chỉ để gợi nhớ đây là app lịch, không phải dữ liệu thật.
+               2 chip nổi quanh khung (giống showcase landing) để đỡ đơn điệu, có bay-vào + lơ lửng nhẹ. -->
+          <div class="relative mt-10 max-w-sm">
+            <div
+              class="auth-card-float absolute -right-5 -top-6 z-20 flex items-center gap-2 rounded-xl border border-white/10 bg-[#14151b] px-3 py-2 shadow-lg shadow-black/40"
+              style="--card-delay:.2s"
+            >
+              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-400 to-violet-400">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+              </span>
+              <span class="text-[11.5px] font-medium text-white/85">Nhắc trước 30 phút</span>
             </div>
-            <div class="space-y-1.5">
-              <div class="flex items-center gap-2 rounded-lg bg-indigo-500/[0.12] px-2.5 py-1.5 text-[12.5px] text-indigo-200">
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400"></span> Họp nhóm <span class="ml-auto font-mono text-[11px] text-indigo-200/60">08:30</span>
+            <div
+              class="auth-card-float absolute -bottom-5 -left-4 z-20 flex items-center gap-2 rounded-xl border border-white/10 bg-[#14151b] px-3 py-2 shadow-lg shadow-black/40"
+              style="--card-delay:.7s"
+            >
+              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-400">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+              </span>
+              <span class="text-[11.5px] font-medium text-white/85">Minh đã nhận lời</span>
+            </div>
+
+            <div class="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
+              <div class="mb-3 flex items-center justify-between">
+                <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Tuần này</span>
+                <div class="flex gap-1"><i class="h-1.5 w-1.5 rounded-full bg-rose-400/80"></i><i class="h-1.5 w-1.5 rounded-full bg-amber-400/80"></i><i class="h-1.5 w-1.5 rounded-full bg-emerald-400/80"></i></div>
               </div>
-              <div class="flex items-center gap-2 rounded-lg bg-violet-500/[0.12] px-2.5 py-1.5 text-[12.5px] text-violet-200">
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"></span> Demo sản phẩm <span class="ml-auto font-mono text-[11px] text-violet-200/60">11:30</span>
-              </div>
-              <div class="flex items-center gap-2 rounded-lg bg-cyan-500/[0.12] px-2.5 py-1.5 text-[12.5px] text-cyan-200">
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400"></span> Cà phê 1-1 <span class="ml-auto font-mono text-[11px] text-cyan-200/60">14:00</span>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2 rounded-lg bg-indigo-500/[0.12] px-2.5 py-1.5 text-[12.5px] text-indigo-200">
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400"></span> Họp nhóm <span class="ml-auto font-mono text-[11px] text-indigo-200/60">08:30</span>
+                </div>
+                <div class="flex items-center gap-2 rounded-lg bg-violet-500/[0.12] px-2.5 py-1.5 text-[12.5px] text-violet-200">
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"></span> Demo sản phẩm <span class="ml-auto font-mono text-[11px] text-violet-200/60">11:30</span>
+                </div>
+                <div class="flex items-center gap-2 rounded-lg bg-cyan-500/[0.12] px-2.5 py-1.5 text-[12.5px] text-cyan-200">
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400"></span> Cà phê 1-1 <span class="ml-auto font-mono text-[11px] text-cyan-200/60">14:00</span>
+                </div>
               </div>
             </div>
           </div>
@@ -105,7 +130,9 @@ import { SupabaseService } from './supabase.service';
             <span class="text-[15px] font-semibold tracking-tight text-gray-900">Foresight</span>
           </a>
 
-          <div class="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+          <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white text-center shadow-sm">
+            <div class="h-[3px] w-full" style="background: linear-gradient(90deg, #4338ca, #7c3aed 45%, #22d3ee)" aria-hidden="true"></div>
+            <div class="p-8">
             <h1 class="text-[24px] font-semibold tracking-tight text-gray-900">Chào mừng trở lại</h1>
             <p class="mx-auto mt-2 max-w-[260px] text-[14px] leading-relaxed text-gray-500">
               Đăng nhập để quản lý lịch trình và không bỏ lỡ điều quan trọng.
@@ -141,6 +168,7 @@ import { SupabaseService } from './supabase.service';
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
               Dữ liệu của bạn được bảo mật.
             </p>
+            </div>
           </div>
 
           <p class="mt-5 text-center text-[11.5px] leading-relaxed text-gray-400">
