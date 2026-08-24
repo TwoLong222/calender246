@@ -17,36 +17,39 @@ interface DayCell {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="select-none">
-      <div class="mc-head">
-        <span class="mc-title">
-          {{ tr.monthLong(displayMonth().getMonth()) }} {{ displayMonth().getFullYear() }}
+    <div class="select-none text-sm">
+      <div class="mb-2 flex items-center justify-between px-1">
+        <span class="font-medium text-gray-700">
+          {{ tr.monthLong(displayMonth().getMonth()) }}, {{ displayMonth().getFullYear() }}
         </span>
         <div class="flex gap-1">
-          <button type="button" (click)="prevMonth()" class="mc-nav" aria-label="Tháng trước">
-            <svg viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor"><path d="M12.5 15 7 10l5.5-5 1 1-4.5 4 4.5 4z" /></svg>
+          <button type="button" (click)="prevMonth()" class="rounded-full p-1 hover:bg-gray-100" aria-label="Tháng trước">
+            <svg viewBox="0 0 20 20" class="h-4 w-4 fill-gray-500"><path d="M12.5 15 7 10l5.5-5 1 1-4.5 4 4.5 4z" /></svg>
           </button>
-          <button type="button" (click)="nextMonth()" class="mc-nav" aria-label="Tháng sau">
-            <svg viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor"><path d="M7.5 15 13 10 7.5 5l-1 1 4.5 4-4.5 4z" /></svg>
+          <button type="button" (click)="nextMonth()" class="rounded-full p-1 hover:bg-gray-100" aria-label="Tháng sau">
+            <svg viewBox="0 0 20 20" class="h-4 w-4 fill-gray-500"><path d="M7.5 15 13 10 7.5 5l-1 1 4.5 4-4.5 4z" /></svg>
           </button>
         </div>
       </div>
 
-      <div class="mc-week">
+      <div class="grid grid-cols-7 text-center text-[11px] text-gray-400">
         @for (label of weekdayLabels(); track label) {
-          <span>{{ label }}</span>
+          <span class="py-1">{{ label }}</span>
         }
       </div>
 
-      <div class="mc-grid">
+      <div class="grid grid-cols-7 gap-y-1 text-center">
         @for (cell of cells(); track cell.date.getTime()) {
           <button
             type="button"
             (click)="pick(cell.date)"
-            class="mc-day"
-            [class.is-other]="!cell.inCurrentMonth"
-            [class.is-today]="isToday(cell.date)"
-            [class.is-viewed]="isViewed(cell.date)"
+            class="mx-auto flex h-7 w-7 items-center justify-center rounded-full transition-colors"
+            [class.text-gray-300]="!cell.inCurrentMonth"
+            [class.text-gray-700]="cell.inCurrentMonth && !isToday(cell.date) && !isViewed(cell.date)"
+            [class.bg-blue-700]="isToday(cell.date)"
+            [class.text-white]="isToday(cell.date)"
+            [class.bg-blue-100]="!isToday(cell.date) && isViewed(cell.date)"
+            [class.text-blue-800]="!isToday(cell.date) && isViewed(cell.date)"
           >
             {{ cell.date.getDate() }}
           </button>
@@ -92,8 +95,7 @@ export class MiniCalendarComponent {
     for (let d = 1; d <= daysInMonth; d++) {
       cells.push({ date: new Date(monthStart.getFullYear(), monthStart.getMonth(), d), inCurrentMonth: true });
     }
-    // Luôn điền đủ 42 ô = 6 hàng cho MỌI tháng -> chiều cao lịch nhỏ đồng bộ, không "nhảy".
-    while (cells.length < 42) {
+    while (cells.length % 7 !== 0) {
       const last = cells[cells.length - 1].date;
       cells.push({ date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1), inCurrentMonth: false });
     }

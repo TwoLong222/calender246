@@ -306,3 +306,176 @@ body { background-color: var(--app-bg); }
 @media (prefers-reduced-motion: reduce) {
   .seasonal-flake { animation: none; display: none; }
 }
+
+/* ============================================================
+   TRANG ĐĂNG NHẬP (login-page.component.ts) — hiệu ứng scene minh họa
+   (sao lấp lánh, mây trôi, linh vật lịch nổi, thẻ sự kiện bay vào, đèn
+   đom đóm...). Tôn trọng prefers-reduced-motion.
+   ============================================================ */
+/* ============================================================
+   TRANG ĐĂNG NHẬP (Syncora) — dark premium SaaS style: fade/rise nhẹ
+   lúc vào trang, quầng gradient phía sau trôi rất chậm, không nhân vật/
+   không hiệu ứng phô trương. Tất cả tôn trọng prefers-reduced-motion.
+   ============================================================ */
+.auth-fade-in {
+  animation: authFadeIn 0.5s ease-out both;
+}
+@keyframes authFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.auth-rise-in {
+  animation: authRiseIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes authRiseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-blob {
+  animation: authBlobFloat 16s ease-in-out infinite;
+}
+@keyframes authBlobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(16px, -12px) scale(1.05); }
+}
+
+.auth-error-in {
+  animation: authErrorIn 0.2s ease-out both;
+}
+@keyframes authErrorIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sao lấp lánh trên nền trời */
+.auth-star {
+  animation: authTwinkle 3.4s ease-in-out infinite;
+}
+@keyframes authTwinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.9; }
+}
+
+/* Sao băng — lặp rất chậm, hiếm khi thấy 2 lần liên tiếp cùng lúc */
+.auth-shooting-star {
+  animation: authShootingStar 7s ease-in infinite;
+  animation-delay: 2s;
+}
+@keyframes authShootingStar {
+  0% { opacity: 0; transform: translate(0, 0); }
+  4% { opacity: 1; }
+  16% { opacity: 0; transform: translate(120px, 70px); }
+  100% { opacity: 0; transform: translate(120px, 70px); }
+}
+
+/* Mây trôi ngang rất chậm, gần như không nhận ra đang chuyển động */
+.auth-cloud {
+  animation: authCloudDrift 50s ease-in-out infinite;
+}
+@keyframes authCloudDrift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(26px); }
+}
+
+/* Đèn đom đóm nhỏ trên đồi */
+.auth-firefly {
+  width: 3px;
+  height: 3px;
+  animation: authFirefly 3.2s ease-in-out infinite;
+}
+@keyframes authFirefly {
+  0%, 100% { opacity: 0.2; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* Thẻ sự kiện nổi lơ lửng nhẹ quanh login panel.
+   LƯU Ý: stagger delay truyền vào qua custom property --card-delay (không phải
+   animation-delay trực tiếp) — vì animation-delay đặt qua [style] sẽ áp dụng
+   đồng loạt cho CẢ HAI animation liệt kê dưới, làm chúng chạy đè lên nhau
+   (bay-vào + lơ lửng cùng lúc) thay vì nối tiếp nhau mượt mà. */
+.auth-card-float {
+  animation:
+    authCardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--card-delay, 0s) both,
+    authCardFloat 5s ease-in-out calc(var(--card-delay, 0s) + 0.6s) infinite;
+}
+
+/* Dây nét đứt nối thẻ sự kiện <-> login card <-> cờ/ghim: PHẢI đợi thẻ trễ nhất
+   (Design Review, --card-delay 1.5s) bay vào xong (+0.6s = 2.1s) rồi mới hiện ra.
+   Nếu không, dây sẽ hiện ra ngay từ đầu trong khi thẻ nó nối tới vẫn chưa bay vào
+   tới nơi — nhìn như dây nối "lơ lửng" vào khoảng không, rất rối mắt. */
+.auth-wire-in {
+  opacity: 0;
+  animation: authWireIn 0.5s ease-out 2.1s both;
+}
+@keyframes authWireIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes authCardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes authCardFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Chấm "hôm nay" trên timeline nhấp nháy sáng nhẹ */
+.auth-node-glow {
+  animation: authNodeGlow 2.4s ease-in-out infinite;
+}
+@keyframes authNodeGlow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+/* Linh vật lơ lửng nhẹ nhàng */
+.auth-mascot-float {
+  animation: authMascotFloat 4s ease-in-out infinite;
+}
+@keyframes authMascotFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.spin {
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-fade-in,
+  .auth-rise-in,
+  .auth-blob,
+  .auth-error-in,
+  .auth-star,
+  .auth-shooting-star,
+  .auth-cloud,
+  .auth-firefly,
+  .auth-card-float,
+  .auth-node-glow,
+  .auth-mascot-float,
+  .auth-wire-in,
+  .spin {
+    animation: none;
+  }
+  .auth-fade-in,
+  .auth-rise-in,
+  .auth-error-in,
+  .auth-card-float,
+  .auth-wire-in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Trang đăng nhập (.login-scene) tự vẽ 1 scene tối CỐ ĐỊNH, không đổi theo theme
+   sáng/tối của app — vài class dùng token trung tính (bg-white, text-gray-800,
+   border-gray-300: nút Google) cần giữ nguyên màu gốc dù <html> đang có .dark. */
+.dark .login-scene .bg-white { background-color: #ffffff; }
+.dark .login-scene .text-gray-800 { color: #1f2937; }
+.dark .login-scene .border-gray-300 { border-color: #d1d5db; }
