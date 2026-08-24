@@ -35,11 +35,20 @@ import { SupabaseService } from './supabase.service';
         aria-hidden="true"
       ></div>
 
-      <div
-        class="auth-rise-in relative w-full max-w-[400px] rounded-2xl border border-white/10 bg-white/[0.04] p-9 text-center shadow-2xl shadow-black/50 backdrop-blur-xl"
-        style="animation-delay: .1s"
+      <!-- Wordmark nhỏ góc trên, đưa về trang chủ — chuẩn page chrome của SaaS chuyên nghiệp -->
+      <a
+        href="/landing/index.html"
+        class="absolute left-6 top-6 z-10 flex items-center gap-1.5 text-[13px] font-medium text-white/50 transition-colors hover:text-white/80"
       >
-        <div class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+        Foresight
+      </a>
+
+      <div
+        class="auth-rise-in relative w-full max-w-[400px] rounded-2xl border border-white/[0.08] bg-white/[0.04] p-9 text-center backdrop-blur-xl"
+        style="animation-delay: .1s; box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 25px 60px -15px rgba(0,0,0,0.65), 0 0 90px -25px rgba(129,140,248,0.3);"
+      >
+        <div class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.06]">
           <svg width="32" height="32" viewBox="0 0 96 96" aria-hidden="true">
             <defs>
               <linearGradient id="fsGradLogin" x1="8" y1="88" x2="90" y2="6" gradientUnits="userSpaceOnUse">
@@ -48,8 +57,8 @@ import { SupabaseService } from './supabase.service';
                 <stop offset="1" stop-color="#67e8f9" />
               </linearGradient>
               <linearGradient id="fsCardLogin" x1="14" y1="84" x2="84" y2="20" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#241b47" />
-                <stop offset="1" stop-color="#3c3f7a" />
+                <stop offset="0" stop-color="#4338ca" />
+                <stop offset="1" stop-color="#7c3aed" />
               </linearGradient>
             </defs>
             <rect x="30" y="8" width="8" height="14" rx="4" fill="url(#fsCardLogin)" />
@@ -86,7 +95,7 @@ import { SupabaseService } from './supabase.service';
           type="button"
           (click)="loginWithGoogle()"
           [disabled]="isLoading()"
-          class="mt-7 flex h-[50px] w-full items-center justify-center gap-3 rounded-xl bg-white text-[14px] font-semibold text-gray-800 transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-[0_8px_24px_-6px_rgba(129,140,248,0.55)] active:scale-[0.98] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+          class="mt-7 flex h-[50px] w-full items-center justify-center gap-3 rounded-xl bg-white text-[14px] font-semibold text-gray-800 transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-[0_8px_24px_-6px_rgba(129,140,248,0.55)] active:scale-[0.98] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0c10]"
         >
           @if (isLoading()) {
             <span class="spin h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-600"></span>
@@ -105,6 +114,9 @@ import { SupabaseService } from './supabase.service';
         <p class="mt-6 flex items-center justify-center gap-1.5 text-[11.5px] text-white/40">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
           Dữ liệu của bạn được bảo mật.
+        </p>
+        <p class="mt-1.5 text-[11px] leading-relaxed text-white/25">
+          Bằng việc tiếp tục, bạn đồng ý với Điều khoản &amp; Chính sách quyền riêng tư.
         </p>
       </div>
     </div>
