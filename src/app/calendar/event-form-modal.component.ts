@@ -40,14 +40,15 @@ function toTimeInputValue(d: Date): string {
   imports: [FormsModule, IconComponent, TimePickerComponent, DateTimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
+    <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-10 sm:pt-20" (click)="close()">
       <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
         <div class="mb-3 flex items-start justify-between gap-4">
           <input
             type="text"
             [(ngModel)]="title"
+            maxlength="200"
             [placeholder]="tr.t('form.addTitle')"
-            class="flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
+            class="min-w-0 flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
           />
           <button type="button" (click)="close()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
@@ -137,8 +138,9 @@ function toTimeInputValue(d: Date): string {
                       type="email"
                       [(ngModel)]="guestEmailDraft"
                       (keydown.enter)="addGuest()"
+                      maxlength="254"
                       [placeholder]="tr.t('form.addGuest')"
-                      class="flex-1 rounded border border-gray-300 px-2 py-1"
+                      class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1"
                     />
                     <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">{{ tr.t('form.add') }}</button>
                   </div>
@@ -160,9 +162,9 @@ function toTimeInputValue(d: Date): string {
                 @if (guests().length > 0) {
                   <ul class="mt-2 space-y-1">
                     @for (g of guests(); track g.email) {
-                      <li class="flex items-center justify-between rounded bg-gray-50 px-2 py-1">
-                        <span>{{ g.email }}</span>
-                        <button type="button" (click)="removeGuest(g.email)" class="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
+                      <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1">
+                        <span class="min-w-0 break-all">{{ g.email }}</span>
+                        <button type="button" (click)="removeGuest(g.email)" class="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
                       </li>
                     }
                   </ul>
@@ -172,12 +174,12 @@ function toTimeInputValue(d: Date): string {
 
             <div class="flex items-center gap-2 text-sm">
               <span class="w-5 text-center">📍</span>
-              <input type="text" [(ngModel)]="location" [placeholder]="tr.t('form.addLocation')" class="flex-1 rounded border border-gray-300 px-2 py-1" />
+              <input type="text" [(ngModel)]="location" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1" />
             </div>
 
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="3" maxlength="2000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded border border-gray-300 px-2 py-1 [field-sizing:content]"></textarea>
             </div>
 
             <!-- Chọn màu cho sự kiện -->
@@ -249,7 +251,7 @@ function toTimeInputValue(d: Date): string {
             </div>
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
+              <textarea [(ngModel)]="description" rows="3" maxlength="2000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded border border-gray-300 px-2 py-1 [field-sizing:content]"></textarea>
             </div>
           </div>
         }
