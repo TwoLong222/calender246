@@ -1,7 +1,7 @@
 // Popover chi tiết sự kiện — khớp bố cục hình 7: tiêu đề, thời gian, danh sách khách
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
@@ -255,7 +255,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
     }
   `,
 })
-export class EventDetailPopoverComponent {
+export class EventDetailPopoverComponent implements OnDestroy {
   protected readonly state = inject(CalendarStateService);
   private readonly supabase = inject(SupabaseService);
   protected readonly comments = inject(CommentsService);
@@ -270,8 +270,51 @@ export class EventDetailPopoverComponent {
   protected readonly newFrom = signal('');
   protected readonly newUntil = signal('');
 
+  /** Đồng hồ hẹn tự mở khóa/hết hạn file (dọn khi đổi event / đóng popover). */
+  private unlockTimers: ReturnType<typeof setTimeout>[] = [];
+
+  private clearUnlockTimers(): void {
+    for (const t of this.unlockTimers) clearTimeout(t);
+    this.unlockTimers = [];
+  }
+
+  /**
+   * Hẹn giờ tự LÀM MỚI danh sách file đúng lúc mở khóa / hết hạn — không cần F5.
+   * Vì việc mở khóa là theo THỜI GIAN (không có thay đổi DB nào để websocket bắn),
+   * ta đặt setTimeout tới đúng mốc rồi gọi lại server để lấy link tải + trạng thái mới.
+   */
+  private scheduleUnlockTimers(eventId: string, list: EventAttachment[]): void {
+    this.clearUnlockTimers();
+    const now = Date.now();
+    const MAX = 24 * 60 * 60 * 1000; // setTimeout không nhận số quá lớn -> chỉ hẹn trong 24h
+    const at = new Set<number>();
+    for (const a of list) {
+      // File đang khóa -> hẹn tới đúng giờ mở
+      if (a.status === 'scheduled' && a.available_from) at.add(new Date(a.available_from).getTime());
+      // File đang mở nhưng có hạn -> hẹn tới lúc hết hạn để chuyển sang "hết hạn"
+      if (a.status === 'available' && a.available_until) at.add(new Date(a.available_until).getTime());
+      // Lệch giờ máy/server: lẽ ra đã mở mà vẫn khóa -> thử lại sau 5s
+      if (a.status === 'scheduled' && a.available_from && new Date(a.available_from).getTime() <= now) {
+        at.add(now + 5000);
+      }
+    }
+    for (const t of at) {
+      const delay = t - now + 1000; // +1s đệm cho chắc server đã tính là "mở"
+      if (delay > 0 && delay <= MAX) {
+        this.unlockTimers.push(setTimeout(() => this.loadAttachments(eventId), delay));
+      }
+    }
+  }
+
   private loadAttachments(eventId: string): void {
-    this.attachmentsApi.list(eventId).subscribe({ next: (a) => this.attachments.set(a), error: () => this.attachments.set([]) });
+    this.attachmentsApi.list(eventId).subscribe({
+      next: (a) => { this.attachments.set(a); this.scheduleUnlockTimers(eventId, a); },
+      error: () => { this.attachments.set([]); this.clearUnlockTimers(); },
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.clearUnlockTimers();
   }
   protected onFileSelected(evt: Event): void {
     const input = evt.target as HTMLInputElement;
@@ -446,6 +489,7 @@ export class EventDetailPopoverComponent {
       } else {
         this.comments.clear();
         this.attachments.set([]);
+        this.clearUnlockTimers();
         this.editingId.set(null);
         this.deletingId.set(null);
         this.newComment.set('');
