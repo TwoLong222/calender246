@@ -199,12 +199,22 @@ interface EventCard {
             <!-- LOGIN CARD -->
             <div class="auth-rise-in relative z-10 mx-auto w-full max-w-[400px] rounded-[26px] border border-white/[0.14] bg-[#0c1030]/80 p-9 text-center shadow-2xl shadow-[#0c1030]/60 ring-1 ring-indigo-400/10 backdrop-blur-xl" style="animation-delay: 0.15s; box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 25px 60px -15px rgba(0,0,0,0.6), 0 0 80px -20px rgba(129,140,248,0.35);">
               <div class="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.08]">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="4" y="5" width="16" height="16" rx="3" />
-                  <path d="M16 3v4M8 3v4M4 11h16" />
+                <svg width="26" height="26" viewBox="0 0 96 96" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="fsGradLogin" x1="8" y1="88" x2="90" y2="6" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#a5b4fc" />
+                      <stop offset=".55" stop-color="#c4b5fd" />
+                      <stop offset="1" stop-color="#67e8f9" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M58 14 L58 82 M58 52 L16 52 L42 14" fill="none" stroke="url(#fsGradLogin)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M50 20 C60 6 86 6 94 20 C86 34 60 34 50 20 Z" fill="url(#fsGradLogin)" />
+                  <circle cx="79" cy="20" r="7" fill="#0c1030" />
+                  <circle cx="82" cy="17" r="1.8" fill="#fff" opacity=".9" />
                 </svg>
               </div>
 
+              <p class="mb-1 text-[13px] font-semibold uppercase tracking-[0.16em] text-white/50">Foresight</p>
               <h1 class="text-[25px] font-semibold tracking-tight text-white">Welcome back</h1>
               <p class="mx-auto mt-2 max-w-[250px] text-[14px] leading-relaxed text-white/55">
                 Organize your time.<br />Make every moment count.
