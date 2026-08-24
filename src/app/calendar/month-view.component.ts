@@ -20,42 +20,35 @@ const MAX_CHIPS_PER_CELL = 3;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-full flex-col">
-      <div class="grid grid-cols-7 border-b border-gray-200 text-center text-xs font-medium uppercase text-gray-500">
+      <div class="month-weekhead">
         @for (label of weekdayLabels(); track label) {
-          <div class="py-2">{{ label }}</div>
+          <div>{{ label }}</div>
         }
       </div>
 
-      <div class="grid flex-1 grid-cols-7 grid-rows-6">
+      <div class="month-grid flex-1">
         @for (cell of cells(); track cell.date.getTime()) {
           <div
-            class="flex flex-col border-b border-r border-gray-100 p-1"
-            [class.bg-gray-50]="!cell.inCurrentMonth"
+            class="month-cell"
+            [class.is-other]="!cell.inCurrentMonth"
             (click)="dateClicked.emit(cell.date)"
           >
-            <span
-              class="mb-1 flex h-6 w-6 items-center justify-center self-end rounded-full text-sm"
-              [class.text-gray-300]="!cell.inCurrentMonth"
-              [class.text-gray-700]="cell.inCurrentMonth && !isToday(cell.date)"
-              [class.bg-blue-700]="isToday(cell.date)"
-              [class.text-white]="isToday(cell.date)"
-            >
+            <span class="month-day-num" [class.is-today]="isToday(cell.date)">
               {{ cell.date.getDate() }}
             </span>
 
-            <div class="flex flex-1 flex-col gap-0.5 overflow-hidden">
+            <div class="flex flex-1 flex-col gap-1 overflow-hidden">
               @for (e of eventsFor(cell.date); track e.id) {
                 <button
                   type="button"
                   (click)="onEventClick(e, $event)"
-                  class="truncate rounded px-1 text-left text-[11px] text-white"
-                  [class]="colorClass(e.color)"
+                  [class]="'evt-chip ' + colorClass(e.color)"
                 >
                   {{ e.title || '(Không có tiêu đề)' }}
                 </button>
               }
               @if (overflowCount(cell.date) > 0) {
-                <span class="px-1 text-[11px] text-gray-500">+{{ overflowCount(cell.date) }} nữa</span>
+                <span class="month-overflow">+{{ overflowCount(cell.date) }} nữa</span>
               }
             </div>
           </div>
@@ -119,13 +112,13 @@ export class MonthViewComponent {
 
   colorClass(color: string): string {
     const map: Record<string, string> = {
-      sky: 'bg-sky-600',
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
+      sky: 'evt-sky',
+      violet: 'evt-violet',
+      emerald: 'evt-emerald',
+      rose: 'evt-rose',
+      amber: 'evt-amber',
     };
-    return map[color] ?? 'bg-sky-600';
+    return map[color] ?? 'evt-sky';
   }
 
   onEventClick(e: CalendarEvent, domEvent: Event): void {

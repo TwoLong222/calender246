@@ -16,7 +16,8 @@ export type IconName =
   | 'alert' | 'x' | 'chevron-left' | 'chevron-right' | 'plus' | 'pencil'
   | 'notes' | 'target' | 'palette' | 'message' | 'send'
   | 'user' | 'world' | 'bell' | 'mail' | 'shield' | 'dots' | 'logout'
-  | 'lock' | 'eye' | 'eye-off' | 'adjustments' | 'menu';
+  | 'lock' | 'eye' | 'eye-off' | 'adjustments' | 'menu'
+  | 'repeat' | 'map-pin';
 
 @Component({
   selector: 'app-icon',
@@ -183,6 +184,16 @@ export type IconName =
         }
         @case ('menu') {
           <path d="M4 6h16 M4 12h16 M4 18h16" />
+        }
+        @case ('repeat') {
+          <path d="M17 4l3 3l-3 3" />
+          <path d="M18 20h-11a3 3 0 0 1 -3 -3v-2" />
+          <path d="M20 7h-13a3 3 0 0 0 -3 3v2" />
+          <path d="M7 20l-3 -3l3 -3" />
+        }
+        @case ('map-pin') {
+          <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
+          <circle cx="12" cy="11" r="3" />
         }
       }
     </svg>

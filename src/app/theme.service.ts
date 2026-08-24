@@ -17,7 +17,8 @@ export class ThemeService {
   private mql = window.matchMedia?.('(prefers-color-scheme: dark)');
 
   constructor() {
-    const saved = (localStorage.getItem('theme') as ThemeMode | null) ?? 'system';
+    // Mặc định là Tối khi chưa có lựa chọn nào được lưu (chưa từng mở app / đã xoá localStorage).
+    const saved = (localStorage.getItem('theme') as ThemeMode | null) ?? 'dark';
     this.setMode(saved === 'light' || saved === 'dark' ? saved : 'system');
 
     // Khi ở chế độ "system", đổi theo cài đặt hệ điều hành trong lúc đang mở app.
