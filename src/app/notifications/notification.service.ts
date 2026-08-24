@@ -3,7 +3,7 @@
 // mà chưa nhắc -> hiện toast góc màn hình + thông báo trình duyệt (nếu người dùng cho phép).
 // Mỗi sự kiện chỉ nhắc 1 lần.
 
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { AttachmentsApiService } from '../calendar/attachments-api.service';
@@ -60,6 +60,8 @@ const CANCEL_NOTICES_KEY = 'notif-cancel-notices';
 /** Chuông thông báo (Bị sửa/Bị hủy) chỉ giữ tối đa 3 ngày — quá hạn tự động rơi khỏi chuông
  *  dù chưa bấm xóa (nhưng vẫn còn nguyên trong trang Lịch sử thông báo, lưu vĩnh viễn). */
 const BELL_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+/** Mục "Sự kiện gần đây" trong chuông: tối đa 5 thông báo mới nhất trong 3 ngày (mọi loại). */
+const RECENT_MAX_ITEMS = 5;
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
@@ -79,6 +81,18 @@ export class NotificationService {
 
   /** LỊCH SỬ TOÀN BỘ thông báo (mọi loại) — lưu VĨNH VIỄN trên trình duyệt (localStorage). */
   readonly history = signal<HistoryEntry[]>(this.loadHistory());
+
+  /** Mốc thời gian "sống" — cập nhật mỗi 5 phút để recentHistory tự rơi bớt theo thời gian
+   *  thực dù không có thông báo mới nào bắn ra (computed chỉ tính lại khi có tín hiệu đổi). */
+  private readonly nowTick = signal(Date.now());
+  /** MỤC "SỰ KIỆN GẦN ĐÂY" trong chuông: tối đa 5 thông báo mới nhất (mọi loại) trong 3 ngày
+   *  qua — lấy trực tiếp từ history (đã lưu vĩnh viễn) nên không cần lưu trữ riêng. */
+  readonly recentHistory = computed<HistoryEntry[]>(() => {
+    const cutoff = this.nowTick() - BELL_MAX_AGE_MS;
+    return this.history()
+      .filter((h) => h.at >= cutoff)
+      .slice(0, RECENT_MAX_ITEMS);
+  });
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
@@ -146,6 +160,9 @@ export class NotificationService {
     // ngày không F5 (lúc khởi động đã dọn 1 lần trong loadBellList() rồi, đây chỉ dọn thêm
     // khi đang chạy). History KHÔNG dọn theo giờ vì lưu vĩnh viễn, không có hạn.
     setInterval(() => this.pruneBellLists(), 60 * 60_000);
+    // Cập nhật mốc thời gian cho recentHistory -> mục "Sự kiện gần đây" tự rơi bớt sau 3 ngày
+    // kể cả khi không có thông báo mới nào bắn ra trong lúc đang mở app.
+    setInterval(() => this.nowTick.set(Date.now()), 5 * 60_000);
   }
 
   // ---------- Lịch sử thông báo (localStorage, lưu VĨNH VIỄN, không tự xóa) ----------
