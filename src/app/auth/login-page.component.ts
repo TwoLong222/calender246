@@ -77,13 +77,13 @@ import { SupabaseService } from './supabase.service';
               <span class="text-[11.5px] font-medium text-white/85">Nhắc trước 30 phút</span>
             </div>
             <div
-              class="auth-card-float absolute -bottom-5 -left-4 z-20 flex items-center gap-2 rounded-xl border border-white/10 bg-[#14151b] px-3 py-2 shadow-lg shadow-black/40"
+              class="auth-card-float absolute -bottom-9 -left-6 z-20 flex items-center gap-2 rounded-xl border border-white/10 bg-[#14151b] px-3 py-2 shadow-lg shadow-black/40"
               style="--card-delay:.7s"
             >
               <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-400">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
               </span>
-              <span class="text-[11.5px] font-medium text-white/85">Minh đã nhận lời</span>
+              <span class="text-[11.5px] font-medium text-white/85">Đã nhận lời</span>
             </div>
 
             <div class="rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
