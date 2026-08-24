@@ -74,13 +74,21 @@ function toTimeInputValue(d: Date): string {
         <!-- Tab: Sự kiện -->
         @if (tab() === 'event') {
           <div class="space-y-4">
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span class="w-5 text-center">🕐</span>
-              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
-              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay() || !canEditTime()" />
-              <span>–</span>
-              <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
-              <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay() || !canEditTime()" />
+            <div class="space-y-2 text-sm">
+              <!-- Bắt đầu -->
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="w-5 text-center">🕐</span>
+                <span class="w-16 shrink-0 font-medium text-gray-600">{{ tr.t('form.start') }}</span>
+                <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+                <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay() || !canEditTime()" />
+              </div>
+              <!-- Kết thúc -->
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="w-5 text-center"></span>
+                <span class="w-16 shrink-0 font-medium text-gray-600">{{ tr.t('form.end') }}</span>
+                <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+                <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay() || !canEditTime()" />
+              </div>
             </div>
             @if (!canEditTime()) {
               <p class="pl-7 text-xs text-gray-500">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
@@ -259,6 +267,12 @@ function toTimeInputValue(d: Date): string {
         </div>
         <!-- /Vùng cuộn -->
 
+        @if (formError()) {
+          <p class="mt-3 flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <app-icon name="alert" class="h-4 w-4 shrink-0" /> {{ formError() }}
+          </p>
+        }
+
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" (click)="close()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
           @if (tab() !== 'appointment') {
@@ -343,6 +357,8 @@ export class EventFormModalComponent {
   startTime = signal('');
   endDate = signal('');
   endTime = signal('');
+  /** Thông báo lỗi trong form (vd giờ kết thúc trước giờ bắt đầu). */
+  protected readonly formError = signal('');
   isAllDay = signal(false);
   location = signal('');
   description = signal('');
@@ -471,6 +487,14 @@ export class EventFormModalComponent {
   save(): void {
     const start = this.isAllDay() ? new Date(`${this.startDate()}T00:00`) : this.computedStart();
     const end = this.isAllDay() ? new Date(`${this.endDate()}T23:59`) : this.computedEnd();
+
+    // Chặn giờ kết thúc TRƯỚC giờ bắt đầu: DB lưu bằng khoảng thời gian nên sẽ lỗi (500).
+    // Báo rõ cho người dùng thay vì để "Lưu thất bại" khó hiểu.
+    if (!this.isAllDay() && end.getTime() < start.getTime()) {
+      this.formError.set(this.tr.t('form.endBeforeStart'));
+      return;
+    }
+    this.formError.set('');
 
     // Chỉ cho lặp khi TẠO MỚI và có chọn kiểu lặp
     const repeat = this.repeat();

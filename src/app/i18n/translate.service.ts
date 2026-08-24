@@ -119,7 +119,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'toast.upcoming': 'Sắp tới', 'toast.startsAt': 'Bắt đầu lúc', 'toast.fileOpen': 'Tài liệu đã mở', 'toast.ofEvent': 'Sự kiện:',
     'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
     // Event form
-    'form.addTitle': 'Thêm tiêu đề', 'form.noRepeat': 'Không lặp', 'form.daily': 'Hàng ngày',
+    'form.addTitle': 'Thêm tiêu đề', 'form.start': 'Bắt đầu', 'form.end': 'Kết thúc', 'form.endBeforeStart': 'Giờ kết thúc phải sau giờ bắt đầu.', 'form.noRepeat': 'Không lặp', 'form.daily': 'Hàng ngày',
     'form.weekly': 'Hàng tuần', 'form.monthly': 'Hàng tháng', 'form.times': 'lần', 'form.every': 'mỗi',
     'form.conflictA': 'Trùng lịch với', 'form.conflictB': 'sự kiện khác:',
     'form.addGuest': 'Thêm khách bằng email', 'form.add': 'Thêm', 'form.removeGuest': 'Bỏ khách',
@@ -243,7 +243,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'trash.confirmQ': 'Delete for good?', 'trash.delete': 'Delete', 'trash.restore': 'Restore', 'trash.purge': 'Delete permanently', 'trash.deletedAt': 'deleted',
     'toast.upcoming': 'Upcoming', 'toast.startsAt': 'Starts at', 'toast.fileOpen': 'File available', 'toast.ofEvent': 'Event:',
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
-    'form.addTitle': 'Add title', 'form.noRepeat': "Doesn't repeat", 'form.daily': 'Daily',
+    'form.addTitle': 'Add title', 'form.start': 'Start', 'form.end': 'End', 'form.endBeforeStart': 'End time must be after start time.', 'form.noRepeat': "Doesn't repeat", 'form.daily': 'Daily',
     'form.weekly': 'Weekly', 'form.monthly': 'Monthly', 'form.times': 'times', 'form.every': 'every',
     'form.conflictA': 'Conflicts with', 'form.conflictB': 'other event(s):',
     'form.addGuest': 'Add guest by email', 'form.add': 'Add', 'form.removeGuest': 'Remove guest',
