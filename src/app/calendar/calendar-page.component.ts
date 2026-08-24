@@ -19,6 +19,7 @@ import { TrashModalComponent } from './trash-modal.component';
 import { AiAssistantComponent } from '../ai/ai-assistant.component';
 import { NotificationToastsComponent } from '../notifications/notification-toasts.component';
 import { IconComponent } from '../shared/icon.component';
+import { InvitationBellComponent } from './invitation-bell.component';
 import { ThemeService } from '../theme.service';
 import { SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { IcsService } from './ics.service';
@@ -43,6 +44,7 @@ import { TranslateService } from '../i18n/translate.service';
     NotificationToastsComponent,
     IconComponent,
     GroupPanelComponent,
+    InvitationBellComponent,
     RouterLink,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,7 +73,7 @@ import { TranslateService } from '../i18n/translate.service';
       }
 
       <!-- Top bar -->
-      <header class="flex items-center gap-4 border-b border-gray-200 px-4 py-2">
+      <header class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-200 px-4 py-2">
         <button
           type="button"
           (click)="sidebarOpen.set(!sidebarOpen())"
@@ -155,6 +157,9 @@ import { TranslateService } from '../i18n/translate.service';
               </div>
             }
           </div>
+
+          <!-- Chuông thông báo lời mời (Đồng ý/Từ chối ngay trong app) -->
+          <app-invitation-bell />
 
           <button
             type="button"

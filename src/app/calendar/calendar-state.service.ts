@@ -9,7 +9,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
-import { EventsApiService, RecurrenceOptions } from './events-api.service';
+import { EventsApiService, RecurrenceOptions, Invitation } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { SharingApiService } from '../sharing/sharing-api.service';
 import { GoogleMeetService } from '../groups/google-meet.service';
@@ -106,8 +106,12 @@ export class CalendarStateService {
 
   private realtimeChannel?: RealtimeChannel;
 
+  /** Lời mời CHƯA trả lời của user — hiện ở chuông thông báo trên trang lịch. */
+  readonly invitations = signal<Invitation[]>([]);
+
   constructor() {
     this.reload();
+    this.reloadInvitations();
     this.loadSharedCalendars();
     // QUAN TRỌNG: chỉ đăng ký Realtime SAU khi đã có token đăng nhập, và gắn token cho kênh
     // (setAuth). Nếu đăng ký lúc chưa đăng nhập, kênh chạy quyền ẩn danh -> RLS chặn -> KHÔNG
@@ -142,6 +146,8 @@ export class CalendarStateService {
   private scheduleReload(): void {
     clearTimeout(this.reloadTimer);
     this.reloadTimer = setTimeout(() => {
+      // Lời mời không có vấn đề "giật" -> luôn cập nhật (vd khách vừa được mời/đã trả lời).
+      this.reloadInvitations();
       // Nếu vừa TỰ thay đổi (tạo/sửa/kéo/xóa) thì optimistic đã đúng rồi -> bỏ qua reload
       // để tránh nó tải lại và "giật" event về chỗ cũ. Thay đổi của NGƯỜI KHÁC vẫn reload bình thường.
       if (Date.now() - this.lastLocalChangeAt < 1500) return;
@@ -178,6 +184,28 @@ export class CalendarStateService {
         this.loadError.set('Không tải được danh sách sự kiện. Kiểm tra lại NestJS server đã chạy và đã đăng nhập chưa.');
         this.isLoading.set(false);
       },
+    });
+  }
+
+  /** Tải lại danh sách lời mời chưa trả lời (cho chuông thông báo). */
+  reloadInvitations(): void {
+    this.api.listInvitations().subscribe({
+      next: (l) => this.invitations.set(l),
+      error: () => this.invitations.set([]),
+    });
+  }
+
+  /** Đồng ý / Từ chối 1 lời mời NGAY trong app (không cần qua Gmail). */
+  respondInvitation(eventId: string, status: 'accepted' | 'declined'): void {
+    // Bỏ khỏi danh sách lời mời ngay (optimistic) cho mượt.
+    this.invitations.update((l) => l.filter((x) => x.eventId !== eventId));
+    this.api.rsvp(eventId, status as any).subscribe({
+      next: () => {
+        // Đồng ý -> tải lại lịch để thấy sự kiện vừa nhận. Từ chối -> không cần.
+        if (status === 'accepted') this.reload();
+      },
+      // Lỗi -> tải lại danh sách lời mời để khôi phục trạng thái đúng.
+      error: () => this.reloadInvitations(),
     });
   }
 

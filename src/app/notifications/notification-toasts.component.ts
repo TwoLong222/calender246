@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { NotificationService } from './notification.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
+import { CalendarStateService } from '../calendar/calendar-state.service';
 
 @Component({
   selector: 'app-notification-toasts',
@@ -14,10 +15,38 @@ import { TranslateService } from '../i18n/translate.service';
       @for (t of notify.toasts(); track t.id) {
         <div
           class="toast-in flex w-72 items-start gap-3 rounded-lg border bg-white px-4 py-3 shadow-lg"
-          [class.border-amber-200]="t.kind !== 'chat'"
+          [class.border-amber-200]="t.kind === 'event' || t.kind === 'file' || t.kind === 'changed'"
           [class.border-blue-200]="t.kind === 'chat'"
+          [class.border-emerald-200]="t.kind === 'invite'"
+          [class.border-red-200]="t.kind === 'cancelled'"
         >
-          @if (t.kind === 'chat') {
+          @if (t.kind === 'cancelled') {
+            <app-icon name="trash" class="h-6 w-6 shrink-0 text-red-500" />
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
+              <p class="break-words text-xs text-gray-500">{{ t.detail }}</p>
+            </div>
+          } @else if (t.kind === 'changed') {
+            <app-icon name="alert" class="h-6 w-6 shrink-0 text-amber-500" />
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-800">{{ tr.t('notif.changed') }}: {{ t.title }}</p>
+              <p class="break-words text-xs text-gray-500">{{ t.body }}</p>
+            </div>
+          } @else if (t.kind === 'invite') {
+            <app-icon name="bell" class="h-6 w-6 shrink-0 text-emerald-500" />
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-800">{{ tr.t('invite.new') }}: {{ t.title }}</p>
+              @if (t.detail) {
+                <p class="truncate text-xs text-gray-500">{{ tr.t('invite.from') }} {{ t.detail }}</p>
+              }
+              <div class="mt-2 flex gap-2">
+                <button type="button" (click)="respondInvite(t, 'accepted')"
+                  class="tap rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700">{{ tr.t('rsvp.accepted') }}</button>
+                <button type="button" (click)="respondInvite(t, 'declined')"
+                  class="tap rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50">{{ tr.t('rsvp.declined') }}</button>
+              </div>
+            </div>
+          } @else if (t.kind === 'chat') {
             <span class="text-xl leading-6">💬</span>
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
@@ -47,4 +76,11 @@ import { TranslateService } from '../i18n/translate.service';
 export class NotificationToastsComponent {
   protected readonly notify = inject(NotificationService);
   protected readonly tr = inject(TranslateService);
+  private readonly state = inject(CalendarStateService);
+
+  /** Đồng ý/Từ chối lời mời ngay trên toast rồi ẩn toast. */
+  protected respondInvite(t: { id: string; eventId?: string }, status: 'accepted' | 'declined'): void {
+    if (t.eventId) this.state.respondInvitation(t.eventId, status);
+    this.notify.dismiss(t.id);
+  }
 }
