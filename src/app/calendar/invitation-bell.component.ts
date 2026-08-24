@@ -44,22 +44,27 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
           }
 
           <!-- MỤC: SỰ KIỆN GẦN ĐÂY — 5 thông báo mới nhất (mọi loại) trong 3 ngày qua,
-               chỉ để xem lại nhanh, không có nút thao tác (khác các mục actionable bên dưới). -->
+               hiện ĐẦY ĐỦ thông tin (nhãn loại, tiêu đề, chi tiết, giờ nhận — không cắt bớt
+               chữ), chỉ để xem lại, không có nút thao tác (khác các mục actionable bên dưới). -->
           @if (notify.recentHistory().length > 0) {
             <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
               <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.recentTitle') }}</span>
             </div>
             @for (h of notify.recentHistory(); track h.id) {
-              <div class="flex items-center gap-2 border-b border-gray-50 px-3 py-2">
-                <span
-                  class="inline-flex shrink-0 items-center justify-center rounded-full p-1"
-                  [class]="notifBadgeClass(h.kind)"
-                  [title]="tr.t(notifCatKey(h.kind))"
-                >
-                  <app-icon [name]="notifIconName(h.kind)" class="h-3 w-3" />
-                </span>
-                <p class="min-w-0 flex-1 truncate text-sm text-gray-700">{{ h.title }}</p>
-                <span class="shrink-0 text-xs text-gray-400">{{ recentTimeLabel(h.at) }}</span>
+              <div class="border-b border-gray-50 px-3 py-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span
+                    class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                    [class]="notifBadgeClass(h.kind)"
+                  >
+                    <app-icon [name]="notifIconName(h.kind)" class="h-3 w-3" />
+                    {{ tr.t(notifCatKey(h.kind)) }}
+                  </span>
+                  <span class="shrink-0 text-xs text-gray-400">{{ recentTimeLabel(h.at) }}</span>
+                </div>
+                <p class="mt-1 break-words text-sm font-medium text-gray-800">{{ h.title }}</p>
+                @if (h.detail) { <p class="break-words text-xs text-gray-500">{{ h.detail }}</p> }
+                @if (h.body) { <p class="break-words text-xs text-gray-500">{{ h.body }}</p> }
               </div>
             }
           }
