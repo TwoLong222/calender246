@@ -24,6 +24,21 @@ interface Toast {
   eventId?: string;
 }
 
+/** Thông báo LƯU LẠI trong chuông (khác toast thoáng qua). */
+export interface ChangeNotice {
+  id: string;
+  eventId: string;
+  title: string;
+  /** Các dòng mô tả thay đổi, vd: "Ngày giờ bắt đầu → 14:00 1/9". */
+  changes: string[];
+  at: number;
+}
+export interface CancelNotice {
+  id: string;
+  title: string;
+  at: number;
+}
+
 const SEEN_FILES_KEY = 'notified-file-open';
 
 @Injectable({ providedIn: 'root' })
@@ -36,6 +51,10 @@ export class NotificationService {
 
   /** Ảnh chụp các sự kiện DO NGƯỜI KHÁC mời mình (id -> thông tin) để phát hiện HỦY/ĐỔI. */
   private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string }>();
+
+  /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY (giữ tối đa 30 cái mới nhất). */
+  readonly changeNotices = signal<ChangeNotice[]>([]);
+  readonly cancelNotices = signal<CancelNotice[]>([]);
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
@@ -85,8 +104,8 @@ export class NotificationService {
         for (const e of invited) {
           const prev = this.invitedSnapshot.get(e.id);
           if (!prev) continue; // mới xuất hiện (vừa Đồng ý) -> không phải "đổi"
-          const changed = this.describeChanges(prev, next.get(e.id)!, e);
-          if (changed) this.fireChanged(e.title, changed);
+          const lines = this.describeChanges(prev, next.get(e.id)!, e);
+          if (lines.length) this.fireChanged(e.id, e.title, lines);
         }
         // HỦY: có trong snapshot cũ nhưng biến mất khỏi danh sách (creator xóa/gỡ mình)
         for (const [id, prev] of this.invitedSnapshot) {
@@ -165,57 +184,72 @@ export class NotificationService {
     }
   }
 
-  /** Mô tả các thay đổi giữa 2 phiên bản của 1 sự kiện; null nếu không có gì đáng báo. */
+  private fmtDateTime(d: Date, allDay: boolean): string {
+    return allDay ? this.settings.formatDate(d) : `${this.settings.formatDate(d)} ${this.settings.formatTime(d)}`;
+  }
+
+  /** Mô tả từng thay đổi thành các DÒNG riêng (ngày giờ bắt đầu / kết thúc tách biệt). */
   private describeChanges(
     prev: { title: string; start: number; end: number; location: string },
     cur: { title: string; start: number; end: number; location: string },
     e: CalendarEvent,
-  ): string | null {
-    const parts: string[] = [];
-    if (prev.title !== cur.title) parts.push(this.tr.t('notif.fTitle'));
-    if (prev.start !== cur.start || prev.end !== cur.end) {
-      const t = e.isAllDay
-        ? this.settings.formatDate(e.start)
-        : `${this.settings.formatDate(e.start)} ${this.settings.formatTime(e.start)}`;
-      parts.push(`${this.tr.t('notif.fTime')} → ${t}`);
-    }
+  ): string[] {
+    const lines: string[] = [];
+    if (prev.title !== cur.title) lines.push(`${this.tr.t('notif.fTitle')} → ${cur.title || '(trống)'}`);
+    if (prev.start !== cur.start) lines.push(`${this.tr.t('notif.fStart')} → ${this.fmtDateTime(e.start, e.isAllDay)}`);
+    if (prev.end !== cur.end) lines.push(`${this.tr.t('notif.fEnd')} → ${this.fmtDateTime(e.end, e.isAllDay)}`);
     if (prev.location !== cur.location) {
-      parts.push(cur.location ? `${this.tr.t('notif.fLocation')} → ${cur.location}` : this.tr.t('notif.fLocation'));
+      lines.push(cur.location ? `${this.tr.t('notif.fLocation')} → ${cur.location}` : `${this.tr.t('notif.fLocation')} (đã gỡ)`);
     }
-    return parts.length ? parts.join(', ') : null;
+    return lines;
   }
 
-  /** Toast: sự kiện mình được mời đã bị người tạo HỦY. */
+  /** Sự kiện mình được mời đã bị người tạo HỦY -> toast + lưu vào chuông. */
   private fireCancelled(title: string): void {
-    const id = `cancel:${title}:${Date.now()}`;
-    this.toasts.update((t) => [
-      ...t,
-      { id, kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: title || '(không tiêu đề)' },
-    ]);
+    const safeTitle = title || '(không tiêu đề)';
+    const id = `cancel:${safeTitle}:${Date.now()}`;
+    this.cancelNotices.update((l) => [{ id, title: safeTitle, at: Date.now() }, ...l].slice(0, 30));
+    this.toasts.update((t) => [...t, { id, kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: safeTitle }]);
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
-        new Notification(`❌ ${this.tr.t('notif.cancelled')}`, { body: title });
+        new Notification(`❌ ${this.tr.t('notif.cancelled')}`, { body: safeTitle });
       } catch {
         /* bỏ qua */
       }
     }
   }
 
-  /** Toast: sự kiện mình được mời vừa được người tạo CẬP NHẬT (kèm mô tả thay đổi). */
-  private fireChanged(title: string, changes: string): void {
-    const id = `change:${title}:${Date.now()}`;
-    this.toasts.update((t) => [...t, { id, kind: 'changed', title: title || '(không tiêu đề)', body: changes }]);
+  /** Sự kiện mình được mời vừa bị SỬA -> toast + lưu vào chuông (kèm các dòng thay đổi). */
+  private fireChanged(eventId: string, title: string, lines: string[]): void {
+    const safeTitle = title || '(không tiêu đề)';
+    const id = `change:${eventId}:${Date.now()}`;
+    this.changeNotices.update((l) => [{ id, eventId, title: safeTitle, changes: lines, at: Date.now() }, ...l].slice(0, 30));
+    this.toasts.update((t) => [...t, { id, kind: 'changed', title: safeTitle, body: lines.join(', ') }]);
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
-        new Notification(`✏️ ${this.tr.t('notif.changed')}: ${title}`, { body: changes });
+        new Notification(`✏️ ${this.tr.t('notif.changed')}: ${safeTitle}`, { body: lines.join(', ') });
       } catch {
         /* bỏ qua */
       }
     }
+  }
+
+  /** Xóa 1 thông báo "bị sửa" khỏi chuông. */
+  dismissChange(id: string): void {
+    this.changeNotices.update((l) => l.filter((x) => x.id !== id));
+  }
+  /** Xóa 1 thông báo "bị hủy" khỏi chuông. */
+  dismissCancel(id: string): void {
+    this.cancelNotices.update((l) => l.filter((x) => x.id !== id));
+  }
+  /** Xóa tất cả thông báo hủy/sửa đã lưu. */
+  clearNotices(): void {
+    this.changeNotices.set([]);
+    this.cancelNotices.set([]);
   }
 
   private check(): void {
