@@ -2,7 +2,8 @@
 // Có REALTIME: khi bảng event_comments thay đổi (ai đó thêm/sửa/xóa comment),
 // nếu đang mở đúng event thì tự tải lại -> thấy comment mới không cần reload.
 
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { CommentsApiService, EventComment } from './comments-api.service';
 import { SupabaseService } from '../auth/supabase.service';
 
@@ -14,14 +15,23 @@ export class CommentsService {
   readonly comments = signal<EventComment[]>([]);
   readonly loading = signal(false);
   private currentEventId: string | null = null;
+  private realtimeChannel?: RealtimeChannel;
 
   constructor() {
-    this.supabase.client
-      .channel('comments-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_comments' }, () => {
-        if (this.currentEventId) this.reload();
-      })
-      .subscribe();
+    // Chỉ đăng ký Realtime SAU khi có token đăng nhập (và gắn token cho kênh) — nếu không,
+    // kênh chạy quyền ẩn danh -> RLS chặn -> không nhận được bình luận mới của người khác.
+    effect(() => {
+      const token = this.supabase.session()?.access_token;
+      if (!token) return;
+      this.supabase.client.realtime.setAuth(token);
+      if (this.realtimeChannel) this.supabase.client.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = this.supabase.client
+        .channel('comments-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'event_comments' }, () => {
+          if (this.currentEventId) this.reload();
+        })
+        .subscribe();
+    });
   }
 
   /** Mở comment của 1 event (gọi khi popover chi tiết mở) */

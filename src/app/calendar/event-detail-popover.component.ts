@@ -46,6 +46,25 @@ import { IconComponent } from '../shared/icon.component';
               <span>{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</span>
             </p>
 
+            @if (e.meetLink) {
+              <p class="detail-meta">
+                <span>📹</span>
+                <span class="flex items-center gap-2">
+                  <a [href]="e.meetLink" target="_blank" rel="noopener" style="color: var(--accent); font-weight: 600; text-decoration: none;">Tham gia Google Meet</a>
+                  @if (canManage()) {
+                    <button type="button" (click)="state.removeMeetForEvent(e.id)" class="detail-icon-btn" style="width: 22px; height: 22px;" title="Gỡ Google Meet" aria-label="Gỡ Meet">
+                      <app-icon name="x" class="h-3.5 w-3.5" />
+                    </button>
+                  }
+                </span>
+              </p>
+            } @else if (canManage()) {
+              <p class="detail-meta">
+                <span>📹</span>
+                <button type="button" (click)="state.createMeetForEvent(e.id)" class="detail-comment-link" style="font-size: 13px;" title="Tạo phòng họp Google Meet">Tạo Google Meet</button>
+              </p>
+            }
+
             @if (e.creatorEmail) {
               <p class="detail-meta">
                 <app-icon name="user" class="h-4 w-4" />

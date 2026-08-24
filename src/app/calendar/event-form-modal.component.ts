@@ -16,6 +16,7 @@ import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
+import { SupabaseService } from '../auth/supabase.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -76,31 +77,35 @@ function toTimeInputValue(d: Date): string {
                 <span class="evm-label">Ngày bắt đầu</span>
                 <div class="evm-input-inner">
                   <app-icon name="calendar" class="evm-in-icon" />
-                  <input type="date" [(ngModel)]="startDate" class="evm-input" />
+                  <input type="date" [(ngModel)]="startDate" class="evm-input" [disabled]="!canEditTime()" />
                 </div>
               </div>
               <div class="evm-input-wrap">
                 <span class="evm-label">Giờ bắt đầu</span>
                 <div class="evm-input-inner">
                   <app-icon name="alarm" class="evm-in-icon" />
-                  <input type="time" [(ngModel)]="startTime" class="evm-input" [disabled]="isAllDay()" />
+                  <input type="time" [(ngModel)]="startTime" class="evm-input" [disabled]="isAllDay() || !canEditTime()" />
                 </div>
               </div>
               <div class="evm-input-wrap">
                 <span class="evm-label">Ngày kết thúc</span>
                 <div class="evm-input-inner">
                   <app-icon name="calendar" class="evm-in-icon" />
-                  <input type="date" [(ngModel)]="endDate" class="evm-input" />
+                  <input type="date" [(ngModel)]="endDate" class="evm-input" [disabled]="!canEditTime()" />
                 </div>
               </div>
               <div class="evm-input-wrap">
                 <span class="evm-label">Giờ kết thúc</span>
                 <div class="evm-input-inner">
                   <app-icon name="alarm" class="evm-in-icon" />
-                  <input type="time" [(ngModel)]="endTime" class="evm-input" [disabled]="isAllDay()" />
+                  <input type="time" [(ngModel)]="endTime" class="evm-input" [disabled]="isAllDay() || !canEditTime()" />
                 </div>
               </div>
             </div>
+
+            @if (!canEditTime()) {
+              <p class="text-xs" style="color: var(--text-muted)">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
+            }
 
             <!-- All-day (custom checkbox) -->
             <label class="evm-check">
@@ -286,6 +291,20 @@ export class EventFormModalComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly tr = inject(TranslateService);
   private readonly settings = inject(SettingsService);
+  private readonly supabase = inject(SupabaseService);
+
+  /**
+   * Chỉ NGƯỜI TẠO mới được đổi giờ bắt đầu/kết thúc. Khi tạo mới -> luôn cho phép.
+   * Khi sửa -> so email người tạo với email đang đăng nhập (không xác định được thì cho
+   * phép, để backend là nơi quyết định cuối cùng).
+   */
+  canEditTime = computed(() => {
+    if (!this.editing()) return true;
+    const creator = this.state.editingEvent()?.creatorEmail;
+    const me = this.supabase.user()?.email;
+    if (!creator || !me) return true;
+    return creator.toLowerCase() === me.toLowerCase();
+  });
 
   reminderMinutes = signal<number | null>(null);
   reminderStr(): string {
