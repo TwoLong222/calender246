@@ -41,7 +41,7 @@ function toTimeInputValue(d: Date): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
-      <div class="modal-card-in w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
         <div class="mb-3 flex items-start justify-between gap-4">
           <input
             type="text"
@@ -67,6 +67,9 @@ function toTimeInputValue(d: Date): string {
             </button>
           }
         </div>
+
+        <!-- Vùng nội dung CUỘN được (tiêu đề + tabs + nút Lưu/Huỷ vẫn cố định) -->
+        <div class="-mx-6 flex-1 overflow-y-auto px-6">
 
         <!-- Tab: Sự kiện -->
         @if (tab() === 'event') {
@@ -252,6 +255,9 @@ function toTimeInputValue(d: Date): string {
             </p>
           </div>
         }
+
+        </div>
+        <!-- /Vùng cuộn -->
 
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" (click)="close()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
