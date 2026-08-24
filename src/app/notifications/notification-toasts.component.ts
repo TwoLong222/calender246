@@ -1,9 +1,10 @@
 // Hiển thị các toast nhắc lịch ở góc trên phải màn hình.
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { NotificationService, Toast } from './notification.service';
-import { IconComponent, IconName } from '../shared/icon.component';
+import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
+import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from './notif-kind.util';
 
 @Component({
   selector: 'app-notification-toasts',
@@ -66,55 +67,11 @@ export class NotificationToastsComponent {
 
   /** Nhãn phân loại ngắn gọn — hiện trong badge màu ở đầu mỗi toast. */
   protected catLabel(kind: Toast['kind']): string {
-    const map: Record<Toast['kind'], string> = {
-      event: 'toast.catReminder',
-      invite: 'toast.catInvite',
-      changed: 'toast.catChanged',
-      cancelled: 'toast.catCancelled',
-      file: 'toast.catFile',
-      chat: 'toast.catChat',
-    };
-    return this.tr.t(map[kind]);
+    return this.tr.t(notifCatKey(kind));
   }
-
-  /** Icon riêng cho từng loại — khớp với ý nghĩa của badge. */
-  protected iconName(kind: Toast['kind']): IconName {
-    const map: Record<Toast['kind'], IconName> = {
-      event: 'alarm',
-      invite: 'mail',
-      changed: 'pencil',
-      cancelled: 'trash',
-      file: 'notes',
-      chat: 'message',
-    };
-    return map[kind];
-  }
-
-  /** Màu badge — mỗi loại 1 màu riêng để phân biệt nhanh bằng mắt, không cần đọc chữ. */
-  protected badgeClass(kind: Toast['kind']): string {
-    const map: Record<Toast['kind'], string> = {
-      event: 'bg-sky-50 text-sky-700',
-      invite: 'bg-emerald-50 text-emerald-700',
-      changed: 'bg-amber-50 text-amber-700',
-      cancelled: 'bg-red-50 text-red-700',
-      file: 'bg-violet-50 text-violet-700',
-      chat: 'bg-indigo-50 text-indigo-700',
-    };
-    return map[kind];
-  }
-
-  /** Viền toast đồng bộ màu với badge (nhạt hơn). */
-  protected borderClass(kind: Toast['kind']): string {
-    const map: Record<Toast['kind'], string> = {
-      event: 'border-sky-200',
-      invite: 'border-emerald-200',
-      changed: 'border-amber-200',
-      cancelled: 'border-red-200',
-      file: 'border-violet-200',
-      chat: 'border-indigo-200',
-    };
-    return map[kind];
-  }
+  protected iconName = notifIconName;
+  protected badgeClass = notifBadgeClass;
+  protected borderClass = notifBorderClass;
 
   /** Đồng ý/Từ chối lời mời ngay trên toast rồi ẩn toast. */
   protected respondInvite(t: { id: string; eventId?: string }, status: 'accepted' | 'declined'): void {

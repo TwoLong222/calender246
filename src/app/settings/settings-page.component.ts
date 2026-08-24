@@ -25,6 +25,7 @@ import { TimePickerComponent } from '../shared/time-picker.component';
 import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
 import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { Toast } from '../notifications/notification.service';
+import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/notif-kind.util';
 
 /** Loại toast LUÔN bật, khác 'event' (nhắc lịch) — cái đó nằm trong phần "tùy chỉnh" vì phụ
  *  thuộc thời gian nhắc do user chọn (mặc định hoặc đặt riêng cho từng sự kiện). */
@@ -657,33 +658,14 @@ export class SettingsPageComponent {
    *  (đồng bộ với danh sách kind trong NotificationService/NotificationToastsComponent). */
   protected readonly defaultNotifKinds: readonly DefaultNotifKind[] = ['invite', 'changed', 'cancelled', 'file', 'chat'];
 
-  protected notifCatKey(kind: DefaultNotifKind): string {
-    const map: Record<DefaultNotifKind, string> = {
-      invite: 'toast.catInvite', changed: 'toast.catChanged', cancelled: 'toast.catCancelled',
-      file: 'toast.catFile', chat: 'toast.catChat',
-    };
-    return map[kind];
-  }
+  protected notifCatKey = notifCatKey;
+  protected notifIconName = notifIconName;
+  protected notifBadgeClass = notifBadgeClass;
 
   protected notifDescKey(kind: DefaultNotifKind): string {
     const map: Record<DefaultNotifKind, string> = {
       invite: 'notif.descInvite', changed: 'notif.descChanged', cancelled: 'notif.descCancelled',
       file: 'notif.descFile', chat: 'notif.descChat',
-    };
-    return map[kind];
-  }
-
-  protected notifIconName(kind: DefaultNotifKind): IconName {
-    const map: Record<DefaultNotifKind, IconName> = {
-      invite: 'mail', changed: 'pencil', cancelled: 'trash', file: 'notes', chat: 'message',
-    };
-    return map[kind];
-  }
-
-  protected notifBadgeClass(kind: DefaultNotifKind): string {
-    const map: Record<DefaultNotifKind, string> = {
-      invite: 'bg-emerald-50 text-emerald-700', changed: 'bg-amber-50 text-amber-700',
-      cancelled: 'bg-red-50 text-red-700', file: 'bg-violet-50 text-violet-700', chat: 'bg-indigo-50 text-indigo-700',
     };
     return map[kind];
   }

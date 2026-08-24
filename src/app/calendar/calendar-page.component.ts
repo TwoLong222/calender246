@@ -212,6 +212,9 @@ import { TranslateService } from '../i18n/translate.service';
                 <a routerLink="/invitations" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="mail" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.invitations') }}
                 </a>
+                <a routerLink="/notification-history" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="bell" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.notifHistory') }}
+                </a>
                 <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                   <app-icon name="settings" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.settings') }}
                 </a>

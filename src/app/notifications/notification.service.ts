@@ -39,7 +39,23 @@ export interface CancelNotice {
   at: number;
 }
 
+/** 1 dòng trong LỊCH SỬ THÔNG BÁO (khác toast/chuông: lưu MỌI thông báo từng bắn ra,
+ *  kể cả đã đọc/đã tắt, để xem lại sau — tự động xóa sau 3 ngày). */
+export interface HistoryEntry {
+  id: string;
+  kind: Toast['kind'];
+  title: string;
+  detail?: string;
+  body?: string;
+  at: number;
+}
+
 const SEEN_FILES_KEY = 'notified-file-open';
+const HISTORY_KEY = 'notif-history';
+/** Giữ lịch sử tối đa 3 ngày — quá hạn tự động xóa (yêu cầu người dùng). */
+const HISTORY_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+/** Giới hạn số dòng lưu tối đa, phòng trường hợp bắn thông báo dồn dập trong 3 ngày. */
+const HISTORY_MAX_ITEMS = 300;
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
@@ -55,6 +71,9 @@ export class NotificationService {
   /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY (giữ tối đa 30 cái mới nhất). */
   readonly changeNotices = signal<ChangeNotice[]>([]);
   readonly cancelNotices = signal<CancelNotice[]>([]);
+
+  /** LỊCH SỬ TOÀN BỘ thông báo (mọi loại) — lưu trên trình duyệt (localStorage), tự xóa sau 3 ngày. */
+  readonly history = signal<HistoryEntry[]>(this.loadHistory());
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
@@ -118,6 +137,59 @@ export class NotificationService {
     // Quét tài liệu vừa mở: ngay khi mở app + mỗi 5 phút.
     setTimeout(() => this.checkAttachments(), 4_000);
     setInterval(() => this.checkAttachments(), 5 * 60_000);
+    // Dọn lịch sử quá 3 ngày định kỳ — phòng trường hợp mở app liên tục nhiều ngày không F5
+    // (lúc khởi động đã dọn 1 lần trong loadHistory() rồi, đây chỉ là dọn thêm khi đang chạy).
+    setInterval(() => this.pruneHistory(), 60 * 60_000);
+  }
+
+  // ---------- Lịch sử thông báo (localStorage, tự xóa sau 3 ngày) ----------
+
+  private loadHistory(): HistoryEntry[] {
+    let list: HistoryEntry[];
+    try {
+      list = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]');
+    } catch {
+      list = [];
+    }
+    const cutoff = Date.now() - HISTORY_MAX_AGE_MS;
+    const fresh = list.filter((h) => h.at >= cutoff).slice(-HISTORY_MAX_ITEMS);
+    if (fresh.length !== list.length) this.saveHistory(fresh);
+    return fresh;
+  }
+
+  private saveHistory(list: HistoryEntry[]): void {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    } catch {
+      /* localStorage đầy/bị chặn -> bỏ qua, không ảnh hưởng toast/chuông đang hoạt động */
+    }
+  }
+
+  /** Xóa các dòng đã quá 3 ngày khỏi lịch sử (không đụng tới dòng còn hạn). */
+  private pruneHistory(): void {
+    const cutoff = Date.now() - HISTORY_MAX_AGE_MS;
+    this.history.update((list) => {
+      const fresh = list.filter((h) => h.at >= cutoff);
+      if (fresh.length !== list.length) this.saveHistory(fresh);
+      return fresh;
+    });
+  }
+
+  /** Ghi 1 thông báo vào lịch sử — gọi song song mỗi khi bắn toast. */
+  private pushHistory(entry: Omit<HistoryEntry, 'id' | 'at'>): void {
+    const row: HistoryEntry = { ...entry, id: `${entry.kind}:${Date.now()}:${Math.random().toString(36).slice(2)}`, at: Date.now() };
+    this.history.update((list) => {
+      const cutoff = Date.now() - HISTORY_MAX_AGE_MS;
+      const next = [row, ...list.filter((h) => h.at >= cutoff)].slice(0, HISTORY_MAX_ITEMS);
+      this.saveHistory(next);
+      return next;
+    });
+  }
+
+  /** Xóa toàn bộ lịch sử thủ công (nút "Xóa hết" trên trang Lịch sử thông báo). */
+  clearHistory(): void {
+    this.history.set([]);
+    this.saveHistory([]);
   }
 
   /** Quét tài liệu đính kèm vừa tới giờ mở -> toast (mỗi file chỉ báo 1 lần/ máy). */
@@ -155,6 +227,7 @@ export class NotificationService {
   private fireFile(fileName: string, eventTitle: string): void {
     const toastId = `file:${fileName}:${Date.now()}`;
     this.toasts.update((t) => [...t, { id: toastId, kind: 'file', title: fileName, detail: eventTitle }]);
+    this.pushHistory({ kind: 'file', title: fileName, detail: eventTitle });
     setTimeout(() => this.dismiss(toastId), 15_000);
     this.playBeep();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -173,6 +246,7 @@ export class NotificationService {
       ...t,
       { id: toastId, kind: 'invite', title: iv.title || '(không tiêu đề)', detail: iv.creatorEmail ?? '', eventId: iv.eventId },
     ]);
+    this.pushHistory({ kind: 'invite', title: iv.title || '(không tiêu đề)', detail: iv.creatorEmail ?? '' });
     setTimeout(() => this.dismiss(toastId), 60_000);
     this.playBeep();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -210,6 +284,7 @@ export class NotificationService {
     const id = `cancel:${safeTitle}:${Date.now()}`;
     this.cancelNotices.update((l) => [{ id, title: safeTitle, at: Date.now() }, ...l].slice(0, 30));
     this.toasts.update((t) => [...t, { id, kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: safeTitle }]);
+    this.pushHistory({ kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: safeTitle });
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -227,6 +302,7 @@ export class NotificationService {
     const id = `change:${eventId}:${Date.now()}`;
     this.changeNotices.update((l) => [{ id, eventId, title: safeTitle, changes: lines, at: Date.now() }, ...l].slice(0, 30));
     this.toasts.update((t) => [...t, { id, kind: 'changed', title: safeTitle, body: lines.join(', ') }]);
+    this.pushHistory({ kind: 'changed', title: safeTitle, body: lines.join(', ') });
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -272,6 +348,7 @@ export class NotificationService {
     const timeLabel = e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const toastId = `${e.id}:${Date.now()}`;
     this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel }]);
+    this.pushHistory({ kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel });
     setTimeout(() => this.dismiss(toastId), 15_000); // tự ẩn sau 15s
 
     this.playBeep();
@@ -321,6 +398,7 @@ export class NotificationService {
   notifyMessage(title: string, body: string): void {
     const toastId = `chat:${Date.now()}:${Math.random().toString(36).slice(2)}`;
     this.toasts.update((t) => [...t, { id: toastId, title, body, kind: 'chat' }]);
+    this.pushHistory({ kind: 'chat', title, body });
     setTimeout(() => this.dismiss(toastId), 8_000); // tự ẩn sau 8s
     this.playBeep();
 
