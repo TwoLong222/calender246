@@ -40,7 +40,7 @@ export interface CancelNotice {
 }
 
 /** 1 dòng trong LỊCH SỬ THÔNG BÁO (khác toast/chuông: lưu MỌI thông báo từng bắn ra,
- *  kể cả đã đọc/đã tắt, để xem lại sau — tự động xóa sau 3 ngày). */
+ *  kể cả đã đọc/đã tắt, để xem lại sau — lưu VĨNH VIỄN trên trình duyệt, không tự xóa). */
 export interface HistoryEntry {
   id: string;
   kind: Toast['kind'];
@@ -52,10 +52,14 @@ export interface HistoryEntry {
 
 const SEEN_FILES_KEY = 'notified-file-open';
 const HISTORY_KEY = 'notif-history';
-/** Giữ lịch sử tối đa 3 ngày — quá hạn tự động xóa (yêu cầu người dùng). */
-const HISTORY_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
-/** Giới hạn số dòng lưu tối đa, phòng trường hợp bắn thông báo dồn dập trong 3 ngày. */
-const HISTORY_MAX_ITEMS = 300;
+/** Giới hạn số dòng lưu tối đa (không giới hạn thời gian) — phòng localStorage phình to vô hạn. */
+const HISTORY_MAX_ITEMS = 1000;
+
+const CHANGE_NOTICES_KEY = 'notif-change-notices';
+const CANCEL_NOTICES_KEY = 'notif-cancel-notices';
+/** Chuông thông báo (Bị sửa/Bị hủy) chỉ giữ tối đa 3 ngày — quá hạn tự động rơi khỏi chuông
+ *  dù chưa bấm xóa (nhưng vẫn còn nguyên trong trang Lịch sử thông báo, lưu vĩnh viễn). */
+const BELL_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
@@ -68,11 +72,12 @@ export class NotificationService {
   /** Ảnh chụp các sự kiện DO NGƯỜI KHÁC mời mình (id -> thông tin) để phát hiện HỦY/ĐỔI. */
   private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string }>();
 
-  /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY (giữ tối đa 30 cái mới nhất). */
-  readonly changeNotices = signal<ChangeNotice[]>([]);
-  readonly cancelNotices = signal<CancelNotice[]>([]);
+  /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY. Lưu localStorage, tự rơi
+   *  khỏi chuông sau 3 ngày (xem BELL_MAX_AGE_MS) — khác history bên dưới (lưu vĩnh viễn). */
+  readonly changeNotices = signal<ChangeNotice[]>(this.loadBellList(CHANGE_NOTICES_KEY));
+  readonly cancelNotices = signal<CancelNotice[]>(this.loadBellList(CANCEL_NOTICES_KEY));
 
-  /** LỊCH SỬ TOÀN BỘ thông báo (mọi loại) — lưu trên trình duyệt (localStorage), tự xóa sau 3 ngày. */
+  /** LỊCH SỬ TOÀN BỘ thông báo (mọi loại) — lưu VĨNH VIỄN trên trình duyệt (localStorage). */
   readonly history = signal<HistoryEntry[]>(this.loadHistory());
 
   readonly toasts = signal<Toast[]>([]);
@@ -137,12 +142,13 @@ export class NotificationService {
     // Quét tài liệu vừa mở: ngay khi mở app + mỗi 5 phút.
     setTimeout(() => this.checkAttachments(), 4_000);
     setInterval(() => this.checkAttachments(), 5 * 60_000);
-    // Dọn lịch sử quá 3 ngày định kỳ — phòng trường hợp mở app liên tục nhiều ngày không F5
-    // (lúc khởi động đã dọn 1 lần trong loadHistory() rồi, đây chỉ là dọn thêm khi đang chạy).
-    setInterval(() => this.pruneHistory(), 60 * 60_000);
+    // Dọn chuông (Bị sửa/Bị hủy) quá 3 ngày định kỳ — phòng trường hợp mở app liên tục nhiều
+    // ngày không F5 (lúc khởi động đã dọn 1 lần trong loadBellList() rồi, đây chỉ dọn thêm
+    // khi đang chạy). History KHÔNG dọn theo giờ vì lưu vĩnh viễn, không có hạn.
+    setInterval(() => this.pruneBellLists(), 60 * 60_000);
   }
 
-  // ---------- Lịch sử thông báo (localStorage, tự xóa sau 3 ngày) ----------
+  // ---------- Lịch sử thông báo (localStorage, lưu VĨNH VIỄN, không tự xóa) ----------
 
   private loadHistory(): HistoryEntry[] {
     let list: HistoryEntry[];
@@ -151,8 +157,7 @@ export class NotificationService {
     } catch {
       list = [];
     }
-    const cutoff = Date.now() - HISTORY_MAX_AGE_MS;
-    const fresh = list.filter((h) => h.at >= cutoff).slice(-HISTORY_MAX_ITEMS);
+    const fresh = list.slice(-HISTORY_MAX_ITEMS);
     if (fresh.length !== list.length) this.saveHistory(fresh);
     return fresh;
   }
@@ -165,22 +170,12 @@ export class NotificationService {
     }
   }
 
-  /** Xóa các dòng đã quá 3 ngày khỏi lịch sử (không đụng tới dòng còn hạn). */
-  private pruneHistory(): void {
-    const cutoff = Date.now() - HISTORY_MAX_AGE_MS;
-    this.history.update((list) => {
-      const fresh = list.filter((h) => h.at >= cutoff);
-      if (fresh.length !== list.length) this.saveHistory(fresh);
-      return fresh;
-    });
-  }
-
-  /** Ghi 1 thông báo vào lịch sử — gọi song song mỗi khi bắn toast. */
+  /** Ghi 1 thông báo vào lịch sử — gọi song song mỗi khi bắn toast. Không giới hạn thời gian,
+   *  chỉ giới hạn SỐ DÒNG (HISTORY_MAX_ITEMS) để localStorage không phình vô hạn. */
   private pushHistory(entry: Omit<HistoryEntry, 'id' | 'at'>): void {
     const row: HistoryEntry = { ...entry, id: `${entry.kind}:${Date.now()}:${Math.random().toString(36).slice(2)}`, at: Date.now() };
     this.history.update((list) => {
-      const cutoff = Date.now() - HISTORY_MAX_AGE_MS;
-      const next = [row, ...list.filter((h) => h.at >= cutoff)].slice(0, HISTORY_MAX_ITEMS);
+      const next = [row, ...list].slice(0, HISTORY_MAX_ITEMS);
       this.saveHistory(next);
       return next;
     });
@@ -190,6 +185,44 @@ export class NotificationService {
   clearHistory(): void {
     this.history.set([]);
     this.saveHistory([]);
+  }
+
+  // ---------- Chuông thông báo — Bị sửa/Bị hủy (localStorage, tự rơi khỏi chuông sau 3 ngày) ----------
+
+  private loadBellList<T extends { at: number }>(key: string): T[] {
+    let list: T[];
+    try {
+      list = JSON.parse(localStorage.getItem(key) ?? '[]');
+    } catch {
+      list = [];
+    }
+    const cutoff = Date.now() - BELL_MAX_AGE_MS;
+    const fresh = list.filter((x) => x.at >= cutoff);
+    if (fresh.length !== list.length) this.saveBellList(key, fresh);
+    return fresh;
+  }
+
+  private saveBellList<T>(key: string, list: T[]): void {
+    try {
+      localStorage.setItem(key, JSON.stringify(list));
+    } catch {
+      /* localStorage đầy/bị chặn -> bỏ qua, chuông vẫn hoạt động trong phiên hiện tại */
+    }
+  }
+
+  /** Dọn định kỳ: rơi khỏi chuông (nhưng vẫn còn trong Lịch sử) sau 3 ngày dù chưa bấm xóa. */
+  private pruneBellLists(): void {
+    const cutoff = Date.now() - BELL_MAX_AGE_MS;
+    this.changeNotices.update((list) => {
+      const fresh = list.filter((x) => x.at >= cutoff);
+      if (fresh.length !== list.length) this.saveBellList(CHANGE_NOTICES_KEY, fresh);
+      return fresh;
+    });
+    this.cancelNotices.update((list) => {
+      const fresh = list.filter((x) => x.at >= cutoff);
+      if (fresh.length !== list.length) this.saveBellList(CANCEL_NOTICES_KEY, fresh);
+      return fresh;
+    });
   }
 
   /** Quét tài liệu đính kèm vừa tới giờ mở -> toast (mỗi file chỉ báo 1 lần/ máy). */
@@ -282,7 +315,11 @@ export class NotificationService {
   private fireCancelled(title: string): void {
     const safeTitle = title || '(không tiêu đề)';
     const id = `cancel:${safeTitle}:${Date.now()}`;
-    this.cancelNotices.update((l) => [{ id, title: safeTitle, at: Date.now() }, ...l].slice(0, 30));
+    this.cancelNotices.update((l) => {
+      const next = [{ id, title: safeTitle, at: Date.now() }, ...l].slice(0, 30);
+      this.saveBellList(CANCEL_NOTICES_KEY, next);
+      return next;
+    });
     this.toasts.update((t) => [...t, { id, kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: safeTitle }]);
     this.pushHistory({ kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: safeTitle });
     setTimeout(() => this.dismiss(id), 30_000);
@@ -300,7 +337,11 @@ export class NotificationService {
   private fireChanged(eventId: string, title: string, lines: string[]): void {
     const safeTitle = title || '(không tiêu đề)';
     const id = `change:${eventId}:${Date.now()}`;
-    this.changeNotices.update((l) => [{ id, eventId, title: safeTitle, changes: lines, at: Date.now() }, ...l].slice(0, 30));
+    this.changeNotices.update((l) => {
+      const next = [{ id, eventId, title: safeTitle, changes: lines, at: Date.now() }, ...l].slice(0, 30);
+      this.saveBellList(CHANGE_NOTICES_KEY, next);
+      return next;
+    });
     this.toasts.update((t) => [...t, { id, kind: 'changed', title: safeTitle, body: lines.join(', ') }]);
     this.pushHistory({ kind: 'changed', title: safeTitle, body: lines.join(', ') });
     setTimeout(() => this.dismiss(id), 30_000);
@@ -316,16 +357,26 @@ export class NotificationService {
 
   /** Xóa 1 thông báo "bị sửa" khỏi chuông. */
   dismissChange(id: string): void {
-    this.changeNotices.update((l) => l.filter((x) => x.id !== id));
+    this.changeNotices.update((l) => {
+      const next = l.filter((x) => x.id !== id);
+      this.saveBellList(CHANGE_NOTICES_KEY, next);
+      return next;
+    });
   }
   /** Xóa 1 thông báo "bị hủy" khỏi chuông. */
   dismissCancel(id: string): void {
-    this.cancelNotices.update((l) => l.filter((x) => x.id !== id));
+    this.cancelNotices.update((l) => {
+      const next = l.filter((x) => x.id !== id);
+      this.saveBellList(CANCEL_NOTICES_KEY, next);
+      return next;
+    });
   }
-  /** Xóa tất cả thông báo hủy/sửa đã lưu. */
+  /** Xóa tất cả thông báo hủy/sửa đã lưu khỏi chuông (không đụng tới Lịch sử thông báo). */
   clearNotices(): void {
     this.changeNotices.set([]);
     this.cancelNotices.set([]);
+    this.saveBellList(CHANGE_NOTICES_KEY, []);
+    this.saveBellList(CANCEL_NOTICES_KEY, []);
   }
 
   private check(): void {
