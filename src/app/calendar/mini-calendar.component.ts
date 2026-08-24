@@ -95,8 +95,7 @@ export class MiniCalendarComponent {
     for (let d = 1; d <= daysInMonth; d++) {
       cells.push({ date: new Date(monthStart.getFullYear(), monthStart.getMonth(), d), inCurrentMonth: true });
     }
-    // Luôn điền đủ 42 ô = 6 hàng cho MỌI tháng -> chiều cao lịch nhỏ đồng bộ, không "nhảy".
-    while (cells.length < 42) {
+    while (cells.length % 7 !== 0) {
       const last = cells[cells.length - 1].date;
       cells.push({ date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1), inCurrentMonth: false });
     }

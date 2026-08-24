@@ -286,8 +286,9 @@ function toTimeInputValue(d: Date): string {
             <button
               type="button"
               (click)="save()"
-              class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-            >{{ tr.t('form.save') }}</button>
+              [disabled]="saving()"
+              class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >{{ saving() ? tr.t('form.saving') : tr.t('form.save') }}</button>
           }
         </div>
       </div>
@@ -375,8 +376,10 @@ export class EventFormModalComponent {
   startTime = signal('');
   endDate = signal('');
   endTime = signal('');
-  /** Thông báo lỗi trong form (vd giờ kết thúc trước giờ bắt đầu). */
+  /** Thông báo lỗi trong form (vd giờ kết thúc trước giờ bắt đầu, hoặc lưu server thất bại). */
   protected readonly formError = signal('');
+  /** true trong lúc chờ server phản hồi — khóa nút Lưu để tránh bấm nhiều lần tạo trùng sự kiện. */
+  protected readonly saving = signal(false);
   isAllDay = signal(false);
   location = signal('');
   description = signal('');
@@ -407,6 +410,8 @@ export class EventFormModalComponent {
       const editing = this.state.editingEvent();
       this.editingId = editing?.id ?? null;
       this.editing.set(!!editing);
+      this.saving.set(false);
+      this.formError.set('');
 
       if (editing) {
         this.tab.set(editing.kind);
@@ -503,6 +508,11 @@ export class EventFormModalComponent {
   }
 
   save(): void {
+    // Đang chờ lần lưu trước phản hồi -> bỏ qua, tránh bấm nhiều lần tạo trùng sự kiện
+    // (đây chính là nguyên nhân sinh ra nhiều bản ghi trùng khi lưu bị chậm/lỗi mà form
+    // không cho biết gì, khiến người dùng tưởng chưa bấm được nên bấm tiếp).
+    if (this.saving()) return;
+
     const start = this.isAllDay() ? new Date(`${this.startDate()}T00:00`) : this.computedStart();
     const end = this.isAllDay() ? new Date(`${this.endDate()}T23:59`) : this.computedEnd();
 
@@ -513,6 +523,7 @@ export class EventFormModalComponent {
       return;
     }
     this.formError.set('');
+    this.saving.set(true);
 
     // Chỉ cho lặp khi TẠO MỚI và có chọn kiểu lặp
     const repeat = this.repeat();
@@ -543,6 +554,13 @@ export class EventFormModalComponent {
       // Sau khi lưu xong (có id) -> upload các file đã đính kèm trong form.
       (event) => {
         if (this.stagedFiles().length > 0) this.uploadStaged(event.id);
+      },
+      // Lưu thất bại: KHÔNG đóng form (giữ nguyên tiêu đề/khách mời vừa nhập) + hiện lỗi
+      // ngay trong modal, vì banner loadError ở trang chính bị modal che mất, người dùng
+      // sẽ không thấy được.
+      () => {
+        this.saving.set(false);
+        this.formError.set(this.tr.t('form.saveFailed'));
       },
     );
   }

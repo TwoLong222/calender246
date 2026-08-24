@@ -329,6 +329,10 @@ export class CalendarStateService {
     draft: Omit<CalendarEvent, 'id'> & { id?: string },
     recurrence?: RecurrenceOptions,
     afterSave?: (event: CalendarEvent) => void,
+    // Lỗi lưu (vd mất mạng, server 500...) — form vẫn đang mở nên KHÔNG dùng loadError
+    // (banner đó nằm dưới modal, người dùng không thấy được). Truyền callback để modal
+    // tự hiện lỗi ngay trong form, không đóng form (giữ lại dữ liệu vừa nhập, kể cả khách mời).
+    onError?: () => void,
   ): void {
     this.markLocalChange();
     const { id, ...rest } = draft;
@@ -352,6 +356,7 @@ export class CalendarStateService {
       },
       error: () => {
         this.loadError.set('Lưu sự kiện thất bại. Thử lại sau.');
+        onError?.();
       },
     });
   }

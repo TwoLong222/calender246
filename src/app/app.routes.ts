@@ -11,6 +11,7 @@ import { TaskListComponent } from './calendar/task-list.component';
 import { LunarPageComponent } from './lunar/lunar-page.component';
 import { NotesPageComponent } from './notes/notes-page.component';
 import { InvitationsPageComponent } from './calendar/invitations-page.component';
+import { NotificationHistoryPageComponent } from './notifications/notification-history-page.component';
 
 export const appRoutes: Routes = [
   { path: 'login', component: LoginPageComponent },
@@ -22,5 +23,6 @@ export const appRoutes: Routes = [
   { path: 'am-lich', component: LunarPageComponent, canActivate: [authGuard] },
   { path: 'notes', component: NotesPageComponent, canActivate: [authGuard] },
   { path: 'invitations', component: InvitationsPageComponent, canActivate: [authGuard] },
+  { path: 'notification-history', component: NotificationHistoryPageComponent, canActivate: [authGuard] },
   { path: '', component: CalendarPageComponent, canActivate: [homeGuard] },
 ];

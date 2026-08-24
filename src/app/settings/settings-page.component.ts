@@ -25,6 +25,12 @@ import { COMMON_TIMEZONES } from './settings.types';
 import { TimePickerComponent } from '../shared/time-picker.component';
 import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
 import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
+import { Toast } from '../notifications/notification.service';
+import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/notif-kind.util';
+
+/** Loại toast LUÔN bật, khác 'event' (nhắc lịch) — cái đó nằm trong phần "tùy chỉnh" vì phụ
+ *  thuộc thời gian nhắc do user chọn (mặc định hoặc đặt riêng cho từng sự kiện). */
+type DefaultNotifKind = Exclude<Toast['kind'], 'event'>;
 
 type Section =
   | 'account'
@@ -202,28 +208,50 @@ type Section =
             }
 
             @case ('notifications') {
-              <section class="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+              <section class="space-y-4">
                 <h2 class="text-base font-semibold">{{ tr.t('sec.notifications') }}</h2>
-                <label class="flex items-center justify-between text-sm">
-                  <span>{{ tr.t('notif.browser') }}</span>
-                  <input type="checkbox" [checked]="s().browser_notifications" (change)="toggleBrowserNotif()" class="accent-blue-600" />
-                </label>
-                @if (notifMsg(); as m) { <p class="text-xs text-gray-400">{{ m }}</p> }
-                <div>
-                  <label class="mb-1 block text-sm text-gray-600">{{ tr.t('notif.defaultReminder') }}</label>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <label class="flex items-center gap-1.5 text-sm">
-                      <input type="checkbox" [checked]="s().default_reminder !== null" (change)="toggleDefaultReminder($event)" class="accent-blue-600" />
-                      {{ tr.t('notif.remindBefore') }}
-                    </label>
-                    @if (s().default_reminder !== null) {
-                      <input type="number" min="0" inputmode="numeric" [ngModel]="s().default_reminder" (ngModelChange)="setReminderNum($event)" class="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
-                      <span class="text-sm text-gray-500">{{ tr.t('notif.minutesBefore') }}</span>
-                    } @else {
-                      <span class="text-sm text-gray-400">{{ tr.t('notif.remindOff') }}</span>
+
+                <!-- PHẦN 1: MẶC ĐỊNH CỦA APP — luôn bật, không tắt được -->
+                <div class="rounded-lg border border-gray-200 bg-white p-5">
+                  <h3 class="text-sm font-semibold text-gray-800">{{ tr.t('notif.appDefaults') }}</h3>
+                  <p class="mt-0.5 text-xs text-gray-400">{{ tr.t('notif.appDefaultsDesc') }}</p>
+                  <ul class="mt-3 space-y-2">
+                    @for (kind of defaultNotifKinds; track kind) {
+                      <li class="flex items-center gap-2.5 text-sm text-gray-700">
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" [class]="notifBadgeClass(kind)">
+                          <app-icon [name]="notifIconName(kind)" class="h-3 w-3" />
+                          {{ tr.t(notifCatKey(kind)) }}
+                        </span>
+                        <span class="text-gray-500">{{ tr.t(notifDescKey(kind)) }}</span>
+                      </li>
                     }
+                  </ul>
+                </div>
+
+                <!-- PHẦN 2: TÙY CHỈNH CỦA BẠN — user tự đổi được -->
+                <div class="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+                  <h3 class="text-sm font-semibold text-gray-800">{{ tr.t('notif.userCustom') }}</h3>
+                  <label class="flex items-center justify-between text-sm">
+                    <span>{{ tr.t('notif.browser') }}</span>
+                    <input type="checkbox" [checked]="s().browser_notifications" (change)="toggleBrowserNotif()" class="accent-blue-600" />
+                  </label>
+                  @if (notifMsg(); as m) { <p class="text-xs text-gray-400">{{ m }}</p> }
+                  <div>
+                    <label class="mb-1 block text-sm text-gray-600">{{ tr.t('notif.defaultReminder') }}</label>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <label class="flex items-center gap-1.5 text-sm">
+                        <input type="checkbox" [checked]="s().default_reminder !== null" (change)="toggleDefaultReminder($event)" class="accent-blue-600" />
+                        {{ tr.t('notif.remindBefore') }}
+                      </label>
+                      @if (s().default_reminder !== null) {
+                        <input type="number" min="0" inputmode="numeric" [ngModel]="s().default_reminder" (ngModelChange)="setReminderNum($event)" class="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                        <span class="text-sm text-gray-500">{{ tr.t('notif.minutesBefore') }}</span>
+                      } @else {
+                        <span class="text-sm text-gray-400">{{ tr.t('notif.remindOff') }}</span>
+                      }
+                    </div>
+                    <p class="mt-1 text-xs text-gray-400">{{ tr.t('notif.reminderNote') }}</p>
                   </div>
-                  <p class="mt-1 text-xs text-gray-400">{{ tr.t('notif.reminderNote') }}</p>
                 </div>
               </section>
             }
@@ -727,6 +755,22 @@ export class SettingsPageComponent {
 
   protected toggleAi(key: keyof ReturnType<typeof this.s>['ai_settings']): void {
     this.set({ ai_settings: { [key]: !this.s().ai_settings[key] } as any });
+  }
+
+  /** Các loại thông báo LUÔN bật trong app — không có công tắc tắt riêng cho từng loại
+   *  (đồng bộ với danh sách kind trong NotificationService/NotificationToastsComponent). */
+  protected readonly defaultNotifKinds: readonly DefaultNotifKind[] = ['invite', 'changed', 'cancelled', 'file', 'chat'];
+
+  protected notifCatKey = notifCatKey;
+  protected notifIconName = notifIconName;
+  protected notifBadgeClass = notifBadgeClass;
+
+  protected notifDescKey(kind: DefaultNotifKind): string {
+    const map: Record<DefaultNotifKind, string> = {
+      invite: 'notif.descInvite', changed: 'notif.descChanged', cancelled: 'notif.descCancelled',
+      file: 'notif.descFile', chat: 'notif.descChat',
+    };
+    return map[kind];
   }
 
   protected async toggleBrowserNotif(): Promise<void> {

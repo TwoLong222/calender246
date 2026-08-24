@@ -11,6 +11,7 @@ import { NotificationService } from '../notifications/notification.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { IconComponent } from '../shared/icon.component';
+import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/notif-kind.util';
 
 @Component({
   selector: 'app-invitation-bell',
@@ -38,8 +39,34 @@ import { IconComponent } from '../shared/icon.component';
         <div class="fixed inset-0 z-20" (click)="open.set(false)"></div>
         <div class="popup-in absolute right-0 top-full z-30 mt-1 max-h-[80vh] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
 
-          @if (total() === 0) {
+          @if (total() === 0 && notify.recentHistory().length === 0) {
             <p class="px-3 py-6 text-center text-sm text-gray-400">{{ tr.t('notif.empty') }}</p>
+          }
+
+          <!-- MỤC: SỰ KIỆN GẦN ĐÂY — 5 thông báo mới nhất (mọi loại) trong 3 ngày qua,
+               hiện ĐẦY ĐỦ thông tin (nhãn loại, tiêu đề, chi tiết, giờ nhận — không cắt bớt
+               chữ), chỉ để xem lại, không có nút thao tác (khác các mục actionable bên dưới). -->
+          @if (notify.recentHistory().length > 0) {
+            <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+              <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.recentTitle') }}</span>
+            </div>
+            @for (h of notify.recentHistory(); track h.id) {
+              <div class="border-b border-gray-50 px-3 py-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span
+                    class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                    [class]="notifBadgeClass(h.kind)"
+                  >
+                    <app-icon [name]="notifIconName(h.kind)" class="h-3 w-3" />
+                    {{ tr.t(notifCatKey(h.kind)) }}
+                  </span>
+                  <span class="shrink-0 text-xs text-gray-400">{{ recentTimeLabel(h.at) }}</span>
+                </div>
+                <p class="mt-1 break-words text-sm font-medium text-gray-800">{{ h.title }}</p>
+                @if (h.detail) { <p class="break-words text-xs text-gray-500">{{ h.detail }}</p> }
+                @if (h.body) { <p class="break-words text-xs text-gray-500">{{ h.body }}</p> }
+              </div>
+            }
           }
 
           <!-- MỤC 1: LỜI MỜI -->
@@ -137,6 +164,22 @@ export class InvitationBellComponent {
   protected readonly cancelled = this.notify.cancelNotices;
   protected readonly total = computed(() => this.invites().length + this.changed().length + this.cancelled().length);
   protected readonly open = signal(false);
+
+  protected readonly notifBadgeClass = notifBadgeClass;
+  protected readonly notifIconName = notifIconName;
+  protected readonly notifCatKey = notifCatKey;
+
+  /** Nhãn thời gian ngắn gọn cho mục "Sự kiện gần đây": vd "5 phút", "3 giờ", "2 ngày". */
+  protected recentTimeLabel(at: number): string {
+    const diffMs = Date.now() - at;
+    const min = Math.floor(diffMs / 60_000);
+    if (min < 1) return this.tr.t('notif.justNow');
+    if (min < 60) return `${min} ${this.tr.t('notif.minAgo')}`;
+    const hour = Math.floor(min / 60);
+    if (hour < 24) return `${hour} ${this.tr.t('notif.hourAgo')}`;
+    const day = Math.floor(hour / 24);
+    return `${day} ${this.tr.t('notif.dayAgo')}`;
+  }
 
   protected respond(iv: Invitation, status: 'accepted' | 'declined'): void {
     this.state.respondInvitation(iv.eventId, status);
