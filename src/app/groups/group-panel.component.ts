@@ -101,7 +101,8 @@ import { GroupMessage } from './groups.types';
                     ></span>
                     {{ m.email }}
                     @if (m.role === 'owner') { <span class="text-xs text-blue-600">(chủ nhóm)</span> }
-                    @if (!m.joined_at) { <span class="text-xs text-gray-400">(đã mời)</span> }
+                    @if (m.status === 'declined') { <span class="text-xs text-red-500">(đã từ chối)</span> }
+                    @else if (!m.joined_at) { <span class="text-xs text-amber-600">(đang chờ)</span> }
                   </span>
                   @if (isOwner() && m.role !== 'owner') {
                     <button type="button" (click)="state.removeMember(g.id, m.email)" class="text-gray-400 hover:text-red-600" aria-label="Xóa">✕</button>

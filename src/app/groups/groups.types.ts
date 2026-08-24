@@ -3,12 +3,23 @@
 // Vai trò trong nhóm: 'owner' = chủ nhóm, 'member' = thành viên thường.
 export type GroupRole = 'owner' | 'member';
 
+// Trạng thái lời mời/tham gia: pending = đang chờ đồng ý, accepted = đã vào, declined = đã từ chối.
+export type GroupMemberStatus = 'pending' | 'accepted' | 'declined';
+
 // GroupMember — Một thành viên trong nhóm.
 export interface GroupMember {
   user_id: string | null;
   email: string;
   role: GroupRole;
   joined_at: string | null;
+  status?: GroupMemberStatus;
+}
+
+// PendingGroupInvite — Một lời mời nhóm đang chờ mình đồng ý.
+export interface PendingGroupInvite {
+  group_id: string;
+  name: string;
+  invited_at: string;
 }
 
 // Group — Thông tin một nhóm.

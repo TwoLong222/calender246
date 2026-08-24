@@ -161,19 +161,7 @@ import { TranslateService } from '../i18n/translate.service';
           <!-- Chuông thông báo lời mời (Đồng ý/Từ chối ngay trong app) -->
           <app-invitation-bell />
 
-          <button
-            type="button"
-            (click)="theme.toggle()"
-            class="tap rounded-full p-1.5 hover:bg-gray-100"
-            [attr.aria-label]="theme.isDark() ? tr.t('nav.lightMode') : tr.t('nav.darkMode')"
-            [title]="theme.isDark() ? tr.t('nav.lightMode') : tr.t('nav.darkMode')"
-          >
-            @if (theme.isDark()) {
-              <app-icon name="sun" class="h-5 w-5 text-amber-500" />
-            } @else {
-              <app-icon name="moon" class="h-5 w-5 text-gray-600" />
-            }
-          </button>
+          <!-- Nút bật sáng/tối đã chuyển vào Cài đặt → Giao diện cho gọn header. -->
 
           <!-- Bánh răng: gom công cụ Xuất/Nhập .ics + Thùng rác -->
           <div class="relative">
@@ -303,6 +291,20 @@ import { TranslateService } from '../i18n/translate.service';
           <!-- Nhóm lên lịch cùng nhau -->
           <div class="mt-6">
             <p class="mb-2 text-sm font-medium text-gray-700">Nhóm</p>
+
+            <!-- Lời mời nhóm đang chờ mình đồng ý -->
+            @if (groupsState.pendingInvites().length > 0) {
+              <div class="mb-3 space-y-1.5 rounded-lg border border-blue-200 bg-blue-50 p-2">
+                <p class="text-xs font-medium text-blue-800">📩 Lời mời vào nhóm</p>
+                @for (inv of groupsState.pendingInvites(); track inv.group_id) {
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="min-w-0 flex-1 truncate text-gray-700">{{ inv.name }}</span>
+                    <button type="button" (click)="groupsState.acceptInvite(inv.group_id)" class="tap shrink-0 rounded bg-blue-700 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-800">Đồng ý</button>
+                    <button type="button" (click)="groupsState.declineInvite(inv.group_id)" class="tap shrink-0 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100">Từ chối</button>
+                  </div>
+                }
+              </div>
+            }
 
             <ul class="space-y-1 text-sm text-gray-700">
               @for (g of groupsState.groups(); track g.id) {

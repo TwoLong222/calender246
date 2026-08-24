@@ -94,7 +94,9 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
       const colIndex = columnOf.get(e.id)!;
       const top = (minutesSinceMidnight(e.start) / 60) * HOUR_HEIGHT;
       const durationMin = Math.max(20, (e.end.getTime() - e.start.getTime()) / 60000);
-      const height = (durationMin / 60) * HOUR_HEIGHT;
+      // Không cho block cao quá đáy cột ngày: sự kiện kéo dài qua ngày hôm sau sẽ hiển thị
+      // tới đáy cột (báo hiệu "còn tiếp"), giờ kết thúc thật vẫn đúng ở popover/tháng.
+      const height = Math.min((durationMin / 60) * HOUR_HEIGHT, HOUR_HEIGHT * 24 - top);
       const width = 100 / totalColumns;
       const left = colIndex * width;
       result.push({ event: e, top, height, left, width });
@@ -432,14 +434,16 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
     const dayStart = new Date(ctx.origStart);
     dayStart.setHours(0, 0, 0, 0);
-    const dayEndMs = dayStart.getTime() + 24 * 60 * 60000;
 
     let start = ctx.origStart;
     let end = ctx.origEnd;
 
     if (ctx.edge === 'bottom') {
       end = new Date(ctx.origEnd.getTime() + deltaMin * 60000);
-      if (end.getTime() > dayEndMs) end = new Date(dayEndMs);
+      // Cho phép kéo QUA nửa đêm sang ngày hôm sau (trước đây chặn cứng ở nửa đêm).
+      // Trần an toàn 7 ngày để tránh kéo lố quá xa do lỡ tay.
+      const maxEndMs = dayStart.getTime() + 7 * 24 * 60 * 60000;
+      if (end.getTime() > maxEndMs) end = new Date(maxEndMs);
       if (end.getTime() - start.getTime() < MIN_MS) end = new Date(start.getTime() + MIN_MS);
     } else {
       start = new Date(ctx.origStart.getTime() + deltaMin * 60000);

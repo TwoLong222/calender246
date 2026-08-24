@@ -200,6 +200,10 @@ input[type='radio'] {
 .dark .bg-white { background-color: #111a2e; }
 .dark .bg-gray-50 { background-color: #0f1729; }
 .dark .bg-gray-100 { background-color: #1e293b; }
+/* bg-gray-200/300 (nút "Copy mã/link", chip...) trước đây chưa vá -> nền sáng + chữ sáng
+   = chữ tàng hình ở chế độ tối. Vá cho tối lại để đọc được. */
+.dark .bg-gray-200 { background-color: #273244; }
+.dark .bg-gray-300 { background-color: #374151; }
 
 /* Chữ */
 .dark .text-gray-900 { color: #f1f5f9; }
@@ -218,6 +222,8 @@ input[type='radio'] {
 /* Hover nền xám */
 .dark .hover\:bg-gray-50:hover { background-color: #1e293b; }
 .dark .hover\:bg-gray-100:hover { background-color: #273244; }
+.dark .hover\:bg-gray-200:hover { background-color: #334155; }
+.dark .hover\:bg-gray-300:hover { background-color: #3f4c60; }
 
 /* Ô nhập liệu */
 .dark input,
