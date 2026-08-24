@@ -117,6 +117,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'trash.confirmQ': 'Xóa hẳn?', 'trash.delete': 'Xóa', 'trash.restore': 'Khôi phục', 'trash.purge': 'Xóa vĩnh viễn', 'trash.deletedAt': 'đã xóa',
     // Toast + common
     'toast.upcoming': 'Sắp tới', 'toast.startsAt': 'Bắt đầu lúc', 'toast.fileOpen': 'Tài liệu đã mở', 'toast.ofEvent': 'Sự kiện:',
+    'notif.cancelled': 'Sự kiện đã bị hủy', 'notif.changed': 'Sự kiện cập nhật', 'notif.fTitle': 'tiêu đề', 'notif.fTime': 'giờ', 'notif.fLocation': 'địa điểm',
     'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
     // Event form
     'form.addTitle': 'Thêm tiêu đề', 'form.start': 'Bắt đầu', 'form.end': 'Kết thúc', 'form.endBeforeStart': 'Giờ kết thúc phải sau giờ bắt đầu.', 'form.noRepeat': 'Không lặp', 'form.daily': 'Hàng ngày',
@@ -242,6 +243,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'trash.empty': 'Trash is empty.', 'trash.desc': 'Deleted events are kept here. You can restore them or delete permanently.',
     'trash.confirmQ': 'Delete for good?', 'trash.delete': 'Delete', 'trash.restore': 'Restore', 'trash.purge': 'Delete permanently', 'trash.deletedAt': 'deleted',
     'toast.upcoming': 'Upcoming', 'toast.startsAt': 'Starts at', 'toast.fileOpen': 'File available', 'toast.ofEvent': 'Event:',
+    'notif.cancelled': 'Event cancelled', 'notif.changed': 'Event updated', 'notif.fTitle': 'title', 'notif.fTime': 'time', 'notif.fLocation': 'location',
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
     'form.addTitle': 'Add title', 'form.start': 'Start', 'form.end': 'End', 'form.endBeforeStart': 'End time must be after start time.', 'form.noRepeat': "Doesn't repeat", 'form.daily': 'Daily',
     'form.weekly': 'Weekly', 'form.monthly': 'Monthly', 'form.times': 'times', 'form.every': 'every',

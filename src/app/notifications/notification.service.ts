@@ -7,11 +7,14 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { AttachmentsApiService } from '../calendar/attachments-api.service';
+import { SupabaseService } from '../auth/supabase.service';
+import { TranslateService } from '../i18n/translate.service';
+import { SettingsService } from '../settings/settings.service';
 
 interface Toast {
   id: string;
-  /** 'event' = nhắc lịch; 'file' = tài liệu vừa mở; 'chat' = tin nhắn nhóm mới; 'invite' = lời mời sự kiện. */
-  kind: 'event' | 'file' | 'chat' | 'invite';
+  /** 'event' nhắc lịch; 'file' tài liệu; 'chat' tin nhắn; 'invite' lời mời; 'cancelled' hủy; 'changed' cập nhật. */
+  kind: 'event' | 'file' | 'chat' | 'invite' | 'cancelled' | 'changed';
   title: string;
   /** Dòng phụ: giờ bắt đầu (event), tên sự kiện (file), hoặc email người mời (invite). */
   detail?: string;
@@ -27,6 +30,12 @@ const SEEN_FILES_KEY = 'notified-file-open';
 export class NotificationService {
   private readonly state = inject(CalendarStateService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
+  private readonly supabase = inject(SupabaseService);
+  private readonly tr = inject(TranslateService);
+  private readonly settings = inject(SettingsService);
+
+  /** Ảnh chụp các sự kiện DO NGƯỜI KHÁC mời mình (id -> thông tin) để phát hiện HỦY/ĐỔI. */
+  private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string }>();
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
@@ -55,6 +64,37 @@ export class NotificationService {
         this.notifiedInvites.add(iv.eventId);
         if (!warmup) this.fireInvite(iv);
       }
+    });
+    // Phát hiện HỦY/ĐỔI sự kiện mình được mời (do NGƯỜI KHÁC thao tác) -> toast real-time.
+    effect(() => {
+      const events = this.state.events();
+      const me = this.supabase.user()?.email?.toLowerCase();
+      if (!me) return;
+      // Chỉ xét sự kiện do người khác tạo mà mình được mời (creatorEmail có & khác mình).
+      // -> tự loại trừ thay đổi do CHÍNH mình thực hiện.
+      const invited = events.filter(
+        (e) => e.creatorEmail && e.creatorEmail.toLowerCase() !== me && !e.deletedAt,
+      );
+      const warmup = Date.now() - this.startedAt < 4000;
+      const next = new Map<string, { title: string; start: number; end: number; location: string }>();
+      for (const e of invited) {
+        next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '' });
+      }
+      if (!warmup) {
+        // ĐỔI: có ở cả 2 nhưng khác nội dung
+        for (const e of invited) {
+          const prev = this.invitedSnapshot.get(e.id);
+          if (!prev) continue; // mới xuất hiện (vừa Đồng ý) -> không phải "đổi"
+          const changed = this.describeChanges(prev, next.get(e.id)!, e);
+          if (changed) this.fireChanged(e.title, changed);
+        }
+        // HỦY: có trong snapshot cũ nhưng biến mất khỏi danh sách (creator xóa/gỡ mình)
+        for (const [id, prev] of this.invitedSnapshot) {
+          if (!next.has(id)) this.fireCancelled(prev.title);
+        }
+      }
+      this.invitedSnapshot.clear();
+      for (const [id, v] of next) this.invitedSnapshot.set(id, v);
     });
     // Quét tài liệu vừa mở: ngay khi mở app + mỗi 5 phút.
     setTimeout(() => this.checkAttachments(), 4_000);
@@ -119,6 +159,59 @@ export class NotificationService {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
         new Notification(`📩 Lời mời mới: ${iv.title || 'Sự kiện'}`, { body: iv.creatorEmail ? `Từ ${iv.creatorEmail}` : '' });
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  }
+
+  /** Mô tả các thay đổi giữa 2 phiên bản của 1 sự kiện; null nếu không có gì đáng báo. */
+  private describeChanges(
+    prev: { title: string; start: number; end: number; location: string },
+    cur: { title: string; start: number; end: number; location: string },
+    e: CalendarEvent,
+  ): string | null {
+    const parts: string[] = [];
+    if (prev.title !== cur.title) parts.push(this.tr.t('notif.fTitle'));
+    if (prev.start !== cur.start || prev.end !== cur.end) {
+      const t = e.isAllDay
+        ? this.settings.formatDate(e.start)
+        : `${this.settings.formatDate(e.start)} ${this.settings.formatTime(e.start)}`;
+      parts.push(`${this.tr.t('notif.fTime')} → ${t}`);
+    }
+    if (prev.location !== cur.location) {
+      parts.push(cur.location ? `${this.tr.t('notif.fLocation')} → ${cur.location}` : this.tr.t('notif.fLocation'));
+    }
+    return parts.length ? parts.join(', ') : null;
+  }
+
+  /** Toast: sự kiện mình được mời đã bị người tạo HỦY. */
+  private fireCancelled(title: string): void {
+    const id = `cancel:${title}:${Date.now()}`;
+    this.toasts.update((t) => [
+      ...t,
+      { id, kind: 'cancelled', title: this.tr.t('notif.cancelled'), detail: title || '(không tiêu đề)' },
+    ]);
+    setTimeout(() => this.dismiss(id), 30_000);
+    this.playBeep();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(`❌ ${this.tr.t('notif.cancelled')}`, { body: title });
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  }
+
+  /** Toast: sự kiện mình được mời vừa được người tạo CẬP NHẬT (kèm mô tả thay đổi). */
+  private fireChanged(title: string, changes: string): void {
+    const id = `change:${title}:${Date.now()}`;
+    this.toasts.update((t) => [...t, { id, kind: 'changed', title: title || '(không tiêu đề)', body: changes }]);
+    setTimeout(() => this.dismiss(id), 30_000);
+    this.playBeep();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(`✏️ ${this.tr.t('notif.changed')}: ${title}`, { body: changes });
       } catch {
         /* bỏ qua */
       }
