@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Foresight — Lịch thông minh, luôn đi trước thời gian</title>
 <meta name="description" content="Foresight gom mọi lịch, sự kiện và lời nhắc vào một nơi. Lên lịch trong vài giây, mời mọi người tham dự, và luôn đi trước thời gian." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='8' y1='88' x2='90' y2='6'%3E%3Cstop offset='0' stop-color='%233a2d6d'/%3E%3Cstop offset='.55' stop-color='%233f5aa6'/%3E%3Cstop offset='1' stop-color='%232bb6c4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M58 14 L58 82 M58 52 L16 52 L42 14' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M50 20 C60 6 86 6 94 20 C86 34 60 34 50 20 Z' fill='url(%23g)'/%3E%3Ccircle cx='79' cy='20' r='7' fill='%2314131c'/%3E%3Ccircle cx='82' cy='17' r='1.8' fill='%23fff' opacity='.9'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='8' y1='88' x2='90' y2='6'%3E%3Cstop offset='0' stop-color='%233a2d6d'/%3E%3Cstop offset='.55' stop-color='%233f5aa6'/%3E%3Cstop offset='1' stop-color='%232bb6c4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M58 20 L58 82 M58 54 L24 54 L52 18' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z' fill='url(%23g)'/%3E%3Ccircle cx='80' cy='19' r='7' fill='%2314131c'/%3E%3Ccircle cx='83' cy='16' r='1.8' fill='%23fff' opacity='.9'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
@@ -268,7 +268,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 @media (max-width:760px){.foot-grid{grid-template-columns:1fr 1fr}}
 
 /* ---------- 3D SCROLL SHOWCASE ---------- */
-.showcase{position:relative;height:340vh;background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.showcase{position:relative;height:460vh;background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .sc-sticky{position:sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center}
 .ambient{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 .sc-copy{position:absolute;top:12vh;left:0;right:0;z-index:3;text-align:center;pointer-events:none;padding:0 6vw}
@@ -342,7 +342,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 @keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
 /* ---------- HORIZONTAL PINNED SCROLL (FEATURES) ---------- */
-.h-scroll{position:relative;height:360vh;background:var(--paper)}
+.h-scroll{position:relative;height:480vh;background:var(--paper)}
 .h-sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
 .h-head{padding:0 max(6vw,32px);max-width:900px;margin-bottom:34px}
 .h-viewport{overflow:hidden}
@@ -422,7 +422,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 :root[data-theme="dark"] .mega-marq .marq-item .thin,:root:not([data-theme="light"]) .mega-marq .marq-item .thin{-webkit-text-stroke-color:var(--ink)}
 
 /* ---------- STORY PIN SCENES (always dark) ---------- */
-.story{position:relative;height:320vh;background:#111214;color:#F3F1EC;color-scheme:dark}
+.story{position:relative;height:440vh;background:#111214;color:#F3F1EC;color-scheme:dark}
 .story-sticky{position:sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center}
 .story-bg{position:absolute;inset:0;transition:background-color .8s ease}
 .story-frame{
@@ -657,11 +657,30 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
             <stop offset=".55" stop-color="#3f5aa6"/>
             <stop offset="1" stop-color="#2bb6c4"/>
           </linearGradient>
+          <linearGradient id="fsCard" x1="14" y1="84" x2="84" y2="20" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#2b2158"/>
+            <stop offset="1" stop-color="#4a5aac"/>
+          </linearGradient>
         </defs>
-        <path d="M58 14 L58 82 M58 52 L16 52 L42 14" fill="none" stroke="url(#fsGrad)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M50 20 C60 6 86 6 94 20 C86 34 60 34 50 20 Z" fill="url(#fsGrad)"/>
-        <circle cx="79" cy="20" r="7" fill="#14131c"/>
-        <circle cx="82" cy="17" r="1.8" fill="#fff" opacity=".9"/>
+        <!-- thân lịch (nền) + tai treo -->
+        <rect x="30" y="8" width="8" height="14" rx="4" fill="url(#fsCard)"/>
+        <rect x="12" y="20" width="72" height="64" rx="15" fill="url(#fsCard)"/>
+        <!-- lưới ô lịch + 1 ô đã tick -->
+        <circle cx="66" cy="48" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="66" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="66" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="78" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="78" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <rect x="72.5" y="42.5" width="11" height="11" rx="3" fill="#F5F3EE"/>
+        <path d="M75.5 48.2 L77.4 50 L80.5 45.8" fill="none" stroke="#2b2158" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- chấm trong lòng số 4 + góc dưới trái -->
+        <circle cx="38" cy="50" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="22" cy="76" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <!-- số 4 nối liền vào mắt (nét chính) -->
+        <path d="M58 20 L58 82 M58 54 L24 54 L52 18" fill="none" stroke="url(#fsGrad)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z" fill="url(#fsGrad)"/>
+        <circle cx="80" cy="19" r="7" fill="#14131c"/>
+        <circle cx="83" cy="16" r="1.8" fill="#fff" opacity=".9"/>
       </svg>
       Foresight
     </a>
@@ -996,11 +1015,26 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
                 <stop offset=".55" stop-color="#3f5aa6"/>
                 <stop offset="1" stop-color="#2bb6c4"/>
               </linearGradient>
+              <linearGradient id="fsCardFoot" x1="14" y1="84" x2="84" y2="20" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#2b2158"/>
+                <stop offset="1" stop-color="#4a5aac"/>
+              </linearGradient>
             </defs>
-            <path d="M58 14 L58 82 M58 52 L16 52 L42 14" fill="none" stroke="url(#fsGradFoot)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M50 20 C60 6 86 6 94 20 C86 34 60 34 50 20 Z" fill="url(#fsGradFoot)"/>
-            <circle cx="79" cy="20" r="7" fill="#14131c"/>
-            <circle cx="82" cy="17" r="1.8" fill="#fff" opacity=".9"/>
+            <rect x="30" y="8" width="8" height="14" rx="4" fill="url(#fsCardFoot)"/>
+            <rect x="12" y="20" width="72" height="64" rx="15" fill="url(#fsCardFoot)"/>
+            <circle cx="66" cy="48" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="66" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="66" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="78" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="78" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <rect x="72.5" y="42.5" width="11" height="11" rx="3" fill="#F5F3EE"/>
+            <path d="M75.5 48.2 L77.4 50 L80.5 45.8" fill="none" stroke="#2b2158" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38" cy="50" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="22" cy="76" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <path d="M58 20 L58 82 M58 54 L24 54 L52 18" fill="none" stroke="url(#fsGradFoot)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z" fill="url(#fsGradFoot)"/>
+            <circle cx="80" cy="19" r="7" fill="#14131c"/>
+            <circle cx="83" cy="16" r="1.8" fill="#fff" opacity=".9"/>
           </svg>
           Foresight
         </a>

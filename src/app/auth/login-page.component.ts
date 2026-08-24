@@ -199,18 +199,33 @@ interface EventCard {
             <!-- LOGIN CARD -->
             <div class="auth-rise-in relative z-10 mx-auto w-full max-w-[400px] rounded-[26px] border border-white/[0.14] bg-[#0c1030]/80 p-9 text-center shadow-2xl shadow-[#0c1030]/60 ring-1 ring-indigo-400/10 backdrop-blur-xl" style="animation-delay: 0.15s; box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 25px 60px -15px rgba(0,0,0,0.6), 0 0 80px -20px rgba(129,140,248,0.35);">
               <div class="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.08]">
-                <svg width="26" height="26" viewBox="0 0 96 96" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 96 96" aria-hidden="true">
                   <defs>
                     <linearGradient id="fsGradLogin" x1="8" y1="88" x2="90" y2="6" gradientUnits="userSpaceOnUse">
                       <stop offset="0" stop-color="#a5b4fc" />
                       <stop offset=".55" stop-color="#c4b5fd" />
                       <stop offset="1" stop-color="#67e8f9" />
                     </linearGradient>
+                    <linearGradient id="fsCardLogin" x1="14" y1="84" x2="84" y2="20" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#241b47" />
+                      <stop offset="1" stop-color="#3c3f7a" />
+                    </linearGradient>
                   </defs>
-                  <path d="M58 14 L58 82 M58 52 L16 52 L42 14" fill="none" stroke="url(#fsGradLogin)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M50 20 C60 6 86 6 94 20 C86 34 60 34 50 20 Z" fill="url(#fsGradLogin)" />
-                  <circle cx="79" cy="20" r="7" fill="#0c1030" />
-                  <circle cx="82" cy="17" r="1.8" fill="#fff" opacity=".9" />
+                  <rect x="30" y="8" width="8" height="14" rx="4" fill="url(#fsCardLogin)" />
+                  <rect x="12" y="20" width="72" height="64" rx="15" fill="url(#fsCardLogin)" />
+                  <circle cx="66" cy="48" r="2.6" fill="#e5e3fa" opacity=".85" />
+                  <circle cx="66" cy="60" r="2.6" fill="#e5e3fa" opacity=".85" />
+                  <circle cx="66" cy="72" r="2.6" fill="#e5e3fa" opacity=".85" />
+                  <circle cx="78" cy="60" r="2.6" fill="#e5e3fa" opacity=".85" />
+                  <circle cx="78" cy="72" r="2.6" fill="#e5e3fa" opacity=".85" />
+                  <rect x="72.5" y="42.5" width="11" height="11" rx="3" fill="#e5e3fa" />
+                  <path d="M75.5 48.2 L77.4 50 L80.5 45.8" fill="none" stroke="#241b47" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="38" cy="50" r="2.6" fill="#e5e3fa" opacity=".85" />
+                  <circle cx="22" cy="76" r="2.6" fill="#e5e3fa" opacity=".85" />
+                  <path d="M58 20 L58 82 M58 54 L24 54 L52 18" fill="none" stroke="url(#fsGradLogin)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z" fill="url(#fsGradLogin)" />
+                  <circle cx="80" cy="19" r="7" fill="#0c1030" />
+                  <circle cx="83" cy="16" r="1.8" fill="#fff" opacity=".9" />
                 </svg>
               </div>
 
