@@ -17,6 +17,7 @@ interface ApiAttendee {
 
 export interface ApiEvent {
   id: string;
+  calendar_id?: string;
   title: string;
   description: string | null;
   location: string | null;
@@ -28,6 +29,7 @@ export interface ApiEvent {
   series_id: string | null;
   creator_email?: string | null;
   reminder_minutes?: number | null;
+  completed?: boolean;
   deleted_at?: string | null;
   group_id?: string | null;
   meet_link?: string | null;
@@ -71,21 +73,42 @@ export function fromApiEvent(row: ApiEvent): CalendarEvent {
     start: new Date(row.start_time),
     end: new Date(row.end_time),
     isAllDay: row.is_all_day,
-    guests: (row.attendees ?? []).map((a) => ({ email: a.email, status: a.status })),
+    // Người tạo có thể được backend tự thêm vào bảng khách mời để nhận email nhắc.
+    // Không hiển thị chính mình như một "khách mời" -> lọc bỏ theo creator_email.
+    guests: (row.attendees ?? [])
+      .filter((a) => a.email.toLowerCase() !== (row.creator_email ?? '').toLowerCase())
+      .map((a) => ({ email: a.email, status: a.status })),
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,
+    calendarId: row.calendar_id ?? undefined,
     reminderMinutes: row.reminder_minutes ?? null,
+    completed: row.completed ?? false,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
     groupId: row.group_id ?? undefined,
     meetLink: row.meet_link ?? undefined,
   };
 }
 
+/** Lời mời chưa trả lời (trang Lời mời). */
+export interface Invitation {
+  eventId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  location: string | null;
+  color: string;
+  creatorEmail: string | null;
+  myStatus: string;
+}
+
 /** Tùy chọn lặp lại khi tạo event mới (materialized: backend tạo `count` event thật) */
 export interface RecurrenceOptions {
   repeat: 'daily' | 'weekly' | 'monthly';
   count: number;
+  /** Lặp mỗi N đơn vị (mặc định 1). */
+  interval?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -99,7 +122,7 @@ export class EventsApiService {
 
   create(draft: Omit<CalendarEvent, 'id'>, recurrence?: RecurrenceOptions): Observable<SaveResult> {
     const payload = recurrence
-      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count }
+      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count, repeatInterval: recurrence.interval ?? 1 }
       : toApiPayload(draft);
     return this.http.post<MutationResponse>(this.base, payload).pipe(
       map((res) => ({
@@ -116,6 +139,13 @@ export class EventsApiService {
         conflictTitles: res.conflicts.map((c) => c.title),
       })),
     );
+  }
+
+  /** PATCH gọn chỉ đổi trạng thái hoàn thành của task. */
+  setCompleted(id: string, completed: boolean): Observable<CalendarEvent> {
+    return this.http
+      .patch<MutationResponse>(`${this.base}/${id}`, { completed })
+      .pipe(map((res) => fromApiEvent(res.event)));
   }
 
   delete(id: string, scope?: 'series'): Observable<void> {
@@ -136,6 +166,11 @@ export class EventsApiService {
   /** Xóa vĩnh viễn 1 sự kiện trong thùng rác */
   purge(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${id}/purge`);
+  }
+
+  /** Lời mời chưa trả lời của user (để bấm Đồng ý/Từ chối ở trang Lời mời) */
+  listInvitations(): Observable<Invitation[]> {
+    return this.http.get<Invitation[]>(`${this.base}/invitations`);
   }
 
   /** Gắn link Google Meet vào 1 sự kiện, trả về sự kiện đã cập nhật. */

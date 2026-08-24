@@ -14,8 +14,11 @@ import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
+import { TimePickerComponent } from '../shared/time-picker.component';
+import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
+import { AttachmentsApiService } from './attachments-api.service';
 import { SupabaseService } from '../auth/supabase.service';
 
 function toDateInputValue(d: Date): string {
@@ -34,110 +37,79 @@ function toTimeInputValue(d: Date): string {
 @Component({
   selector: 'app-event-form-modal',
   standalone: true,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent, TimePickerComponent, DateTimePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="evm-backdrop modal-backdrop-in" (click)="close()">
-      <div class="evm-card modal-card-in" (click)="$event.stopPropagation()">
-        <!-- Header -->
-        <div class="evm-header">
+    <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-20" (click)="close()">
+      <div class="modal-card-in w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+        <div class="mb-3 flex items-start justify-between gap-4">
           <input
             type="text"
             [(ngModel)]="title"
             [placeholder]="tr.t('form.addTitle')"
-            class="evm-title-input"
+            class="flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
           />
-          <button type="button" (click)="close()" class="evm-close" [attr.aria-label]="tr.t('common.close')">
-            <app-icon name="x" class="h-4 w-4" />
-          </button>
+          <button type="button" (click)="close()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
 
-        <!-- Segmented tabs -->
-        <div class="evm-tabs" role="tablist">
+        <!-- Tabs: Sự kiện / Việc cần làm / Lên lịch hẹn -->
+        <div class="mb-4 flex gap-2">
           @for (t of tabs; track t.key) {
             <button
               type="button"
-              role="tab"
               (click)="tab.set(t.key)"
-              class="evm-tab"
-              [class.is-active]="tab() === t.key"
-              [attr.aria-selected]="tab() === t.key"
+              class="rounded-full px-3 py-1 text-sm"
+              [class.bg-blue-100]="tab() === t.key"
+              [class.text-blue-800]="tab() === t.key"
+              [class.text-gray-600]="tab() !== t.key"
             >
               {{ tr.t('kind.' + t.key) }}
             </button>
           }
         </div>
 
-        <!-- Body -->
-        <div class="evm-body">
-          @if (tab() === 'event') {
-            <!-- Date/time grid -->
-            <div class="evm-date-grid">
-              <div class="evm-input-wrap">
-                <span class="evm-label">Ngày bắt đầu</span>
-                <div class="evm-input-inner">
-                  <app-icon name="calendar" class="evm-in-icon" />
-                  <input type="date" [(ngModel)]="startDate" class="evm-input" [disabled]="!canEditTime()" />
-                </div>
-              </div>
-              <div class="evm-input-wrap">
-                <span class="evm-label">Giờ bắt đầu</span>
-                <div class="evm-input-inner">
-                  <app-icon name="alarm" class="evm-in-icon" />
-                  <input type="time" [(ngModel)]="startTime" class="evm-input" [disabled]="isAllDay() || !canEditTime()" />
-                </div>
-              </div>
-              <div class="evm-input-wrap">
-                <span class="evm-label">Ngày kết thúc</span>
-                <div class="evm-input-inner">
-                  <app-icon name="calendar" class="evm-in-icon" />
-                  <input type="date" [(ngModel)]="endDate" class="evm-input" [disabled]="!canEditTime()" />
-                </div>
-              </div>
-              <div class="evm-input-wrap">
-                <span class="evm-label">Giờ kết thúc</span>
-                <div class="evm-input-inner">
-                  <app-icon name="alarm" class="evm-in-icon" />
-                  <input type="time" [(ngModel)]="endTime" class="evm-input" [disabled]="isAllDay() || !canEditTime()" />
-                </div>
-              </div>
+        <!-- Tab: Sự kiện -->
+        @if (tab() === 'event') {
+          <div class="space-y-4">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="w-5 text-center">🕐</span>
+              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay() || !canEditTime()" />
+              <span>–</span>
+              <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+              <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay() || !canEditTime()" />
             </div>
-
             @if (!canEditTime()) {
-              <p class="text-xs" style="color: var(--text-muted)">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
+              <p class="pl-7 text-xs text-gray-500">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
             }
-
-            <!-- All-day (custom checkbox) -->
-            <label class="evm-check">
-              <input type="checkbox" [(ngModel)]="isAllDay" />
-              <span class="evm-check-box"><app-icon name="check" class="h-3 w-3" /></span>
-              <span class="evm-check-label">{{ tr.t('common.allDay') }}</span>
+            <label class="flex items-center gap-2 pl-7 text-sm text-gray-600">
+              <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
             </label>
 
-            <!-- Repeat (chỉ khi tạo mới) -->
+            <!-- Lặp lại: chỉ cho tạo mới (sửa 1 event trong chuỗi lặp phức tạp -> để sau) -->
             @if (!editing()) {
-              <div class="evm-field-row">
-                <span class="evm-field-icon"><app-icon name="repeat" class="h-4 w-4" /></span>
-                <div class="flex flex-wrap items-center gap-2">
-                  <select [(ngModel)]="repeat" class="evm-select">
-                    <option value="none">{{ tr.t('form.noRepeat') }}</option>
-                    <option value="daily">{{ tr.t('form.daily') }}</option>
-                    <option value="weekly">{{ tr.t('form.weekly') }}</option>
-                    <option value="monthly">{{ tr.t('form.monthly') }}</option>
-                  </select>
-                  @if (repeat() !== 'none') {
-                    <span class="text-sm" style="color: var(--text-muted)">×</span>
-                    <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="evm-input-alt evm-input--small" />
-                    <span class="text-sm" style="color: var(--text-muted)">{{ tr.t('form.times') }}</span>
-                  }
-                </div>
+              <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
+                <span>🔁</span>
+                <select [(ngModel)]="repeat" class="rounded border border-gray-300 px-2 py-1">
+                  <option value="none">{{ tr.t('form.noRepeat') }}</option>
+                  <option value="daily">{{ tr.t('form.daily') }}</option>
+                  <option value="weekly">{{ tr.t('form.weekly') }}</option>
+                  <option value="monthly">{{ tr.t('form.monthly') }}</option>
+                </select>
+                @if (repeat() !== 'none') {
+                  <span>{{ tr.t('form.every') }}</span>
+                  <input type="number" min="1" max="30" [(ngModel)]="repeatInterval" class="w-14 rounded border border-gray-300 px-2 py-1" />
+                  <span>×</span>
+                  <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="w-16 rounded border border-gray-300 px-2 py-1" />
+                  <span>{{ tr.t('form.times') }}</span>
+                }
               </div>
             }
 
             @if (conflicts().length > 0) {
-              <div class="evm-conflict">
+              <div class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 <p class="flex items-center gap-2"><app-icon name="alert" class="h-4 w-4" /> {{ tr.t('form.conflictA') }} {{ conflicts().length }} {{ tr.t('form.conflictB') }}</p>
-                <ul>
+                <ul class="mt-1 list-disc pl-5">
                   @for (c of conflicts(); track c.id) {
                     <li>{{ c.title || tr.t('common.untitled') }} — {{ formatRange(c) }}</li>
                   }
@@ -145,37 +117,41 @@ function toTimeInputValue(d: Date): string {
               </div>
             }
 
-            <!-- Guests -->
-            <div class="evm-field-row evm-field-row--top">
-              <span class="evm-field-icon"><app-icon name="user" class="h-4 w-4" /></span>
-              <div class="evm-field-body">
+            <div class="flex items-start gap-2 text-sm">
+              <span class="w-5 pt-1.5 text-center">👤</span>
+              <div class="flex-1">
                 <div class="relative">
-                  <div class="flex" style="gap: 8px;">
+                  <div class="flex gap-2">
                     <input
                       type="email"
                       [(ngModel)]="guestEmailDraft"
                       (keydown.enter)="addGuest()"
                       [placeholder]="tr.t('form.addGuest')"
-                      class="evm-input-alt flex-1"
+                      class="flex-1 rounded border border-gray-300 px-2 py-1"
                     />
-                    <button type="button" (click)="addGuest()" class="btn-secondary">{{ tr.t('form.add') }}</button>
+                    <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">{{ tr.t('form.add') }}</button>
                   </div>
+                  <!-- Gợi ý các email đã từng mời (autocomplete) -->
                   @if (guestSuggestions().length > 0) {
-                    <div class="popup-in evm-suggest">
+                    <div class="popup-in absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
                       @for (s of guestSuggestions(); track s) {
-                        <button type="button" (click)="pickSuggestion(s)" class="truncate">{{ s }}</button>
+                        <button
+                          type="button"
+                          (click)="pickSuggestion(s)"
+                          class="block w-full truncate px-3 py-1.5 text-left hover:bg-gray-50"
+                        >
+                          {{ s }}
+                        </button>
                       }
                     </div>
                   }
                 </div>
                 @if (guests().length > 0) {
-                  <ul class="evm-guest-list">
+                  <ul class="mt-2 space-y-1">
                     @for (g of guests(); track g.email) {
-                      <li class="evm-guest-chip">
+                      <li class="flex items-center justify-between rounded bg-gray-50 px-2 py-1">
                         <span>{{ g.email }}</span>
-                        <button type="button" (click)="removeGuest(g.email)" class="evm-guest-remove" [attr.aria-label]="tr.t('form.removeGuest')">
-                          <app-icon name="x" class="h-3.5 w-3.5" />
-                        </button>
+                        <button type="button" (click)="removeGuest(g.email)" class="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
                       </li>
                     }
                   </ul>
@@ -183,104 +159,108 @@ function toTimeInputValue(d: Date): string {
               </div>
             </div>
 
-            <!-- Location -->
-            <div class="evm-field-row">
-              <span class="evm-field-icon"><app-icon name="map-pin" class="h-4 w-4" /></span>
-              <input
-                type="text"
-                [(ngModel)]="location"
-                [placeholder]="tr.t('form.addLocation')"
-                class="evm-input-alt flex-1"
-              />
+            <div class="flex items-center gap-2 text-sm">
+              <span class="w-5 text-center">📍</span>
+              <input type="text" [(ngModel)]="location" [placeholder]="tr.t('form.addLocation')" class="flex-1 rounded border border-gray-300 px-2 py-1" />
             </div>
 
-            <!-- Description -->
-            <div class="evm-field-row evm-field-row--top">
-              <span class="evm-field-icon"><app-icon name="notes" class="h-4 w-4" /></span>
-              <textarea
-                [(ngModel)]="description"
-                rows="3"
-                [placeholder]="tr.t('form.addDesc')"
-                class="evm-textarea"
-              ></textarea>
+            <div class="flex items-start gap-2 text-sm">
+              <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
+              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
             </div>
 
-            <!-- Color -->
-            <div class="evm-field-row">
-              <span class="evm-field-icon"><app-icon name="palette" class="h-4 w-4" /></span>
-              <div class="evm-colors">
+            <!-- Chọn màu cho sự kiện -->
+            <div class="flex items-center gap-2 text-sm">
+              <app-icon name="palette" class="h-4 w-4 text-gray-500" />
+              <div class="flex gap-2">
                 @for (c of colorOptions; track c.name) {
                   <button
                     type="button"
                     (click)="color.set(c.name)"
                     [title]="tr.t('color.' + c.name)"
                     [attr.aria-label]="tr.t('color.' + c.name)"
-                    [attr.aria-pressed]="color() === c.name"
-                    [attr.data-color]="c.name"
-                    class="evm-color"
-                    [class.is-active]="color() === c.name"
-                  >
-                    @if (color() === c.name) {
-                      <app-icon name="check" class="h-3.5 w-3.5" />
-                    }
-                  </button>
+                    [class]="c.class + ' h-6 w-6 rounded-full ' + (color() === c.name ? 'ring-2 ring-gray-800 ring-offset-1' : '')"
+                  ></button>
                 }
               </div>
             </div>
 
-            <!-- Reminder -->
-            <div class="evm-field-row">
-              <span class="evm-field-icon"><app-icon name="bell" class="h-4 w-4" /></span>
-              <select [ngModel]="reminderStr()" (ngModelChange)="setReminder($event)" class="evm-select">
+            <!-- Nhắc trước giờ bắt đầu -->
+            <div class="flex items-center gap-2 text-sm">
+              <app-icon name="bell" class="h-4 w-4 text-gray-500" />
+              <select [ngModel]="reminderStr()" (ngModelChange)="setReminder($event)" class="rounded border border-gray-300 px-2 py-1">
                 <option value="none">{{ tr.t('notif.none') }}</option>
-                <option value="5">5 {{ tr.t('notif.min') }}</option>
-                <option value="10">10 {{ tr.t('notif.min') }}</option>
-                <option value="15">15 {{ tr.t('notif.min') }}</option>
-                <option value="30">30 {{ tr.t('notif.min') }}</option>
-                <option value="60">{{ tr.t('notif.hour') }}</option>
-                <option value="1440">{{ tr.t('notif.day') }}</option>
+                <option value="5">{{ tr.t('notif.r5') }}</option>
+                <option value="10">{{ tr.t('notif.r10') }}</option>
+                <option value="15">{{ tr.t('notif.r15') }}</option>
+                <option value="30">{{ tr.t('notif.r30') }}</option>
+                <option value="60">{{ tr.t('notif.r60') }}</option>
+                <option value="1440">{{ tr.t('notif.r1440') }}</option>
               </select>
             </div>
-          }
 
-          <!-- Tab: Việc cần làm -->
-          @if (tab() === 'task') {
-            <div class="evm-date-grid">
-              <div class="evm-input-wrap">
-                <span class="evm-label">Hạn ngày</span>
-                <div class="evm-input-inner">
-                  <app-icon name="calendar" class="evm-in-icon" />
-                  <input type="date" [(ngModel)]="startDate" class="evm-input" />
-                </div>
+            <!-- Đính kèm tài liệu ngay lúc tạo (có thể hẹn giờ mở/đóng) -->
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-2 text-gray-500"><app-icon name="notes" class="h-4 w-4" /> {{ tr.t('attach.title') }}</span>
+                <label class="tap cursor-pointer rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50">
+                  {{ tr.t('attach.add') }}
+                  <input type="file" class="hidden" (change)="onStageFile($event)" />
+                </label>
               </div>
-              <div class="evm-input-wrap">
-                <span class="evm-label">Hạn giờ</span>
-                <div class="evm-input-inner">
-                  <app-icon name="alarm" class="evm-in-icon" />
-                  <input type="time" [(ngModel)]="startTime" class="evm-input" />
-                </div>
+              <div class="grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.from') }}
+                  <app-datetime-picker [(ngModel)]="stageFrom" />
+                </label>
+                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.until') }}
+                  <app-datetime-picker [(ngModel)]="stageUntil" />
+                </label>
+                <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
+              @for (s of stagedFiles(); track $index) {
+                <div class="flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs">
+                  <span class="min-w-0 flex-1 truncate">📎 {{ s.file.name }}</span>
+                  @if (s.from) { <span class="shrink-0 text-amber-600">🔒 {{ s.from }}</span> }
+                  <button type="button" (click)="removeStaged($index)" class="tap shrink-0 rounded p-0.5 text-gray-400 hover:text-red-600"><app-icon name="x" class="h-3.5 w-3.5" /></button>
+                </div>
+              }
             </div>
-            <div class="evm-field-row evm-field-row--top">
-              <span class="evm-field-icon"><app-icon name="notes" class="h-4 w-4" /></span>
-              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="evm-textarea"></textarea>
-            </div>
-          }
+          </div>
+        }
 
-          <!-- Tab: Lên lịch hẹn -->
-          @if (tab() === 'appointment') {
-            <div class="evm-note-panel">
-              <p>{{ tr.t('form.apptDesc') }}</p>
-              <p class="muted">{{ tr.t('form.apptNote') }}</p>
+        <!-- Tab: Việc cần làm -->
+        @if (tab() === 'task') {
+          <div class="space-y-4">
+            <div class="flex items-center gap-2 text-sm">
+              <app-icon name="target" class="h-4 w-4 text-gray-500" />
+              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
+              <app-time-picker [(ngModel)]="startTime" />
             </div>
-          }
-        </div>
+            <div class="flex items-start gap-2 text-sm">
+              <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
+              <textarea [(ngModel)]="description" rows="3" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] flex-1 resize-y rounded border border-gray-300 px-2 py-1"></textarea>
+            </div>
+          </div>
+        }
 
-        <!-- Footer -->
-        <div class="evm-footer">
-          <button type="button" (click)="close()" class="btn-ghost">{{ tr.t('del.cancel') }}</button>
+        <!-- Tab: Lên lịch hẹn (stub — cần trang đặt lịch công khai riêng, để Giai đoạn 2) -->
+        @if (tab() === 'appointment') {
+          <div class="rounded-md bg-gray-50 p-4 text-sm text-gray-600">
+            {{ tr.t('form.apptDesc') }}
+            <p class="mt-2 text-xs text-gray-400">
+              {{ tr.t('form.apptNote') }}
+            </p>
+          </div>
+        }
+
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" (click)="close()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
           @if (tab() !== 'appointment') {
-            <button type="button" (click)="save()" class="btn-primary">{{ tr.t('form.save') }}</button>
+            <button
+              type="button"
+              (click)="save()"
+              class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+            >{{ tr.t('form.save') }}</button>
           }
         </div>
       </div>
@@ -291,7 +271,37 @@ export class EventFormModalComponent {
   protected readonly state = inject(CalendarStateService);
   protected readonly tr = inject(TranslateService);
   private readonly settings = inject(SettingsService);
+  private readonly attachmentsApi = inject(AttachmentsApiService);
   private readonly supabase = inject(SupabaseService);
+
+  // ----- Tài liệu đính kèm ngay lúc tạo (xếp hàng, upload sau khi lưu) -----
+  protected readonly stagedFiles = signal<{ file: File; from: string; until: string }[]>([]);
+  protected readonly stageFrom = signal('');
+  protected readonly stageUntil = signal('');
+  protected onStageFile(evt: Event): void {
+    const input = evt.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.stagedFiles.update((l) => [...l, { file, from: this.stageFrom(), until: this.stageUntil() }]);
+    this.stageFrom.set('');
+    this.stageUntil.set('');
+    input.value = '';
+  }
+  protected removeStaged(i: number): void {
+    this.stagedFiles.update((l) => l.filter((_, idx) => idx !== i));
+  }
+  /** Upload các file đã xếp hàng vào event vừa tạo. */
+  private uploadStaged(eventId: string): void {
+    for (const s of this.stagedFiles()) {
+      this.attachmentsApi
+        .upload(eventId, s.file, {
+          availableFrom: s.from ? new Date(s.from).toISOString() : null,
+          availableUntil: s.until ? new Date(s.until).toISOString() : null,
+        })
+        .subscribe({ error: () => {} });
+    }
+    this.stagedFiles.set([]);
+  }
 
   /**
    * Chỉ NGƯỜI TẠO mới được đổi giờ bắt đầu/kết thúc. Khi tạo mới -> luôn cho phép.
@@ -335,6 +345,7 @@ export class EventFormModalComponent {
   color = signal('sky');
   repeat = signal<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   repeatCount = signal(4);
+  repeatInterval = signal(1);
   /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
   editing = signal(false);
 
@@ -386,6 +397,7 @@ export class EventFormModalComponent {
         this.color.set('sky');
         this.repeat.set('none');
         this.repeatCount.set(4);
+        this.repeatInterval.set(1);
         // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới.
         this.reminderMinutes.set(this.settings.settings().default_reminder);
       }
@@ -458,7 +470,11 @@ export class EventFormModalComponent {
     const repeat = this.repeat();
     const recurrence =
       !this.editingId && repeat !== 'none'
-        ? { repeat, count: Math.min(Math.max(this.repeatCount() || 1, 1), 52) }
+        ? {
+            repeat,
+            count: Math.min(Math.max(this.repeatCount() || 1, 1), 52),
+            interval: Math.min(Math.max(this.repeatInterval() || 1, 1), 30),
+          }
         : undefined;
 
     this.state.saveEvent(
@@ -476,6 +492,10 @@ export class EventFormModalComponent {
         reminderMinutes: this.reminderMinutes(),
       },
       recurrence,
+      // Sau khi lưu xong (có id) -> upload các file đã đính kèm trong form.
+      (event) => {
+        if (this.stagedFiles().length > 0) this.uploadStaged(event.id);
+      },
     );
   }
 }

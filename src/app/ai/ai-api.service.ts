@@ -28,7 +28,7 @@ export class AiApiService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
-  chat(message: string): Observable<AiParseResult> {
-    return this.http.post<AiParseResult>(`${this.base}/ai/chat`, { message });
+  chat(message: string, history?: { role: 'user' | 'assistant'; text: string }[]): Observable<AiParseResult> {
+    return this.http.post<AiParseResult>(`${this.base}/ai/chat`, { message, history });
   }
 }

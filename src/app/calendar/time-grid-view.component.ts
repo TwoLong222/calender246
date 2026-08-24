@@ -23,6 +23,7 @@ import { formatHourLabel, isSameDay, minutesSinceMidnight } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { CalendarStateService } from './calendar-state.service';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -109,12 +110,24 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-full flex-col overflow-hidden">
-      <!-- Header: tên ngày + số ngày, hôm nay có vòng tròn accent. Bấm vào ngày -> xem view Ngày. -->
-      <div class="tg-day-headers">
+      <!-- Header: tên ngày + số ngày, hôm nay có vòng tròn xanh. Bấm vào ngày -> xem view Ngày. -->
+      <div class="flex border-b border-gray-200 pl-14">
         @for (date of dates(); track date.getTime()) {
-          <button type="button" (click)="dateSelected.emit(date)" class="tg-day-btn" title="Xem ngày này">
-            <span class="tg-day-name">{{ weekdayLabel(date) }}</span>
-            <span class="tg-day-num" [class.is-today]="isToday(date)">{{ date.getDate() }}</span>
+          <button
+            type="button"
+            (click)="dateSelected.emit(date)"
+            class="flex flex-1 flex-col items-center py-2 hover:bg-gray-50"
+            title="Xem ngày này"
+          >
+            <span class="text-xs font-medium uppercase text-gray-500">{{ weekdayLabel(date) }}</span>
+            <span
+              class="mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg hover:bg-blue-100"
+              [class.bg-blue-700]="isToday(date)"
+              [class.text-white]="isToday(date)"
+              [class.text-gray-800]="!isToday(date)"
+            >
+              {{ date.getDate() }}
+            </span>
           </button>
         }
       </div>
@@ -126,17 +139,17 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
           <div class="w-14 shrink-0">
             @for (hour of hours; track hour) {
               <div class="relative" [style.height.px]="HOUR_HEIGHT">
-                <span class="tg-hour-label absolute -top-2 right-2">{{ formatHourLabel(hour, settings.is24h()) }}</span>
+                <span class="absolute -top-2 right-2 text-[11px] font-semibold text-gray-600">{{ formatHourLabel(hour, settings.is24h()) }}</span>
               </div>
             }
           </div>
 
           <!-- Các cột ngày -->
           @for (date of dates(); track date.getTime()) {
-            <div class="tg-day-col relative flex-1" [class.is-today-col]="isToday(date)">
+            <div class="relative flex-1 border-l border-gray-100">
               @for (hour of hours; track hour) {
                 <div
-                  class="tg-hour-cell cursor-pointer"
+                  class="cursor-pointer border-b border-gray-100 hover:bg-blue-50/40"
                   [style.height.px]="HOUR_HEIGHT"
                   (click)="onSlotClick(date, hour)"
                 ></div>
@@ -148,7 +161,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   class="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
                   [style.top.px]="nowOffset()"
                 >
-                  <span class="-ml-1 h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.18)]"></span>
+                  <span class="-ml-1 h-2.5 w-2.5 rounded-full bg-red-500"></span>
                   <span class="h-px flex-1 bg-red-500"></span>
                 </div>
               }
@@ -162,11 +175,12 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   (pointermove)="onMove($event)"
                   (pointerup)="endMove($event)"
                   (pointercancel)="endMove($event)"
+                  class="group absolute z-10 cursor-grab touch-none overflow-hidden rounded-md border border-white px-2 py-1 text-left text-xs text-white shadow-sm active:cursor-grabbing"
                   [style.top.px]="item.top"
                   [style.height.px]="item.height"
                   [style.left.%]="item.left"
                   [style.width.%]="item.width"
-                  [class]="'evt group z-10 cursor-grab touch-none active:cursor-grabbing ' + colorClass(item.event.color)"
+                  [class]="colorClass(item.event.color)"
                 >
                   <!-- Tay cầm kéo mép TRÊN: đổi giờ bắt đầu -->
                   <div
@@ -178,26 +192,17 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                     (pointercancel)="endResize($event)"
                     (click)="$event.stopPropagation()"
                   >
-                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-current opacity-40"></span>
+                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
                   </div>
 
                   @if (item.height < 40) {
                     <!-- Block quá ngắn: gộp giờ bắt đầu + tiêu đề trên 1 dòng để vẫn thấy được giờ -->
-                    <span class="evt-title block truncate">
-                      {{ formatStart(item.event) }} · {{ item.event.title || '(Không có tiêu đề)' }}
+                    <span class="block truncate font-medium">
+                      @if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ formatStart(item.event) }} {{ item.event.title || tr.t('common.untitled') }}
                     </span>
                   } @else {
-                    <span class="evt-title block truncate">{{ item.event.title || '(Không có tiêu đề)' }}</span>
-                    <span class="evt-meta">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                      <span class="truncate">{{ formatRange(item.event) }}</span>
-                    </span>
-                    @if (item.event.location && item.height >= 66) {
-                      <span class="evt-loc">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12s-8-7-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg>
-                        <span>{{ item.event.location }}</span>
-                      </span>
-                    }
+                    <span class="block truncate font-medium">@if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ item.event.title || tr.t('common.untitled') }}</span>
+                    <span class="block truncate opacity-90">{{ formatRange(item.event) }}</span>
                   }
 
                   <!-- Tay cầm kéo mép DƯỚI: đổi giờ kết thúc (thời lượng) -->
@@ -210,7 +215,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                     (pointercancel)="endResize($event)"
                     (click)="$event.stopPropagation()"
                   >
-                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-current opacity-40"></span>
+                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
                   </div>
                 </button>
               }
@@ -257,9 +262,10 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Chỉ CHỦ event mới được kéo/co giãn (khách được mời không sửa được — RLS chặn) */
+  protected readonly state = inject(CalendarStateService);
   canEdit(e: CalendarEvent): boolean {
-    if (!e.creatorEmail) return true; // event cũ chưa có creatorEmail -> tạm cho (thường của mình)
-    return e.creatorEmail.toLowerCase() === this.supabase.user()?.email?.toLowerCase();
+    // Chủ event, hoặc editor của lịch được chia sẻ.
+    return this.state.canEditEvent(e);
   }
   private readonly scrollAreaRef = viewChild<ElementRef<HTMLDivElement>>('scrollArea');
   private readonly gridRowRef = viewChild<ElementRef<HTMLDivElement>>('gridRow');
@@ -479,13 +485,13 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   colorClass(color: string): string {
     const map: Record<string, string> = {
-      sky: 'evt-sky',
-      violet: 'evt-violet',
-      emerald: 'evt-emerald',
-      rose: 'evt-rose',
-      amber: 'evt-amber',
+      sky: 'bg-sky-600',
+      violet: 'bg-violet-600',
+      emerald: 'bg-emerald-600',
+      rose: 'bg-rose-600',
+      amber: 'bg-amber-600',
     };
-    return map[color] ?? 'evt-sky';
+    return map[color] ?? 'bg-sky-600';
   }
 
   onSlotClick(date: Date, hour: number): void {

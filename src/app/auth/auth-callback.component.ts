@@ -8,16 +8,18 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { SupabaseService } from './supabase.service';
+import { TranslateService } from '../i18n/translate.service';
 
 @Component({
   selector: 'app-auth-callback',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<p class="p-10 text-center text-sm text-gray-500">Đang đăng nhập...</p>`,
+  template: `<p class="p-10 text-center text-sm text-gray-500">{{ tr.t('auth.signingIn') }}</p>`,
 })
 export class AuthCallbackComponent implements OnInit {
   private readonly supabase = inject(SupabaseService);
   private readonly router = inject(Router);
+  protected readonly tr = inject(TranslateService);
 
   async ngOnInit(): Promise<void> {
     await this.supabase.client.auth.getSession();

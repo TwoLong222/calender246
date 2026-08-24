@@ -11,13 +11,49 @@ import { AttendeeStatus, CalendarEvent, EventKind, ViewMode } from './calendar.t
 import { addDays, addMonths, addYears, startOfDay } from './date-utils';
 import { EventsApiService, RecurrenceOptions } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { SharingApiService } from '../sharing/sharing-api.service';
 import { GoogleMeetService } from '../groups/google-meet.service';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
   private readonly supabase = inject(SupabaseService);
+  private readonly sharingApi = inject(SharingApiService);
   private readonly meet = inject(GoogleMeetService);
+
+  /** Các lịch được chia sẻ CHO mình (kèm vai trò) — để phân biệt & phân quyền editor. */
+  readonly sharedCalendars = signal<{ id: string; role: 'viewer' | 'editor' }[]>([]);
+  private readonly editorCalendarIds = computed(
+    () => new Set(this.sharedCalendars().filter((c) => c.role === 'editor').map((c) => c.id)),
+  );
+  private readonly sharedCalendarIds = computed(
+    () => new Set(this.sharedCalendars().map((c) => c.id)),
+  );
+
+  /** true nếu user hiện tại được phép SỬA event này (chủ event, hoặc editor của lịch được chia sẻ). */
+  canEditEvent(e: CalendarEvent): boolean {
+    const me = this.supabase.user()?.email?.toLowerCase();
+    if (!e.creatorEmail) return true; // event cũ chưa có creatorEmail -> thường của mình
+    if (e.creatorEmail.toLowerCase() === me) return true;
+    return !!e.calendarId && this.editorCalendarIds().has(e.calendarId);
+  }
+
+  /** true nếu event thuộc lịch của NGƯỜI KHÁC chia sẻ cho mình (để hiện nhãn). */
+  isSharedEvent(e: CalendarEvent): boolean {
+    return !!e.calendarId && this.sharedCalendarIds().has(e.calendarId);
+  }
+
+  private loadSharedCalendars(): void {
+    this.sharingApi.sharedWithMe().subscribe({
+      next: (rows) =>
+        this.sharedCalendars.set(
+          (rows ?? [])
+            .filter((r) => r.calendar)
+            .map((r) => ({ id: r.calendar!.id, role: r.role })),
+        ),
+      error: () => {},
+    });
+  }
 
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
@@ -30,8 +66,19 @@ export class CalendarStateService {
 
   /** Bộ lọc hiển thị theo loại sự kiện (điều khiển bằng checkbox ở sidebar) */
   readonly visibleKinds = signal<Record<EventKind, boolean>>({ event: true, task: true, appointment: true });
-  /** Danh sách sự kiện đã lọc theo visibleKinds — các view lịch dùng cái này */
-  readonly visibleEvents = computed(() => this.events().filter((e) => this.visibleKinds()[e.kind]));
+  /**
+   * Có hiện task đã hoàn thành trên lịch không. Do SettingsService đẩy vào (tránh
+   * vòng phụ thuộc: SettingsService đã inject service này). Mặc định true.
+   */
+  readonly showCompletedTasks = signal(true);
+  /** Danh sách sự kiện đã lọc theo visibleKinds (+ ẩn task xong nếu tắt) — các view lịch dùng cái này */
+  readonly visibleEvents = computed(() =>
+    this.events().filter(
+      (e) =>
+        this.visibleKinds()[e.kind] &&
+        (this.showCompletedTasks() || e.kind !== 'task' || !e.completed),
+    ),
+  );
 
   toggleKind(kind: EventKind): void {
     this.visibleKinds.update((v) => ({ ...v, [kind]: !v[kind] }));
@@ -61,6 +108,7 @@ export class CalendarStateService {
 
   constructor() {
     this.reload();
+    this.loadSharedCalendars();
     // QUAN TRỌNG: chỉ đăng ký Realtime SAU khi đã có token đăng nhập, và gắn token cho kênh
     // (setAuth). Nếu đăng ký lúc chưa đăng nhập, kênh chạy quyền ẩn danh -> RLS chặn -> KHÔNG
     // nhận được thay đổi của người khác (vd khách vừa Đồng ý) nên phải F5 mới thấy.
@@ -249,7 +297,11 @@ export class CalendarStateService {
     });
   }
 
-  saveEvent(draft: Omit<CalendarEvent, 'id'> & { id?: string }, recurrence?: RecurrenceOptions): void {
+  saveEvent(
+    draft: Omit<CalendarEvent, 'id'> & { id?: string },
+    recurrence?: RecurrenceOptions,
+    afterSave?: (event: CalendarEvent) => void,
+  ): void {
     this.markLocalChange();
     const { id, ...rest } = draft;
     const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
@@ -266,6 +318,8 @@ export class CalendarStateService {
           });
         }
         this.lastSavedConflicts.set(conflictTitles);
+        // Cho phép caller làm tiếp sau khi lưu (vd: upload file đính kèm vào event mới).
+        afterSave?.(event);
         this.closeForm();
       },
       error: () => {
@@ -311,6 +365,20 @@ export class CalendarStateService {
       },
       error: () => {
         this.loadError.set('Cập nhật trạng thái tham dự thất bại. Thử lại sau.');
+      },
+    });
+  }
+
+  /** Đánh dấu task hoàn thành / chưa (cập nhật lạc quan). */
+  setTaskCompleted(id: string, completed: boolean): void {
+    this.markLocalChange();
+    const previous = this.events();
+    this.events.update((list) => list.map((e) => (e.id === id ? { ...e, completed } : e)));
+    this.api.setCompleted(id, completed).subscribe({
+      next: (saved) => this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e))),
+      error: () => {
+        this.events.set(previous);
+        this.loadError.set('Cập nhật trạng thái task thất bại. Thử lại sau.');
       },
     });
   }
