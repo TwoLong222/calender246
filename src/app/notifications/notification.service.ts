@@ -10,13 +10,15 @@ import { AttachmentsApiService } from '../calendar/attachments-api.service';
 
 interface Toast {
   id: string;
-  /** 'event' = nhắc lịch; 'file' = tài liệu vừa mở; 'chat' = tin nhắn nhóm mới. */
-  kind: 'event' | 'file' | 'chat';
+  /** 'event' = nhắc lịch; 'file' = tài liệu vừa mở; 'chat' = tin nhắn nhóm mới; 'invite' = lời mời sự kiện. */
+  kind: 'event' | 'file' | 'chat' | 'invite';
   title: string;
-  /** Dòng phụ: giờ bắt đầu (event) hoặc tên sự kiện (file). */
+  /** Dòng phụ: giờ bắt đầu (event), tên sự kiện (file), hoặc email người mời (invite). */
   detail?: string;
   /** Nội dung tin nhắn (chat). */
   body?: string;
+  /** ID sự kiện — dùng cho toast 'invite' để bấm Đồng ý/Từ chối ngay. */
+  eventId?: string;
 }
 
 const SEEN_FILES_KEY = 'notified-file-open';
@@ -28,6 +30,10 @@ export class NotificationService {
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
+  /** Các lời mời đã hiện toast (tránh báo lại). */
+  private readonly notifiedInvites = new Set<string>();
+  /** Mốc mở app: trong ~4s đầu chỉ GHI NHẬN lời mời đang có, không bắn toast (tránh spam lúc mở). */
+  private readonly startedAt = Date.now();
 
   constructor() {
     // Xin quyền thông báo trình duyệt (nếu chưa hỏi)
@@ -39,6 +45,16 @@ export class NotificationService {
     effect(() => {
       this.state.events();
       this.check();
+    });
+    // Bắn toast khi có LỜI MỜI MỚI (realtime). Bỏ qua các lời mời đã có sẵn lúc mở app.
+    effect(() => {
+      const invs = this.state.invitations();
+      const warmup = Date.now() - this.startedAt < 4000;
+      for (const iv of invs) {
+        if (this.notifiedInvites.has(iv.eventId)) continue;
+        this.notifiedInvites.add(iv.eventId);
+        if (!warmup) this.fireInvite(iv);
+      }
     });
     // Quét tài liệu vừa mở: ngay khi mở app + mỗi 5 phút.
     setTimeout(() => this.checkAttachments(), 4_000);
@@ -85,6 +101,24 @@ export class NotificationService {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
         new Notification(`📎 Tài liệu đã mở: ${fileName}`, { body: eventTitle });
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  }
+
+  /** Toast LỜI MỜI mới — có nút Đồng ý/Từ chối ngay trên toast. Ẩn sau 60s. */
+  private fireInvite(iv: { eventId: string; title: string; creatorEmail: string | null }): void {
+    const toastId = `invite:${iv.eventId}:${Date.now()}`;
+    this.toasts.update((t) => [
+      ...t,
+      { id: toastId, kind: 'invite', title: iv.title || '(không tiêu đề)', detail: iv.creatorEmail ?? '', eventId: iv.eventId },
+    ]);
+    setTimeout(() => this.dismiss(toastId), 60_000);
+    this.playBeep();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(`📩 Lời mời mới: ${iv.title || 'Sự kiện'}`, { body: iv.creatorEmail ? `Từ ${iv.creatorEmail}` : '' });
       } catch {
         /* bỏ qua */
       }
