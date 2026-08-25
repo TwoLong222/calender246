@@ -54,7 +54,7 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
             @for (h of notify.recentHistory(); track h.id) {
               <!-- Có sự kiện liên quan -> bấm cả dòng để nhảy tới sự kiện đó -->
               <div class="w-full border-b border-gray-50 px-3 py-2.5 text-left"
-                [class]="(h.eventId || h.groupId) ? 'cursor-pointer hover:bg-gray-50' : ''"
+                [class]="canOpenHistory(h) ? 'cursor-pointer hover:bg-gray-50' : ''"
                 (click)="openHistoryEntry(h)">
                 <div class="flex items-center justify-between gap-2">
                   <span
@@ -233,13 +233,25 @@ export class InvitationBellComponent {
   }
 
   /** Bấm 1 dòng trong "Sự kiện gần đây": tin nhắn -> mở chat nhóm; còn lại -> mở sự kiện. */
-  protected openHistoryEntry(h: { eventId?: string; groupId?: string }): void {
+  protected openHistoryEntry(h: { eventId?: string; groupId?: string; title?: string }): void {
     if (h.groupId) {
       this.groupsState.openPanel(h.groupId, 'chat');
       this.open.set(false);
       return;
     }
-    this.goToEvent(h.eventId);
+    if (h.eventId) {
+      this.goToEvent(h.eventId);
+      return;
+    }
+    // Thông báo CŨ (lưu trước khi có eventId) -> dò theo tiêu đề để vẫn bấm được.
+    const byTitle = this.state.events().find((e) => e.title && e.title === h.title);
+    if (byTitle) this.goToEvent(byTitle.id);
+  }
+
+  /** Dòng lịch sử có mở được gì không (dùng để bật con trỏ + hiệu ứng rê chuột). */
+  protected canOpenHistory(h: { eventId?: string; groupId?: string; title?: string }): boolean {
+    if (h.eventId || h.groupId) return true;
+    return this.state.events().some((e) => e.title && e.title === h.title);
   }
 
   protected respond(iv: Invitation, status: 'accepted' | 'declined'): void {

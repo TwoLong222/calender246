@@ -393,6 +393,26 @@ input[type='radio'] {
 .dark .border-blue-200 { border-color: #1e3a5f; }
 .dark .border-red-200 { border-color: #4a1d20; }
 
+/* NHÃN PHÂN LOẠI THÔNG BÁO (badge nền nhạt + chữ đậm 700).
+   Ở chế độ tối nền bị làm tối đi mà chữ vẫn màu đậm -> tối trên tối, chữ "chìm".
+   Đổi chữ sang tông SÁNG của cùng màu để đọc rõ. */
+.dark .bg-sky-50 { background-color: #10243a; }
+.dark .text-sky-700 { color: #7dd3fc; }
+.dark .bg-emerald-50 { background-color: #0e2a20; }
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .bg-violet-50 { background-color: #241a3d; }
+.dark .text-violet-700 { color: #c4b5fd; }
+.dark .bg-indigo-50 { background-color: #1b2148; }
+.dark .text-indigo-700 { color: #a5b4fc; }
+.dark .bg-teal-50 { background-color: #0d2a2b; }
+.dark .text-teal-700 { color: #5eead4; }
+.dark .border-emerald-200 { border-color: #14452f; }
+.dark .border-violet-200 { border-color: #3b2c63; }
+.dark .border-indigo-200 { border-color: #2b3170; }
+.dark .border-teal-200 { border-color: #124a48; }
+.dark .border-sky-200 { border-color: #1b3a5c; }
+
 /* ============================================================
    MÀU NHẤN TÙY CHỈNH (Theme builder)
    App dùng "blue" làm màu nhấn duy nhất. Ở đây remap các class
