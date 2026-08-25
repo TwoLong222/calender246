@@ -9,6 +9,7 @@ import { CommentsService } from './comments.service';
 import { AttachmentsApiService, EventAttachment, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { ConfirmService } from '../shared/confirm.service';
 import { AttendeeStatus } from './calendar.types';
 import { IconComponent } from '../shared/icon.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
@@ -268,6 +269,7 @@ export class EventDetailPopoverComponent implements OnDestroy {
   private readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
+  private readonly confirm = inject(ConfirmService);
 
   // ----- Tài liệu đính kèm -----
   protected readonly attachments = signal<EventAttachment[]>([]);
@@ -352,9 +354,12 @@ export class EventDetailPopoverComponent implements OnDestroy {
       error: () => { this.uploading.set(false); input.value = ''; },
     });
   }
-  protected removeAttachment(attId: string): void {
+  protected async removeAttachment(attId: string): Promise<void> {
     const e = this.event();
     if (!e) return;
+    const name = this.attachments().find((a) => a.id === attId)?.file_name;
+    const ok = await this.confirm.ask({ message: this.tr.t('confirm.delFile'), detail: name });
+    if (!ok) return;
     this.attachmentsApi.remove(e.id, attId).subscribe({ next: () => this.loadAttachments(e.id), error: () => {} });
   }
   protected fileSize(bytes: number | null): string {

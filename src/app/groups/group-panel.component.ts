@@ -17,6 +17,8 @@ import { GroupsStateService } from './groups-state.service';
 import { GroupChatService } from './chat.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { GroupMessage } from './groups.types';
+import { ConfirmService } from '../shared/confirm.service';
+import { TranslateService } from '../i18n/translate.service';
 
 @Component({
   selector: 'app-group-panel',
@@ -266,6 +268,8 @@ import { GroupMessage } from './groups.types';
 export class GroupPanelComponent implements OnDestroy {
   protected readonly state = inject(GroupsStateService);
   protected readonly chat = inject(GroupChatService);
+  private readonly confirm = inject(ConfirmService);
+  protected readonly tr = inject(TranslateService);
 
   @ViewChild('msgList') private msgList?: ElementRef<HTMLDivElement>;
 
@@ -434,10 +438,13 @@ export class GroupPanelComponent implements OnDestroy {
     this.title.set('');
   }
 
-  confirmDelete(groupId: string, name: string): void {
-    if (confirm(`Giải tán nhóm "${name}"? Mọi sự kiện nhóm sẽ bị xóa.`)) {
-      this.state.deleteGroup(groupId);
-    }
+  async confirmDelete(groupId: string, name: string): Promise<void> {
+    const ok = await this.confirm.ask({
+      message: `${this.tr.t('confirm.delGroup')} "${name}"?`,
+      detail: this.tr.t('confirm.delGroupDetail'),
+      confirmText: this.tr.t('confirm.disband'),
+    });
+    if (ok) this.state.deleteGroup(groupId);
   }
 
   async copyCode(code: string): Promise<void> {

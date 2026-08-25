@@ -11,6 +11,7 @@ import { CalendarEvent } from '../calendar/calendar.types';
 import { SupabaseService } from '../auth/supabase.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
+import { ConfirmService } from '../shared/confirm.service';
 
 interface ChatMsg {
   role: 'user' | 'ai';
@@ -190,6 +191,7 @@ export class AiAssistantComponent {
   private readonly state = inject(CalendarStateService);
   private readonly supabase = inject(SupabaseService);
   protected readonly tr = inject(TranslateService);
+  private readonly confirmSvc = inject(ConfirmService);
 
   open = signal(false);
   input = signal('');
@@ -301,8 +303,14 @@ export class AiAssistantComponent {
     this.messages.set(c.messages);
     this.showList.set(false);
   }
-  /** Xoá 1 cuộc trò chuyện. */
-  deleteConversation(id: string): void {
+  /** Xoá 1 cuộc trò chuyện (hỏi xác nhận trước). */
+  async deleteConversation(id: string): Promise<void> {
+    const c = this.conversations().find((x) => x.id === id);
+    const ok = await this.confirmSvc.ask({
+      message: this.tr.t('confirm.delChat'),
+      detail: c ? this.conversationTitle(c) : undefined,
+    });
+    if (!ok) return;
     this.conversations.update((list) => list.filter((c) => c.id !== id));
     if (this.conversations().length === 0) {
       this.newConversation();

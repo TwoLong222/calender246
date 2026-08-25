@@ -20,6 +20,7 @@ import { SettingsService } from './settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 import { FeedApiService, CalendarFeed } from './feed-api.service';
+import { ConfirmService } from '../shared/confirm.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { AttachmentsApiService, EventFileGroup } from '../calendar/attachments-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
@@ -590,6 +591,7 @@ export class SettingsPageComponent {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly bookingApi = inject(BookingApiService);
+  private readonly confirmSvc = inject(ConfirmService);
 
   protected readonly bookingPage = signal<BookingPage | null>(null);
   protected readonly bookingCopied = signal(false);
@@ -676,7 +678,9 @@ export class SettingsPageComponent {
     if (u) return `${this.tr.t('attach.until')} ${u}`;
     return '';
   }
-  protected removeMember(email: string): void {
+  protected async removeMember(email: string): Promise<void> {
+    const ok = await this.confirmSvc.ask({ message: this.tr.t('confirm.delShare'), detail: email });
+    if (!ok) return;
     this.sharingApi.removeMember(email).subscribe({ next: () => this.loadMembers(), error: () => {} });
   }
 

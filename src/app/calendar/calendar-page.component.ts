@@ -127,17 +127,21 @@ import { TranslateService } from '../i18n/translate.service';
         <div class="ml-auto flex items-center gap-3">
           <!-- Ô tìm kiếm sự kiện -->
           <div class="drop-anchor relative">
-            <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              [value]="searchQuery()"
-              (input)="onSearchInput($event)"
-              (focus)="searchFocused.set(true)"
-              (blur)="onSearchBlur()"
-              (keydown.escape)="clearSearch()"
-              [placeholder]="tr.t('nav.search')"
-              class="w-40 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600 sm:w-56"
-            />
+            <!-- Lớp neo RIÊNG cho icon kính lúp: .drop-anchor bị đặt static trên mobile
+                 (để panel kết quả neo theo header), nên icon phải có neo của chính nó. -->
+            <div class="relative">
+              <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                [value]="searchQuery()"
+                (input)="onSearchInput($event)"
+                (focus)="searchFocused.set(true)"
+                (blur)="onSearchBlur()"
+                (keydown.escape)="clearSearch()"
+                [placeholder]="tr.t('nav.search')"
+                class="w-40 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600 sm:w-56"
+              />
+            </div>
             @if (searchFocused() && searchQuery().trim()) {
               <div class="drop-panel popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:w-80">
                 @if (searchResults().length === 0) {

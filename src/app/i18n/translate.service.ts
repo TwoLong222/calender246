@@ -151,6 +151,11 @@ const DICT: Record<Lang, Record<string, string>> = {
     'notif.descCancelled': 'Khi sự kiện bạn được mời bị hủy', 'notif.descFile': 'Khi tài liệu đính kèm sự kiện tới giờ mở',
     'notif.descChat': 'Khi có tin nhắn mới trong nhóm', 'notif.descShared': 'Khi có người chia sẻ lịch cho bạn',
     'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
+    // Hộp thoại xác nhận xóa (dùng chung)
+    'confirm.delChat': 'Xóa cuộc trò chuyện này?', 'confirm.delFile': 'Xóa tài liệu này?',
+    'confirm.delShare': 'Bỏ chia sẻ lịch với người này?', 'confirm.delGroup': 'Giải tán nhóm',
+    'confirm.delGroupDetail': 'Mọi sự kiện của nhóm sẽ bị xóa. Hành động này không thể hoàn tác.',
+    'confirm.disband': 'Giải tán',
     // Event form
     'form.addTitle': 'Thêm tiêu đề', 'form.start': 'Bắt đầu', 'form.end': 'Kết thúc', 'form.sameDayHint': 'Sự kiện kết thúc trong cùng ngày bắt đầu.', 'form.endBeforeStart': 'Giờ kết thúc phải sau giờ bắt đầu.', 'form.noRepeat': 'Không lặp', 'form.daily': 'Hàng ngày',
     'form.saveFailed': 'Lưu thất bại. Kiểm tra lại kết nối rồi thử lại.',
@@ -316,6 +321,10 @@ const DICT: Record<Lang, Record<string, string>> = {
     'notif.descCancelled': 'When an event you were invited to is cancelled', 'notif.descFile': 'When an event attachment reaches its open time',
     'notif.descChat': 'When there is a new message in a group', 'notif.descShared': 'When someone shares a calendar with you',
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
+    'confirm.delChat': 'Delete this conversation?', 'confirm.delFile': 'Delete this file?',
+    'confirm.delShare': 'Stop sharing your calendar with this person?', 'confirm.delGroup': 'Disband group',
+    'confirm.delGroupDetail': 'All group events will be deleted. This cannot be undone.',
+    'confirm.disband': 'Disband',
     'form.addTitle': 'Add title', 'form.start': 'Start', 'form.end': 'End', 'form.sameDayHint': 'The event ends on the same day it starts.', 'form.endBeforeStart': 'End time must be after start time.', 'form.noRepeat': "Doesn't repeat", 'form.daily': 'Daily',
     'form.saveFailed': 'Save failed. Check your connection and try again.',
     'form.weekly': 'Weekly', 'form.monthly': 'Monthly', 'form.yearly': 'Yearly', 'form.times': 'times', 'form.every': 'every',

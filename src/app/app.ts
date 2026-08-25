@@ -1,6 +1,7 @@
 import { Component, effect, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { SeasonalDecorComponent } from './theme/seasonal-decor.component';
+import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
 import { ThemeService } from './theme.service';
 import { ThemeBuilderService } from './theme/theme-builder.service';
 import { SeasonalThemeService } from './theme/seasonal-theme.service';
@@ -8,7 +9,7 @@ import { SupabaseService } from './auth/supabase.service';
 import { SettingsService } from './settings/settings.service';
 
 @Component({
-  imports: [RouterModule, SeasonalDecorComponent],
+  imports: [RouterModule, SeasonalDecorComponent, ConfirmDialogComponent],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.css',
