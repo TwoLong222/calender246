@@ -372,7 +372,7 @@ import { TranslateService } from '../i18n/translate.service';
       <button
         type="button"
         (click)="groupsMobileOpen.set(true)"
-        class="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-lg hover:bg-violet-700 md:hidden"
+        class="fixed bottom-6 left-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-lg hover:bg-violet-700 md:hidden"
         aria-label="Nhóm"
       >
         👥
@@ -383,11 +383,12 @@ import { TranslateService } from '../i18n/translate.service';
     } @else {
       <div class="fixed inset-0 z-40 md:hidden" (click)="groupsMobileOpen.set(false)">
         <div class="absolute inset-0 bg-black/30"></div>
-        <div class="popup-in absolute inset-x-3 bottom-3 max-h-[70vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl" (click)="$event.stopPropagation()">
-          <div class="mb-3 flex items-center justify-between">
-            <span class="flex items-center gap-2 font-medium text-gray-800">👥 Nhóm</span>
-            <button type="button" (click)="groupsMobileOpen.set(false)" class="rounded-full p-2 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
-              <app-icon name="x" class="h-4 w-4" />
+        <!-- Đặt Ở TRÊN (không phải đáy màn) cho dễ nhìn + dễ với tay đọc -->
+        <div class="popup-in groups-lg absolute inset-x-3 top-3 max-h-[82vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
+          <div class="mb-4 flex items-center justify-between">
+            <span class="flex items-center gap-2 text-lg font-semibold text-gray-800">👥 Nhóm</span>
+            <button type="button" (click)="groupsMobileOpen.set(false)" class="rounded-full p-2.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+              <app-icon name="x" class="h-5 w-5" />
             </button>
           </div>
           <app-groups-section (opened)="groupsMobileOpen.set(false)" />

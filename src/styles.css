@@ -136,6 +136,49 @@ input[type='radio'] {
 }
 
 /* ============================================================
+   MOBILE — PHÓNG TO CÁC MỤC BẤM ĐƯỢC.
+   Trên điện thoại chữ/ô chọn cỡ desktop quá nhỏ, khó nhìn và khó chạm.
+   Áp cho: bảng "Nhóm" nổi (.groups-lg) và sidebar trượt (.sidebar-panel).
+   ============================================================ */
+@media (max-width: 767px) {
+  .groups-lg,
+  .sidebar-panel {
+    font-size: 1rem;
+  }
+  .groups-lg .text-sm,
+  .sidebar-panel .text-sm {
+    font-size: 0.975rem;
+  }
+  .groups-lg .text-xs,
+  .sidebar-panel .text-xs {
+    font-size: 0.85rem;
+  }
+  /* Ô tick to hơn cho dễ chạm */
+  .groups-lg input[type='checkbox'],
+  .sidebar-panel input[type='checkbox'] {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+  /* Mỗi dòng trong danh sách rộng rãi hơn */
+  .groups-lg li,
+  .sidebar-panel li {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+  }
+  /* Ô nhập + nút bấm cao hơn */
+  .groups-lg input[type='text'],
+  .sidebar-panel input[type='text'] {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    font-size: 1rem;
+  }
+  .groups-lg button,
+  .sidebar-panel button {
+    font-size: 0.975rem;
+  }
+}
+
+/* ============================================================
    DROPDOWN TRÊN MOBILE — không bị cắt mất mép.
    Trên màn nhỏ, panel rộng ~320px neo theo nút ở GIỮA header sẽ tràn ra
    ngoài viewport và bị cắt. Cách xử lý: bỏ neo ở wrapper (.drop-anchor ->
