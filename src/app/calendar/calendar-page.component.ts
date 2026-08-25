@@ -9,6 +9,7 @@ import { CalendarStateService } from './calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
 import { GroupChatService } from '../groups/chat.service';
 import { GroupPanelComponent } from '../groups/group-panel.component';
+import { GroupsSectionComponent } from '../groups/groups-section.component';
 import { MiniCalendarComponent } from './mini-calendar.component';
 import { TimeGridViewComponent } from './time-grid-view.component';
 import { MonthViewComponent } from './month-view.component';
@@ -44,6 +45,7 @@ import { TranslateService } from '../i18n/translate.service';
     NotificationToastsComponent,
     IconComponent,
     GroupPanelComponent,
+    GroupsSectionComponent,
     InvitationBellComponent,
     RouterLink,
   ],
@@ -298,62 +300,10 @@ import { TranslateService } from '../i18n/translate.service';
             </ul>
           </div>
 
-          <!-- Nhóm lên lịch cùng nhau -->
-          <div class="mt-6 border-t border-gray-200 pt-4">
+          <!-- Nhóm lên lịch cùng nhau (mobile: dùng nút nổi riêng ở góc phải, xem dưới) -->
+          <div class="mt-6 hidden border-t border-gray-200 pt-4 md:block">
             <p class="mb-2 text-sm font-medium text-gray-700">Nhóm</p>
-
-            <!-- Lời mời nhóm đang chờ mình đồng ý -->
-            @if (groupsState.pendingInvites().length > 0) {
-              <div class="mb-3 space-y-1.5 rounded-lg border border-blue-200 bg-blue-50 p-2">
-                <p class="text-xs font-medium text-blue-800">📩 Lời mời vào nhóm</p>
-                @for (inv of groupsState.pendingInvites(); track inv.group_id) {
-                  <div class="flex items-center gap-2 text-sm">
-                    <span class="min-w-0 flex-1 truncate text-gray-700">{{ inv.name }}</span>
-                    <button type="button" (click)="groupsState.acceptInvite(inv.group_id)" class="tap shrink-0 rounded bg-blue-700 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-800">Đồng ý</button>
-                    <button type="button" (click)="groupsState.declineInvite(inv.group_id)" class="tap shrink-0 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100">Từ chối</button>
-                  </div>
-                }
-              </div>
-            }
-
-            <ul class="space-y-1 text-sm text-gray-700">
-              @for (g of groupsState.groups(); track g.id) {
-                <li class="flex items-center gap-2">
-                  <input type="checkbox" [checked]="groupsState.isVisible(g.id)" (change)="groupsState.toggleVisible(g.id)" [class]="groupAccent(g.id)" />
-                  <button type="button" (click)="groupsState.openPanel(g.id)" class="flex-1 truncate text-left hover:underline">{{ g.name }}</button>
-                  @if (groupsState.onlineCount(g.id) > 0) {
-                    <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
-                  }
-                  <button
-                    type="button"
-                    (click)="groupsState.openPanel(g.id, 'chat')"
-                    class="relative shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-100 hover:text-blue-700"
-                    title="Mở trò chuyện"
-                  >
-                    💬
-                    @if (chat.unreadOf(g.id) > 0) {
-                      <span class="absolute -right-1 -top-1 min-w-[1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-medium leading-4 text-white">{{ chat.unreadOf(g.id) }}</span>
-                    }
-                  </button>
-                </li>
-              } @empty {
-                <li class="text-xs text-gray-400">Chưa có nhóm nào.</li>
-              }
-            </ul>
-
-            <!-- Tạo nhóm -->
-            <div class="mt-2 flex gap-1">
-              <input #gname type="text" placeholder="Tên nhóm mới" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1 text-sm" (keydown.enter)="createGroup(gname.value); gname.value=''" />
-              <button type="button" (click)="createGroup(gname.value); gname.value=''" class="shrink-0 rounded bg-blue-700 px-2 py-1 text-sm text-white hover:bg-blue-800">Tạo</button>
-            </div>
-            <!-- Tham gia bằng mã -->
-            <div class="mt-1 flex gap-1">
-              <input #gcode type="text" placeholder="Nhập mã tham gia" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1 text-sm" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
-              <button type="button" (click)="joinGroup(gcode.value); gcode.value=''" class="shrink-0 rounded border border-gray-300 px-2 py-1 text-sm hover:bg-gray-50">Vào</button>
-            </div>
-            @if (groupsState.error(); as err) {
-              <p class="mt-1 text-xs text-red-600">{{ err }}</p>
-            }
+            <app-groups-section />
           </div>
 
         </aside>
@@ -415,6 +365,36 @@ import { TranslateService } from '../i18n/translate.service';
     @if (settings.settings().ai_settings.enabled) {
       <app-ai-assistant />
     }
+
+    <!-- MOBILE: Nhóm có nút nổi riêng (giống trợ lý AI) vì sidebar trên điện thoại
+         phải cuộn xuống tận cuối mới thấy. Đặt phía trên nút AI để không đè nhau. -->
+    @if (!groupsMobileOpen()) {
+      <button
+        type="button"
+        (click)="groupsMobileOpen.set(true)"
+        class="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-lg hover:bg-violet-700 md:hidden"
+        aria-label="Nhóm"
+      >
+        👥
+        @if (chat.totalUnread() > 0) {
+          <span class="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white ring-2 ring-white">{{ chat.totalUnread() > 9 ? '9+' : chat.totalUnread() }}</span>
+        }
+      </button>
+    } @else {
+      <div class="fixed inset-0 z-40 md:hidden" (click)="groupsMobileOpen.set(false)">
+        <div class="absolute inset-0 bg-black/30"></div>
+        <div class="popup-in absolute inset-x-3 bottom-3 max-h-[70vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl" (click)="$event.stopPropagation()">
+          <div class="mb-3 flex items-center justify-between">
+            <span class="flex items-center gap-2 font-medium text-gray-800">👥 Nhóm</span>
+            <button type="button" (click)="groupsMobileOpen.set(false)" class="rounded-full p-2 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+              <app-icon name="x" class="h-4 w-4" />
+            </button>
+          </div>
+          <app-groups-section (opened)="groupsMobileOpen.set(false)" />
+        </div>
+      </div>
+    }
+
     <app-notification-toasts />
 
     @if (groupsState.panelGroupId()) {
@@ -441,6 +421,8 @@ export class CalendarPageComponent implements OnInit {
   protected readonly createMenuOpen = signal(false);
   // Mặc định: MỞ trên desktop, ĐÓNG trên mobile (<768px) để lịch có full bề rộng khi mở app.
   protected readonly sidebarOpen = signal(typeof window === 'undefined' || window.innerWidth >= 768);
+  /** Panel "Nhóm" nổi trên mobile (desktop dùng khối trong sidebar). */
+  protected readonly groupsMobileOpen = signal(false);
   protected readonly settingsMenuOpen = signal(false);
   protected readonly importMsg = signal('');
 
@@ -476,27 +458,8 @@ export class CalendarPageComponent implements OnInit {
     return map[this.groupsState.colorFor(groupId)] ?? 'bg-violet-600';
   }
 
-  /** Màu cho checkbox của nhóm — để đồng bộ với phần "Hiển thị" (checkbox có màu). */
-  groupAccent(groupId: string): string {
-    const map: Record<string, string> = {
-      violet: 'accent-violet-600',
-      emerald: 'accent-emerald-600',
-      rose: 'accent-rose-600',
-      amber: 'accent-amber-600',
-      sky: 'accent-sky-600',
-    };
-    return map[this.groupsState.colorFor(groupId)] ?? 'accent-violet-600';
-  }
-
-  createGroup(name: string): void {
-    const n = name.trim();
-    if (n) this.groupsState.createGroup(n);
-  }
-
-  joinGroup(code: string): void {
-    const c = code.trim();
-    if (c) this.groupsState.joinByCode(c);
-  }
+  // (Danh sách nhóm / tạo nhóm / tham gia bằng mã đã chuyển sang GroupsSectionComponent
+  //  để dùng chung cho sidebar desktop và panel nổi trên mobile.)
 
   onExport(): void {
     this.ics.exportToFile(this.state.events());
