@@ -522,6 +522,29 @@ export class EventFormModalComponent {
       this.formError.set(this.tr.t('form.endBeforeStart'));
       return;
     }
+
+    // Chặn tràn qua ngày khác:
+    //  - Sự kiện có giờ cụ thể: bắt buộc kết thúc CÙNG ngày với bắt đầu (view Tuần/Ngày chỉ
+    //    vẽ trên cột ngày bắt đầu — tràn sang ngày sau sẽ bị cắt cụt, dễ hiểu nhầm).
+    //  - Sự kiện "Cả ngày": cho phép nhiều ngày nhưng giới hạn tối đa 30 ngày để tránh
+    //    tạo nhầm sự kiện kéo hàng năm chặn cả lịch.
+    if (!this.isAllDay()) {
+      const sameDay =
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth() &&
+        start.getDate() === end.getDate();
+      if (!sameDay) {
+        this.formError.set(this.tr.t('form.crossDayNotAllowed'));
+        return;
+      }
+    } else {
+      const MAX_ALL_DAY_SPAN_DAYS = 30;
+      const spanDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+      if (spanDays > MAX_ALL_DAY_SPAN_DAYS) {
+        this.formError.set(this.tr.t('form.spanTooLong'));
+        return;
+      }
+    }
     this.formError.set('');
     this.saving.set(true);
 

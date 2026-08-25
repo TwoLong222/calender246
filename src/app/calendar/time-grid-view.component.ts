@@ -440,10 +440,11 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
     if (ctx.edge === 'bottom') {
       end = new Date(ctx.origEnd.getTime() + deltaMin * 60000);
-      // Cho phép kéo QUA nửa đêm sang ngày hôm sau (trước đây chặn cứng ở nửa đêm).
-      // Trần an toàn 7 ngày để tránh kéo lố quá xa do lỡ tay.
-      const maxEndMs = dayStart.getTime() + 7 * 24 * 60 * 60000;
-      if (end.getTime() > maxEndMs) end = new Date(maxEndMs);
+      // Sự kiện có giờ cụ thể phải kết thúc trong cùng ngày (23:59:59) — không cho kéo qua
+      // ngày hôm sau, vì view Tuần/Ngày chỉ vẽ trên cột ngày bắt đầu (cắt cụt phần dư), gây
+      // hiểu nhầm; muốn tạo sự kiện nhiều ngày thì dùng chế độ "Cả ngày" trong form.
+      const endOfDayMs = dayStart.getTime() + 24 * 60 * 60000 - 1000;
+      if (end.getTime() > endOfDayMs) end = new Date(endOfDayMs);
       if (end.getTime() - start.getTime() < MIN_MS) end = new Date(start.getTime() + MIN_MS);
     } else {
       start = new Date(ctx.origStart.getTime() + deltaMin * 60000);

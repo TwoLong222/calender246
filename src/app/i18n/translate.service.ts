@@ -140,6 +140,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     // Event form
     'form.addTitle': 'Thêm tiêu đề', 'form.start': 'Bắt đầu', 'form.end': 'Kết thúc', 'form.endBeforeStart': 'Giờ kết thúc phải sau giờ bắt đầu.', 'form.noRepeat': 'Không lặp', 'form.daily': 'Hàng ngày',
     'form.saveFailed': 'Lưu thất bại. Kiểm tra lại kết nối rồi thử lại.',
+    'form.crossDayNotAllowed': 'Sự kiện có giờ cụ thể phải kết thúc trong cùng một ngày. Bật "Cả ngày" nếu bạn muốn sự kiện kéo dài nhiều ngày.',
+    'form.spanTooLong': 'Sự kiện cả ngày chỉ được kéo tối đa 30 ngày.',
     'form.weekly': 'Hàng tuần', 'form.monthly': 'Hàng tháng', 'form.times': 'lần', 'form.every': 'mỗi',
     'form.conflictA': 'Trùng lịch với', 'form.conflictB': 'sự kiện khác:',
     'form.addGuest': 'Thêm khách bằng email', 'form.add': 'Thêm', 'form.removeGuest': 'Bỏ khách',
@@ -285,6 +287,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
     'form.addTitle': 'Add title', 'form.start': 'Start', 'form.end': 'End', 'form.endBeforeStart': 'End time must be after start time.', 'form.noRepeat': "Doesn't repeat", 'form.daily': 'Daily',
     'form.saveFailed': 'Save failed. Check your connection and try again.',
+    'form.crossDayNotAllowed': 'Timed events must end on the same day they start. Turn on "All day" if you want a multi-day event.',
+    'form.spanTooLong': 'All-day events can span at most 30 days.',
     'form.weekly': 'Weekly', 'form.monthly': 'Monthly', 'form.times': 'times', 'form.every': 'every',
     'form.conflictA': 'Conflicts with', 'form.conflictB': 'other event(s):',
     'form.addGuest': 'Add guest by email', 'form.add': 'Add', 'form.removeGuest': 'Remove guest',

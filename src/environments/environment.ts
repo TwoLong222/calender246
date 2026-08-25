@@ -8,8 +8,8 @@
 
 export const environment = {
   production: false,
-  supabaseUrl: 'https://elpvpflgssbqrasmmdtk.supabase.co',
-  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscHZwZmxnc3NicXJhc21tZHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0OTgxMjksImV4cCI6MjEwMTA3NDEyOX0.sG9j9dWITsbadZEsQKHKbt9z-U0V-X6m5VV2LCQe7xs',
+  supabaseUrl: 'https://rjkkoujpfvlnzmmgecsl.supabase.co',
+  supabaseAnonKey: 'sb_publishable_Ilm9VJqq74pBrOQmbl26SA_fvUtPL0A',
   /** Base URL của NestJS backend. Dùng đường TƯƠNG ĐỐI '/api' + proxy của Angular
    *  (proxy.conf.json) -> request đi CÙNG origin với trang web nên:
    *   - Không dính CORS (kể cả khi mở từ máy khác trong mạng LAN).
