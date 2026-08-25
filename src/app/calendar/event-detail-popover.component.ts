@@ -23,7 +23,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
     @if (event(); as e) {
       <div class="fixed inset-0 z-30" (click)="state.closeDetail()">
         <div
-          class="popup-in absolute left-1/2 top-24 max-h-[calc(100vh-8rem)] w-80 -translate-x-1/2 overflow-y-auto overflow-x-hidden rounded-xl bg-white p-4 shadow-2xl"
+          class="popup-in absolute left-1/2 top-24 max-h-[calc(100vh-8rem)] w-80 -translate-x-1/2 overflow-y-auto overflow-x-hidden rounded-xl bg-white p-4 shadow-2xl md:left-auto md:right-6 md:translate-x-0"
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">
