@@ -6,6 +6,7 @@
 
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CalendarStateService } from './calendar-state.service';
+import { GroupsStateService } from '../groups/groups-state.service';
 import { Invitation } from './events-api.service';
 import { NotificationService } from '../notifications/notification.service';
 import { SettingsService } from '../settings/settings.service';
@@ -53,8 +54,8 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
             @for (h of notify.recentHistory(); track h.id) {
               <!-- Có sự kiện liên quan -> bấm cả dòng để nhảy tới sự kiện đó -->
               <div class="w-full border-b border-gray-50 px-3 py-2.5 text-left"
-                [class]="h.eventId ? 'cursor-pointer hover:bg-gray-50' : ''"
-                (click)="goToEvent(h.eventId)">
+                [class]="(h.eventId || h.groupId) ? 'cursor-pointer hover:bg-gray-50' : ''"
+                (click)="openHistoryEntry(h)">
                 <div class="flex items-center justify-between gap-2">
                   <span
                     class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
@@ -182,6 +183,7 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
 })
 export class InvitationBellComponent {
   private readonly state = inject(CalendarStateService);
+  private readonly groupsState = inject(GroupsStateService);
   protected readonly notify = inject(NotificationService);
   private readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
@@ -220,8 +222,24 @@ export class InvitationBellComponent {
   /** Bấm 1 thông báo -> nhảy tới đúng sự kiện trên lịch rồi đóng chuông. */
   protected goToEvent(eventId: string | null | undefined): void {
     if (!eventId) return;
-    this.state.focusEvent(eventId);
+    // Sự kiện của NHÓM -> mở panel nhóm (popover chi tiết chỉ dùng cho sự kiện cá nhân).
+    const ev = this.state.events().find((e) => e.id === eventId);
+    if (ev?.groupId) {
+      this.groupsState.openPanel(ev.groupId);
+    } else {
+      this.state.focusEvent(eventId);
+    }
     this.open.set(false);
+  }
+
+  /** Bấm 1 dòng trong "Sự kiện gần đây": tin nhắn -> mở chat nhóm; còn lại -> mở sự kiện. */
+  protected openHistoryEntry(h: { eventId?: string; groupId?: string }): void {
+    if (h.groupId) {
+      this.groupsState.openPanel(h.groupId, 'chat');
+      this.open.set(false);
+      return;
+    }
+    this.goToEvent(h.eventId);
   }
 
   protected respond(iv: Invitation, status: 'accepted' | 'declined'): void {

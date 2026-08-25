@@ -23,6 +23,8 @@ export interface Toast {
   body?: string;
   /** ID sự kiện — dùng cho toast 'invite' để bấm Đồng ý/Từ chối ngay. */
   eventId?: string;
+  /** ID nhóm (toast 'chat') -> bấm vào mở luôn cuộc trò chuyện của nhóm đó. */
+  groupId?: string;
 }
 
 /** Thông báo LƯU LẠI trong chuông (khác toast thoáng qua). */
@@ -59,6 +61,8 @@ export interface HistoryEntry {
   at: number;
   /** Sự kiện liên quan (nếu có) -> bấm vào dòng lịch sử sẽ nhảy tới sự kiện đó. */
   eventId?: string;
+  /** Nhóm liên quan (thông báo tin nhắn) -> bấm vào mở cuộc trò chuyện của nhóm. */
+  groupId?: string;
 }
 
 const SEEN_FILES_KEY = 'notified-file-open';
@@ -638,10 +642,10 @@ export class NotificationService {
    * - Luôn hiện toast nổi trong app + kêu bíp nhẹ.
    * - Nếu người dùng đang ở tab/cửa sổ KHÁC (tab ẩn) và đã cấp quyền -> báo thêm desktop.
    */
-  notifyMessage(title: string, body: string): void {
+  notifyMessage(title: string, body: string, groupId?: string): void {
     const toastId = `chat:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-    this.toasts.update((t) => [...t, { id: toastId, title, body, kind: 'chat' }]);
-    this.pushHistory({ kind: 'chat', title, body });
+    this.toasts.update((t) => [...t, { id: toastId, title, body, kind: 'chat', groupId }]);
+    this.pushHistory({ kind: 'chat', title, body, groupId });
     setTimeout(() => this.dismiss(toastId), 8_000); // tự ẩn sau 8s
     this.playBeep();
 
