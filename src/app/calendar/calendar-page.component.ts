@@ -73,7 +73,7 @@ import { TranslateService } from '../i18n/translate.service';
       }
 
       <!-- Top bar -->
-      <header class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-200 px-4 py-2">
+      <header class="relative flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-200 px-4 py-2">
         <button
           type="button"
           (click)="sidebarOpen.set(!sidebarOpen())"
@@ -126,7 +126,7 @@ import { TranslateService } from '../i18n/translate.service';
 
         <div class="ml-auto flex items-center gap-3">
           <!-- Ô tìm kiếm sự kiện -->
-          <div class="relative">
+          <div class="drop-anchor relative">
             <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -139,7 +139,7 @@ import { TranslateService } from '../i18n/translate.service';
               class="w-40 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600 sm:w-56"
             />
             @if (searchFocused() && searchQuery().trim()) {
-              <div class="popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:w-80">
+              <div class="drop-panel popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:w-80">
                 @if (searchResults().length === 0) {
                   <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
                 } @else {
@@ -164,7 +164,7 @@ import { TranslateService } from '../i18n/translate.service';
           <!-- Nút bật sáng/tối đã chuyển vào Cài đặt → Giao diện cho gọn header. -->
 
           <!-- Bánh răng: gom công cụ Xuất/Nhập .ics + Thùng rác -->
-          <div class="relative">
+          <div class="drop-anchor relative">
             <button
               type="button"
               (click)="settingsMenuOpen.set(!settingsMenuOpen())"
@@ -177,7 +177,7 @@ import { TranslateService } from '../i18n/translate.service';
             @if (settingsMenuOpen()) {
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
-              <div class="popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="drop-panel popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                 <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="download" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.export') }}
                 </button>
@@ -621,8 +621,15 @@ export class CalendarPageComponent implements OnInit {
     this.state.selectDate(date, true);
   }
 
+  /** Màn hình nhỏ (<768px): ô ngày rất bé, khó bấm trúng -> đi TỪNG CẤP thay vì nhảy thẳng. */
+  private isMobile(): boolean {
+    return typeof window !== 'undefined' && window.innerWidth < 768;
+  }
+
   onMonthDateClicked(date: Date): void {
-    this.state.selectDate(date, true);
+    // Mobile: Tháng -> Tuần (rồi mới tới Ngày). Desktop: vào thẳng Ngày như cũ.
+    this.state.selectDate(date, false);
+    this.state.viewMode.set(this.isMobile() ? 'week' : 'day');
   }
 
   /** Bấm ngày ở header lưới giờ -> chuyển sang view Ngày của ngày đó */
@@ -631,7 +638,9 @@ export class CalendarPageComponent implements OnInit {
   }
 
   onYearDateClicked(date: Date): void {
-    this.state.selectDate(date, true);
+    // Mobile: Năm -> Tháng (rồi Tuần, rồi Ngày). Desktop: vào thẳng Ngày như cũ.
+    this.state.selectDate(date, false);
+    this.state.viewMode.set(this.isMobile() ? 'month' : 'day');
   }
 
   onSlotClicked(start: Date): void {

@@ -19,11 +19,11 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
   imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="relative">
+    <div class="drop-anchor relative">
       <button
         type="button"
         (click)="open.set(!open())"
-        class="tap relative rounded-full p-1.5 hover:bg-gray-100"
+        class="tap relative rounded-full p-2 hover:bg-gray-100"
         [title]="tr.t('nav.invitations')"
         [attr.aria-label]="tr.t('nav.invitations')"
       >
@@ -37,7 +37,7 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
 
       @if (open()) {
         <div class="fixed inset-0 z-20" (click)="open.set(false)"></div>
-        <div class="popup-in absolute right-0 top-full z-30 mt-1 max-h-[80vh] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+        <div class="drop-panel popup-in absolute right-0 top-full z-30 mt-1 max-h-[80vh] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
 
           @if (total() === 0 && notify.recentHistory().length === 0) {
             <p class="px-3 py-6 text-center text-sm text-gray-400">{{ tr.t('notif.empty') }}</p>

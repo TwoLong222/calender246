@@ -136,6 +136,25 @@ input[type='radio'] {
 }
 
 /* ============================================================
+   DROPDOWN TRÊN MOBILE — không bị cắt mất mép.
+   Trên màn nhỏ, panel rộng ~320px neo theo nút ở GIỮA header sẽ tràn ra
+   ngoài viewport và bị cắt. Cách xử lý: bỏ neo ở wrapper (.drop-anchor ->
+   position:static) để panel neo theo <header class="relative">, rồi cho
+   panel trải từ mép trái tới mép phải màn hình.
+   ============================================================ */
+@media (max-width: 767px) {
+  .drop-anchor {
+    position: static;
+  }
+  .drop-panel {
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* ============================================================
    POPUP / DROPDOWN — mờ dần + trượt nhẹ xuống khi hiện ra.
    Dùng cho các menu nhỏ (tìm kiếm, ⚙️ bánh răng, nút Tạo,
    gợi ý email khách...) — cảm giác mượt hơn "đùng cái xuất hiện".

@@ -63,7 +63,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-10 sm:pt-20" (click)="close()">
-      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white p-4 shadow-xl sm:p-6" (click)="$event.stopPropagation()">
         <div class="mb-3 flex items-start justify-between gap-4">
           <input
             type="text"
@@ -335,9 +335,9 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               </div>
               <div>
                 <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
+                <input [value]="bookingLink()" readonly class="mb-2 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
                 <div class="flex flex-wrap gap-2">
-                  <input [value]="bookingLink()" readonly class="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
-                  <button type="button" (click)="copyBookingLink()" class="tap rounded-md border border-gray-300 px-3 text-sm hover:bg-gray-50">{{ bookingCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
+                  <button type="button" (click)="copyBookingLink()" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ bookingCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
                   <a [href]="bookingLink()" target="_blank" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ tr.t('booking.open') }}</a>
                 </div>
               </div>
