@@ -41,14 +41,14 @@ import { GroupChatService } from './chat.service';
               [class]="groupAccent(g.id)"
               title="Hiện/ẩn sự kiện của nhóm này trên lịch"
             />
-            <button type="button" (click)="openGroup(g.id)" class="min-w-0 flex-1 truncate py-1 text-left font-medium hover:underline">{{ g.name }}</button>
+            <button type="button" (click)="openGroup(g.id)" class="min-w-0 flex-1 truncate py-1 text-left font-medium hover:text-blue-700">{{ g.name }}</button>
             @if (groupsState.onlineCount(g.id) > 0) {
               <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
             }
             <button
               type="button"
               (click)="openGroup(g.id, 'chat')"
-              class="relative shrink-0 rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-blue-700"
+              class="relative shrink-0 p-1.5 text-gray-500 opacity-70 transition hover:opacity-100"
               title="Mở trò chuyện"
             >
               💬

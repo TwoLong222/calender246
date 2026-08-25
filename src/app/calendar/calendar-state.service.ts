@@ -190,6 +190,14 @@ export class CalendarStateService {
     }, 400);
   }
 
+  /**
+   * CHÍNH MÌNH vừa thay đổi gì đó trong `ms` mili-giây gần đây hay không.
+   * NotificationService dùng để KHÔNG tự báo cho mình về thay đổi do mình thực hiện.
+   */
+  isRecentLocalChange(ms = 8000): boolean {
+    return Date.now() - this.lastLocalChangeAt < ms;
+  }
+
   /** Đánh dấu mốc user vừa tự thay đổi -> để scheduleReload bỏ qua reload realtime của chính mình */
   private markLocalChange(): void {
     this.lastLocalChangeAt = Date.now();

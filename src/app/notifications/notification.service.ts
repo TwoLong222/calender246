@@ -82,8 +82,10 @@ export class NotificationService {
   private readonly tr = inject(TranslateService);
   private readonly settings = inject(SettingsService);
 
-  /** Ảnh chụp các sự kiện DO NGƯỜI KHÁC mời mình (id -> thông tin) để phát hiện HỦY/ĐỔI. */
+  /** Ảnh chụp MỌI sự kiện đang thấy (id -> thông tin) để phát hiện HỦY/ĐỔI ở lần quét sau. */
   private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean }>();
+  /** Id các sự kiện DO CHÍNH MÌNH tạo — để khi chúng biến mất thì không báo "bị huỷ". */
+  private readonly ownEventIds = new Set<string>();
 
   /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY. Lưu localStorage, tự rơi
    *  khỏi chuông sau 3 ngày (xem BELL_MAX_AGE_MS) — khác history bên dưới (lưu vĩnh viễn). */
@@ -146,40 +148,54 @@ export class NotificationService {
         this.fireShared(s.name);
       }
     });
-    // Phát hiện HỦY/ĐỔI sự kiện mình được mời (do NGƯỜI KHÁC thao tác) -> toast real-time.
+    // Phát hiện HỦY/ĐỔI sự kiện -> toast real-time. Theo dõi CẢ HAI phía:
+    //   - Sự kiện người khác tạo mà mình được mời (báo đổi + báo huỷ).
+    //   - Sự kiện CHÍNH MÌNH tạo (chỉ báo đổi) — để người tạo biết khi khách được cấp
+    //     quyền chỉnh sửa đã sửa gì. Không theo dõi huỷ ở nhóm này vì mình tự xoá là chính.
+    // Thay đổi do CHÍNH MÌNH vừa thực hiện thì BỎ QUA (isRecentLocalChange) — không tự báo mình.
     effect(() => {
       const events = this.state.events();
       const me = this.supabase.user()?.email?.toLowerCase();
       if (!me) return;
-      // Chỉ xét sự kiện do người khác tạo mà mình được mời (creatorEmail có & khác mình).
-      // -> tự loại trừ thay đổi do CHÍNH mình thực hiện.
-      const invited = events.filter(
-        (e) => e.creatorEmail && e.creatorEmail.toLowerCase() !== me && !e.deletedAt,
-      );
+      const alive = events.filter((e) => !e.deletedAt);
+      const isMine = (e: CalendarEvent) => !e.creatorEmail || e.creatorEmail.toLowerCase() === me;
+
       const warmup = Date.now() - this.startedAt < 4000;
+      // Thay đổi vừa do mình thao tác -> chỉ cập nhật ảnh chụp, không bắn thông báo.
+      const selfEdit = this.state.isRecentLocalChange();
+
       const next = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean }>();
-      for (const e of invited) {
+      for (const e of alive) {
         const myCanEdit = e.guests.some((g) => g.email.toLowerCase() === me && g.canEdit);
         next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '', description: e.description ?? '', myCanEdit });
       }
-      if (!warmup) {
-        // ĐỔI: có ở cả 2 nhưng khác nội dung
-        for (const e of invited) {
+
+      if (!warmup && !selfEdit) {
+        // ĐỔI: có ở cả 2 ảnh chụp nhưng khác nội dung (áp dụng cho cả sự kiện của mình)
+        for (const e of alive) {
           const prev = this.invitedSnapshot.get(e.id);
-          if (!prev) continue; // mới xuất hiện (vừa Đồng ý) -> không phải "đổi"
+          if (!prev) continue; // mới xuất hiện -> không phải "đổi"
           const cur = next.get(e.id)!;
           const lines = this.describeChanges(prev, cur, e);
           if (lines.length) this.fireChanged(e.id, e.title, lines);
-          // Vừa được CẤP quyền chỉnh sửa (false -> true)
-          if (!prev.myCanEdit && cur.myCanEdit) this.fireChanged(e.id, e.title, [this.tr.t('notif.grantedEdit')]);
+          // Vừa được CẤP quyền chỉnh sửa (false -> true) — chỉ có nghĩa với khách mời
+          if (!isMine(e) && !prev.myCanEdit && cur.myCanEdit) {
+            this.fireChanged(e.id, e.title, [this.tr.t('notif.grantedEdit')]);
+          }
         }
-        // HỦY: có trong snapshot cũ nhưng biến mất khỏi danh sách (creator xóa/gỡ mình)
+        // HỦY: chỉ xét sự kiện của NGƯỜI KHÁC (creator xoá / gỡ mình khỏi khách mời).
         for (const [id, prev] of this.invitedSnapshot) {
-          if (!next.has(id)) this.fireCancelled(prev.title);
+          if (next.has(id)) continue;
+          const wasMine = this.ownEventIds.has(id);
+          if (!wasMine) this.fireCancelled(prev.title);
         }
       }
+
       this.invitedSnapshot.clear();
       for (const [id, v] of next) this.invitedSnapshot.set(id, v);
+      // Ghi nhớ sự kiện nào là của mình (dùng cho lần quét sau, khi nó đã biến mất).
+      this.ownEventIds.clear();
+      for (const e of alive) if (isMine(e)) this.ownEventIds.add(e.id);
     });
     // Quét tài liệu vừa mở: ngay khi mở app + mỗi 5 phút.
     setTimeout(() => this.checkAttachments(), 4_000);
