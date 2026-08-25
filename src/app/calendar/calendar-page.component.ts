@@ -98,7 +98,7 @@ import { TranslateService } from '../i18n/translate.service';
             </g>
             <rect x="14.2" y="21.8" width="3.6" height="3.6" rx="1.1" fill="#dc2626"/>
           </svg>
-          {{ tr.t('nav.calendar') }}
+          <span class="hidden sm:inline">{{ tr.t('nav.calendar') }}</span>
         </span>
 
         <button
@@ -136,7 +136,7 @@ import { TranslateService } from '../i18n/translate.service';
               (blur)="onSearchBlur()"
               (keydown.escape)="clearSearch()"
               [placeholder]="tr.t('nav.search')"
-              class="w-56 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600"
+              class="w-32 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600 sm:w-56"
             />
             @if (searchFocused() && searchQuery().trim()) {
               <div class="popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
@@ -240,7 +240,11 @@ import { TranslateService } from '../i18n/translate.service';
         </div>
       </header>
 
-      <div class="flex flex-1 overflow-hidden">
+      <div class="relative flex flex-1 overflow-hidden">
+        <!-- Nền mờ khi mở sidebar trên MOBILE: bấm ra ngoài để đóng (ẩn trên desktop) -->
+        @if (sidebarOpen()) {
+          <div class="absolute inset-0 z-20 bg-black/30 md:hidden" (click)="sidebarOpen.set(false)"></div>
+        }
         <!-- Sidebar (trượt mượt khi ẩn/hiện bằng nút 3 gạch ở header) -->
         <aside
           class="sidebar-panel shrink-0 overflow-y-auto border-r border-gray-200"
@@ -431,7 +435,8 @@ export class CalendarPageComponent implements OnInit {
   private readonly ics = inject(IcsService);
   private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
-  protected readonly sidebarOpen = signal(true);
+  // Mặc định: MỞ trên desktop, ĐÓNG trên mobile (<768px) để lịch có full bề rộng khi mở app.
+  protected readonly sidebarOpen = signal(typeof window === 'undefined' || window.innerWidth >= 768);
   protected readonly settingsMenuOpen = signal(false);
   protected readonly importMsg = signal('');
 

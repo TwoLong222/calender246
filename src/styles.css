@@ -80,6 +80,18 @@ input[type='radio'] {
   opacity: 0;
   border-right-width: 0;
 }
+/* MOBILE (<768px): sidebar ĐÈ LÊN lịch (overlay) thay vì ép co lịch lại.
+   Cần cha ".flex flex-1" có position:relative (đã thêm class "relative"). */
+@media (max-width: 767px) {
+  .sidebar-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 30;
+    background: var(--app-bg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .sidebar-panel {
     transition: none;
