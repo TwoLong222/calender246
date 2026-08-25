@@ -19,6 +19,7 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from './settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
+import { FeedApiService, CalendarFeed } from './feed-api.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
 import { AttachmentsApiService, EventFileGroup } from '../calendar/attachments-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
@@ -429,6 +430,26 @@ type Section =
                     }
                   </ul>
                 </div>
+
+                <!-- Feed lịch công khai (.ics) — link đăng ký thường niên/định kỳ -->
+                <div class="border-t border-gray-200 pt-3 text-sm">
+                  <label class="flex items-center justify-between">
+                    <span class="font-medium">{{ tr.t('feed.enable') }}</span>
+                    <input type="checkbox" [checked]="calendarFeed()?.enabled" (change)="setFeed({ enabled: !calendarFeed()?.enabled })" class="accent-blue-600" />
+                  </label>
+                  <p class="mt-1 text-xs text-gray-400">{{ tr.t('feed.desc') }}</p>
+                  @if (calendarFeed()?.enabled) {
+                    <div class="mt-2">
+                      <label class="mb-1 block text-gray-600">{{ tr.t('feed.link') }}</label>
+                      <div class="flex flex-wrap gap-2">
+                        <input [value]="feedLink()" readonly class="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
+                        <button type="button" (click)="copyFeedLink()" class="tap rounded-md border border-gray-300 px-3 text-sm hover:bg-gray-50">{{ feedCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
+                      </div>
+                      <p class="mt-1 text-xs text-gray-400">{{ tr.t('feed.hint') }}</p>
+                      <button type="button" (click)="setFeed({ rotate: true })" class="tap mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50">{{ tr.t('feed.rotate') }}</button>
+                    </div>
+                  }
+                </div>
               </section>
             }
 
@@ -573,6 +594,28 @@ export class SettingsPageComponent {
     navigator.clipboard?.writeText(this.bookingLink());
     this.bookingCopied.set(true);
     setTimeout(() => this.bookingCopied.set(false), 1500);
+  }
+
+  // ---- Feed lịch công khai (.ics) ----
+  private readonly feedApi = inject(FeedApiService);
+  protected readonly calendarFeed = signal<CalendarFeed | null>(null);
+  protected readonly feedCopied = signal(false);
+  protected feedLink(): string {
+    const f = this.calendarFeed();
+    return f ? this.feedApi.feedUrl(f.token) : '';
+  }
+  protected setFeed(patch: { enabled?: boolean; rotate?: boolean }): void {
+    const prev = this.calendarFeed();
+    if (prev && patch.enabled !== undefined) this.calendarFeed.set({ ...prev, enabled: patch.enabled });
+    this.feedApi.updateMyFeed(patch).subscribe({
+      next: (f) => this.calendarFeed.set(f),
+      error: () => { if (prev) this.calendarFeed.set(prev); },
+    });
+  }
+  protected copyFeedLink(): void {
+    navigator.clipboard?.writeText(this.feedLink());
+    this.feedCopied.set(true);
+    setTimeout(() => this.feedCopied.set(false), 1500);
   }
 
   // ---- Chia sẻ lịch ----
@@ -723,6 +766,10 @@ export class SettingsPageComponent {
     if (!this.settings.loaded()) void this.settings.load();
     this.bookingApi.getMyPage().subscribe({
       next: (p) => this.bookingPage.set(p),
+      error: () => {},
+    });
+    this.feedApi.getMyFeed().subscribe({
+      next: (f) => this.calendarFeed.set(f),
       error: () => {},
     });
     this.loadMembers();

@@ -404,7 +404,11 @@ export class NotificationService {
       if (e.reminderMinutes == null) continue;
       const leadMs = e.reminderMinutes * 60 * 1000;
       const diff = e.start.getTime() - now;
-      if (diff > 0 && diff <= leadMs) {
+      // Nhắc khi đã tới mốc (now >= start - leadMs). Grace 1 phút để:
+      //  - "0 phút" báo ĐÚNG lúc bắt đầu (dù check chạy mỗi 30s, không bị lọt khe);
+      //  - KHÔNG bắn cho sự kiện đã bắt đầu từ lâu (mở app muộn thì diff rất âm -> bỏ qua).
+      const GRACE_MS = 60_000;
+      if (diff <= leadMs && diff > -GRACE_MS) {
         this.notified.add(e.id);
         this.fire(e);
       }

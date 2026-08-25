@@ -105,7 +105,7 @@ export interface Invitation {
 
 /** Tùy chọn lặp lại khi tạo event mới (materialized: backend tạo `count` event thật) */
 export interface RecurrenceOptions {
-  repeat: 'daily' | 'weekly' | 'monthly';
+  repeat: 'daily' | 'weekly' | 'monthly' | 'yearly';
   count: number;
   /** Lặp mỗi N đơn vị (mặc định 1). */
   interval?: number;

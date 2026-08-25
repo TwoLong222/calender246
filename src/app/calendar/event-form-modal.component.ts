@@ -107,6 +107,7 @@ function toTimeInputValue(d: Date): string {
                   <option value="daily">{{ tr.t('form.daily') }}</option>
                   <option value="weekly">{{ tr.t('form.weekly') }}</option>
                   <option value="monthly">{{ tr.t('form.monthly') }}</option>
+                  <option value="yearly">{{ tr.t('form.yearly') }}</option>
                 </select>
                 @if (repeat() !== 'none') {
                   <span>{{ tr.t('form.every') }}</span>
@@ -386,7 +387,7 @@ export class EventFormModalComponent {
   guests = signal<Guest[]>([]);
   guestEmailDraft = signal('');
   color = signal('sky');
-  repeat = signal<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  repeat = signal<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('none');
   repeatCount = signal(4);
   repeatInterval = signal(1);
   /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
