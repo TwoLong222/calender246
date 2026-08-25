@@ -34,6 +34,22 @@ function toTimeInputValue(d: Date): string {
   return `${h}:${m}`;
 }
 
+// ----- Nhắc lịch linh hoạt: đổi qua lại giữa PHÚT (lưu ở DB) và số + đơn vị (hiển thị) -----
+type ReminderUnit = 'minute' | 'hour' | 'day' | 'week';
+const UNIT_MIN: Record<ReminderUnit, number> = { minute: 1, hour: 60, day: 1440, week: 10080 };
+interface ReminderItem {
+  value: number;
+  unit: ReminderUnit;
+}
+/** Đổi tổng số PHÚT -> {số, đơn vị} lớn nhất chia hết (vd 120 -> 2 tiếng, 90 -> 90 phút). */
+function minutesToItem(min: number): ReminderItem {
+  const m = Math.max(0, Math.round(min));
+  if (m > 0 && m % UNIT_MIN.week === 0) return { value: m / UNIT_MIN.week, unit: 'week' };
+  if (m > 0 && m % UNIT_MIN.day === 0) return { value: m / UNIT_MIN.day, unit: 'day' };
+  if (m > 0 && m % UNIT_MIN.hour === 0) return { value: m / UNIT_MIN.hour, unit: 'hour' };
+  return { value: m, unit: 'minute' };
+}
+
 @Component({
   selector: 'app-event-form-modal',
   standalone: true,
@@ -83,13 +99,14 @@ function toTimeInputValue(d: Date): string {
                 <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
                 <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay() || !canEditTime()" />
               </div>
-              <!-- Kết thúc -->
+              <!-- Kết thúc — NGÀY khóa theo ngày bắt đầu (sự kiện gói gọn trong 1 ngày) -->
               <div class="flex flex-wrap items-center gap-2">
                 <span class="w-5 text-center"></span>
                 <span class="w-16 shrink-0 font-medium text-gray-600">{{ tr.t('form.end') }}</span>
-                <input type="date" [(ngModel)]="endDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+                <input type="date" [ngModel]="startDate()" [disabled]="true" [title]="tr.t('form.sameDayHint')" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" />
                 <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay() || !canEditTime()" />
               </div>
+              <p class="pl-[5.75rem] text-xs text-gray-400">{{ tr.t('form.sameDayHint') }}</p>
             </div>
             @if (!canEditTime()) {
               <p class="pl-7 text-xs text-gray-500">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
@@ -198,18 +215,44 @@ function toTimeInputValue(d: Date): string {
               </div>
             </div>
 
-            <!-- Nhắc trước giờ bắt đầu -->
-            <div class="flex items-center gap-2 text-sm">
-              <app-icon name="bell" class="h-4 w-4 text-gray-500" />
-              <select [ngModel]="reminderStr()" (ngModelChange)="setReminder($event)" class="rounded border border-gray-300 px-2 py-1">
-                <option value="none">{{ tr.t('notif.none') }}</option>
-                <option value="5">{{ tr.t('notif.r5') }}</option>
-                <option value="10">{{ tr.t('notif.r10') }}</option>
-                <option value="15">{{ tr.t('notif.r15') }}</option>
-                <option value="30">{{ tr.t('notif.r30') }}</option>
-                <option value="60">{{ tr.t('notif.r60') }}</option>
-                <option value="1440">{{ tr.t('notif.r1440') }}</option>
-              </select>
+            <!-- Nhắc trước giờ bắt đầu: nhiều mốc (số + đơn vị) + nội dung tùy chỉnh -->
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-2 text-gray-500">
+                <app-icon name="bell" class="h-4 w-4" />
+                <span>{{ tr.t('notif.remindersLabel') }}</span>
+              </div>
+              @for (r of reminders(); track $index) {
+                <div class="flex flex-wrap items-center gap-2 pl-6">
+                  <input
+                    type="number" min="0" max="200" step="1"
+                    [ngModel]="r.value" (ngModelChange)="setReminderValue($index, $event)"
+                    class="w-20 rounded border border-gray-300 px-2 py-1"
+                  />
+                  <select [ngModel]="r.unit" (ngModelChange)="setReminderUnit($index, $event)" class="rounded border border-gray-300 px-2 py-1">
+                    <option value="minute">{{ tr.t('unit.minute') }}</option>
+                    <option value="hour">{{ tr.t('unit.hour') }}</option>
+                    <option value="day">{{ tr.t('unit.day') }}</option>
+                    <option value="week">{{ tr.t('unit.week') }}</option>
+                  </select>
+                  <span class="text-gray-500">{{ tr.t('notif.before') }}</span>
+                  <button type="button" (click)="removeReminder($index)" class="tap ml-auto rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" [attr.aria-label]="tr.t('notif.removeReminder')">
+                    <app-icon name="x" class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              }
+              @if (reminders().length === 0) {
+                <p class="pl-6 text-xs text-gray-400">{{ tr.t('notif.none') }}</p>
+              }
+              <button type="button" (click)="addReminder()" class="tap ml-6 rounded border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                + {{ tr.t('notif.addReminder') }}
+              </button>
+              @if (reminders().length > 0) {
+                <input
+                  type="text" [(ngModel)]="reminderMessage" maxlength="300"
+                  [placeholder]="tr.t('notif.messagePlaceholder')"
+                  class="ml-6 block w-[calc(100%-1.5rem)] rounded border border-gray-300 px-2 py-1"
+                />
+              }
             </div>
 
             <!-- Đính kèm tài liệu ngay lúc tạo (có thể hẹn giờ mở/đóng) -->
@@ -338,13 +381,32 @@ export class EventFormModalComponent {
     return creator.toLowerCase() === me.toLowerCase();
   });
 
-  reminderMinutes = signal<number | null>(null);
-  reminderStr(): string {
-    const r = this.reminderMinutes();
-    return r == null ? 'none' : String(r);
+  // ----- Nhắc lịch: danh sách mốc (số + đơn vị) + nội dung tùy chỉnh -----
+  readonly reminders = signal<ReminderItem[]>([]);
+  readonly reminderMessage = signal('');
+
+  addReminder(): void {
+    this.reminders.update((l) => [...l, { value: 10, unit: 'minute' }]);
   }
-  setReminder(v: string): void {
-    this.reminderMinutes.set(v === 'none' ? null : +v);
+  removeReminder(i: number): void {
+    this.reminders.update((l) => l.filter((_, idx) => idx !== i));
+  }
+  setReminderValue(i: number, v: number | string): void {
+    // Chặn [0, 200] và làm tròn số nguyên (bỏ ký tự lạ / số âm).
+    const n = Math.min(Math.max(Math.round(Number(v) || 0), 0), 200);
+    this.reminders.update((l) => l.map((r, idx) => (idx === i ? { ...r, value: n } : r)));
+  }
+  setReminderUnit(i: number, u: ReminderUnit): void {
+    this.reminders.update((l) => l.map((r, idx) => (idx === i ? { ...r, unit: u } : r)));
+  }
+  /** Đổi danh sách hiển thị -> mảng PHÚT (khử trùng) để gửi backend. */
+  private reminderMinutesList(): number[] {
+    const set = new Set<number>();
+    for (const r of this.reminders()) {
+      const v = Math.min(Math.max(Math.round(r.value || 0), 0), 200);
+      set.add(v * UNIT_MIN[r.unit]);
+    }
+    return [...set].sort((a, b) => a - b);
   }
 
   readonly tabs: { key: EventKind; label: string }[] = [
@@ -404,10 +466,22 @@ export class EventFormModalComponent {
         this.description.set(editing.description ?? '');
         this.guests.set(editing.guests);
         this.color.set(editing.color ?? 'sky');
-        this.reminderMinutes.set(editing.reminderMinutes ?? null);
+        // Nhắc: ưu tiên mảng mới; sự kiện CŨ chỉ có reminderMinutes -> chuyển thành 1 mốc.
+        const mins =
+          editing.reminders && editing.reminders.length
+            ? editing.reminders
+            : editing.reminderMinutes != null
+              ? [editing.reminderMinutes]
+              : [];
+        this.reminders.set(mins.map(minutesToItem));
+        this.reminderMessage.set(editing.reminderMessage ?? '');
       } else {
         const start = this.state.formInitialStart();
-        const end = new Date(start.getTime() + 60 * 60_000);
+        let end = new Date(start.getTime() + 60 * 60_000);
+        // Sự kiện gói gọn trong 1 ngày: nếu +1 tiếng tràn sang ngày sau -> kẹp về 23:59 cùng ngày.
+        if (end.getDate() !== start.getDate() || end.getMonth() !== start.getMonth() || end.getFullYear() !== start.getFullYear()) {
+          end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59);
+        }
         this.tab.set(this.state.formInitialKind());
         this.title.set('');
         this.startDate.set(toDateInputValue(start));
@@ -422,15 +496,18 @@ export class EventFormModalComponent {
         this.repeat.set('none');
         this.repeatCount.set(4);
         this.repeatInterval.set(1);
-        // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới.
-        this.reminderMinutes.set(this.settings.settings().default_reminder);
+        // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới; null = không có mốc nào.
+        const def = this.settings.settings().default_reminder;
+        this.reminders.set(def != null ? [minutesToItem(def)] : []);
+        this.reminderMessage.set('');
       }
       this.guestEmailDraft.set('');
     });
   }
 
   private computedStart = computed(() => new Date(`${this.startDate()}T${this.startTime() || '00:00'}`));
-  private computedEnd = computed(() => new Date(`${this.endDate()}T${this.endTime() || '00:00'}`));
+  // Ngày kết thúc LUÔN bằng ngày bắt đầu — sự kiện gói gọn trong 1 ngày (chỉ chọn GIỜ kết thúc).
+  private computedEnd = computed(() => new Date(`${this.startDate()}T${this.endTime() || '00:00'}`));
 
   conflicts = computed<CalendarEvent[]>(() => {
     if (this.tab() !== 'event' || this.isAllDay()) return [];
@@ -488,7 +565,8 @@ export class EventFormModalComponent {
 
   save(): void {
     const start = this.isAllDay() ? new Date(`${this.startDate()}T00:00`) : this.computedStart();
-    const end = this.isAllDay() ? new Date(`${this.endDate()}T23:59`) : this.computedEnd();
+    // Kết thúc cùng NGÀY với bắt đầu (không cho sự kiện kéo dài qua ngày).
+    const end = this.isAllDay() ? new Date(`${this.startDate()}T23:59`) : this.computedEnd();
 
     // Chặn giờ kết thúc TRƯỚC giờ bắt đầu: DB lưu bằng khoảng thời gian nên sẽ lỗi (500).
     // Báo rõ cho người dùng thay vì để "Lưu thất bại" khó hiểu.
@@ -521,7 +599,8 @@ export class EventFormModalComponent {
         isAllDay: this.isAllDay(),
         guests: this.guests(),
         color: this.color(),
-        reminderMinutes: this.reminderMinutes(),
+        reminders: this.reminderMinutesList(),
+        reminderMessage: this.reminderMessage().trim() || null,
       },
       recurrence,
       // Sau khi lưu xong (có id) -> upload các file đã đính kèm trong form.

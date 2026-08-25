@@ -29,6 +29,8 @@ export interface ApiEvent {
   series_id: string | null;
   creator_email?: string | null;
   reminder_minutes?: number | null;
+  reminders?: { minutes_before: number }[];
+  reminder_message?: string | null;
   completed?: boolean;
   deleted_at?: string | null;
   group_id?: string | null;
@@ -58,7 +60,9 @@ export function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
     // "Lên lịch hẹn" (appointment) chưa có bảng riêng ở backend -> tạm lưu như "event" thường
     kind: (e.kind === 'appointment' ? 'event' : e.kind) as 'event' | 'task',
     color: e.color,
-    reminderMinutes: e.reminderMinutes ?? null,
+    // Nhắc lịch linh hoạt: gửi mảng mốc nhắc (phút) + nội dung tùy chỉnh.
+    reminders: e.reminders ?? [],
+    reminderMessage: e.reminderMessage ?? undefined,
     guestEmails: e.guests.map((g) => g.email),
   };
 }
@@ -83,6 +87,8 @@ export function fromApiEvent(row: ApiEvent): CalendarEvent {
     creatorEmail: row.creator_email ?? undefined,
     calendarId: row.calendar_id ?? undefined,
     reminderMinutes: row.reminder_minutes ?? null,
+    reminders: (row.reminders ?? []).map((r) => r.minutes_before).sort((a, b) => a - b),
+    reminderMessage: row.reminder_message ?? null,
     completed: row.completed ?? false,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
     groupId: row.group_id ?? undefined,

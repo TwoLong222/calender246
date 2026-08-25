@@ -4,6 +4,7 @@
 // Mỗi sự kiện chỉ nhắc 1 lần.
 
 import { Injectable, effect, inject, signal } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { AttachmentsApiService } from '../calendar/attachments-api.service';
@@ -38,6 +39,14 @@ export interface CancelNotice {
   title: string;
   at: number;
 }
+/** Nhắc lịch tới giờ — do BACKEND tạo (bảng notifications), lưu trong chuông. */
+export interface ReminderNotice {
+  id: string;
+  title: string;
+  body: string;
+  eventId: string | null;
+  at: number;
+}
 
 const SEEN_FILES_KEY = 'notified-file-open';
 
@@ -55,6 +64,9 @@ export class NotificationService {
   /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY (giữ tối đa 30 cái mới nhất). */
   readonly changeNotices = signal<ChangeNotice[]>([]);
   readonly cancelNotices = signal<CancelNotice[]>([]);
+  /** Nhắc lịch tới giờ (backend đẩy qua bảng notifications) — hiện ở chuông. */
+  readonly reminderNotices = signal<ReminderNotice[]>([]);
+  private notifChannel?: RealtimeChannel;
 
   readonly toasts = signal<Toast[]>([]);
   private readonly notified = new Set<string>();
@@ -118,6 +130,114 @@ export class NotificationService {
     // Quét tài liệu vừa mở: ngay khi mở app + mỗi 5 phút.
     setTimeout(() => this.checkAttachments(), 4_000);
     setInterval(() => this.checkAttachments(), 5 * 60_000);
+
+    // Nhắc lịch tới giờ do BACKEND đẩy vào bảng notifications: nạp thông báo chưa đọc lúc mở app
+    // + lắng nghe realtime để hiện chuông + toast NGAY khi có mốc nhắc mới (không cần F5).
+    // Đăng ký lại khi token đổi (đăng nhập / refresh) để kênh luôn hợp lệ với RLS.
+    effect(() => {
+      const token = this.supabase.session()?.access_token;
+      if (!token) return;
+      this.supabase.client.realtime.setAuth(token);
+      this.loadReminderNotices();
+      this.subscribeNotifications();
+    });
+  }
+
+  /** Nạp các thông báo nhắc CHƯA ĐỌC (hiện lại trong chuông kể cả khi lúc đó không mở app). */
+  private loadReminderNotices(): void {
+    this.supabase.client
+      .from('notifications')
+      .select('id, title, body, event_id, created_at, read_at')
+      .eq('type', 'reminder')
+      .is('read_at', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(
+        ({ data }) => {
+          const list: ReminderNotice[] = (data ?? []).map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            body: r.body ?? '',
+            eventId: r.event_id ?? null,
+            at: new Date(r.created_at).getTime(),
+          }));
+          this.reminderNotices.set(list);
+        },
+        () => {},
+      );
+  }
+
+  /** Lắng nghe INSERT trên bảng notifications (RLS chỉ trả về của chính mình) -> toast + chuông. */
+  private subscribeNotifications(): void {
+    if (this.notifChannel) {
+      this.supabase.client.removeChannel(this.notifChannel);
+      this.notifChannel = undefined;
+    }
+    const uid = this.supabase.user()?.id;
+    this.notifChannel = this.supabase.client
+      .channel('notifications-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          ...(uid ? { filter: `user_id=eq.${uid}` } : {}),
+        },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.type === 'reminder') this.onReminderRow(row, true);
+        },
+      )
+      .subscribe();
+  }
+
+  /** Thêm 1 nhắc lịch vào chuông; fireToast=true -> hiện toast nổi + bíp + thông báo trình duyệt. */
+  private onReminderRow(row: any, fireToast: boolean): void {
+    if (this.reminderNotices().some((n) => n.id === row.id)) return;
+    const notice: ReminderNotice = {
+      id: row.id,
+      title: row.title,
+      body: row.body ?? '',
+      eventId: row.event_id ?? null,
+      at: Date.now(),
+    };
+    this.reminderNotices.update((l) => [notice, ...l].slice(0, 50));
+    if (!fireToast) return;
+    const toastId = `reminder:${row.id}`;
+    this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: notice.title, detail: notice.body }]);
+    setTimeout(() => this.dismiss(toastId), 15_000);
+    this.playBeep();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(`⏰ ${notice.title}`, { body: notice.body });
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  }
+
+  /** Đánh dấu 1 nhắc lịch đã đọc (xóa khỏi chuông + ghi read_at ở DB). */
+  dismissReminder(id: string): void {
+    this.reminderNotices.update((l) => l.filter((x) => x.id !== id));
+    this.supabase.client
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', id)
+      .then(() => {}, () => {});
+  }
+
+  /** Đánh dấu TẤT CẢ nhắc lịch đã đọc. */
+  clearReminders(): void {
+    const ids = this.reminderNotices().map((n) => n.id);
+    this.reminderNotices.set([]);
+    if (ids.length) {
+      this.supabase.client
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .in('id', ids)
+        .then(() => {}, () => {});
+    }
   }
 
   /** Quét tài liệu đính kèm vừa tới giờ mở -> toast (mỗi file chỉ báo 1 lần/ máy). */

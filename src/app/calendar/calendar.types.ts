@@ -34,8 +34,12 @@ export interface CalendarEvent {
   creatorEmail?: string;
   /** Lịch chứa event (để biết event thuộc lịch của mình hay lịch được chia sẻ) */
   calendarId?: string;
-  /** Nhắc trước bao nhiêu phút; null = không nhắc */
+  /** (LEGACY) Nhắc trước bao nhiêu phút; null = không nhắc. Sự kiện mới dùng `reminders`. */
   reminderMinutes?: number | null;
+  /** Các mốc nhắc (PHÚT trước giờ bắt đầu); 0 = ngay lúc bắt đầu. Mảng rỗng = không nhắc. */
+  reminders?: number[];
+  /** Nội dung thông báo tùy chỉnh khi tới giờ nhắc; rỗng = dùng tên sự kiện. */
+  reminderMessage?: string | null;
   /** Task đã hoàn thành (chỉ dùng cho kind='task') */
   completed?: boolean;
   /** Thời điểm bị đưa vào thùng rác (chỉ có ở sự kiện trong thùng rác); null = chưa xóa */

@@ -42,6 +42,28 @@ import { IconComponent } from '../shared/icon.component';
             <p class="px-3 py-6 text-center text-sm text-gray-400">{{ tr.t('notif.empty') }}</p>
           }
 
+          <!-- MỤC 0: NHẮC LỊCH (tới giờ) -->
+          @if (reminders().length > 0) {
+            <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+              <app-icon name="bell" class="h-4 w-4 text-blue-500" />
+              <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.secReminders') }}</span>
+              <span class="ml-auto text-xs text-gray-400">{{ reminders().length }}</span>
+            </div>
+            @for (n of reminders(); track n.id) {
+              <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
+                <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400"></span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-gray-800">{{ n.title }}</p>
+                  @if (n.body) { <p class="text-xs text-gray-500">{{ n.body }}</p> }
+                </div>
+                <button type="button" (click)="notify.dismissReminder(n.id)"
+                  class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+                  <app-icon name="x" class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            }
+          }
+
           <!-- MỤC 1: LỜI MỜI -->
           @if (invites().length > 0) {
             <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
@@ -113,10 +135,10 @@ import { IconComponent } from '../shared/icon.component';
             }
           }
 
-          <!-- Xóa hết thông báo hủy/sửa -->
-          @if (changed().length > 0 || cancelled().length > 0) {
+          <!-- Xóa hết thông báo nhắc/hủy/sửa -->
+          @if (reminders().length > 0 || changed().length > 0 || cancelled().length > 0) {
             <div class="px-3 py-2 text-right">
-              <button type="button" (click)="notify.clearNotices()" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+              <button type="button" (click)="clearAll()" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
                 {{ tr.t('notif.clearAll') }}
               </button>
             </div>
@@ -135,8 +157,17 @@ export class InvitationBellComponent {
   protected readonly invites = this.state.invitations;
   protected readonly changed = this.notify.changeNotices;
   protected readonly cancelled = this.notify.cancelNotices;
-  protected readonly total = computed(() => this.invites().length + this.changed().length + this.cancelled().length);
+  protected readonly reminders = this.notify.reminderNotices;
+  protected readonly total = computed(
+    () => this.reminders().length + this.invites().length + this.changed().length + this.cancelled().length,
+  );
   protected readonly open = signal(false);
+
+  /** Xóa hết thông báo đã lưu (nhắc lịch + sửa + hủy). */
+  protected clearAll(): void {
+    this.notify.clearReminders();
+    this.notify.clearNotices();
+  }
 
   protected respond(iv: Invitation, status: 'accepted' | 'declined'): void {
     this.state.respondInvitation(iv.eventId, status);
