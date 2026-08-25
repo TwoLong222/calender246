@@ -13,6 +13,7 @@ interface ApiAttendee {
   id: string;
   email: string;
   status: AttendeeStatus;
+  can_edit?: boolean;
 }
 
 export interface ApiEvent {
@@ -60,6 +61,7 @@ export function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
     color: e.color,
     reminderMinutes: e.reminderMinutes ?? null,
     guestEmails: e.guests.map((g) => g.email),
+    guestEditors: e.guests.filter((g) => g.canEdit).map((g) => g.email),
   };
 }
 
@@ -77,7 +79,7 @@ export function fromApiEvent(row: ApiEvent): CalendarEvent {
     // Không hiển thị chính mình như một "khách mời" -> lọc bỏ theo creator_email.
     guests: (row.attendees ?? [])
       .filter((a) => a.email.toLowerCase() !== (row.creator_email ?? '').toLowerCase())
-      .map((a) => ({ email: a.email, status: a.status })),
+      .map((a) => ({ email: a.email, status: a.status, canEdit: a.can_edit ?? false })),
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,

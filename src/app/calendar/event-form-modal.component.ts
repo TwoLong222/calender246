@@ -164,7 +164,16 @@ function toTimeInputValue(d: Date): string {
                   <ul class="mt-2 space-y-1">
                     @for (g of guests(); track g.email) {
                       <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1">
-                        <span class="min-w-0 break-all">{{ g.email }}</span>
+                        <span class="min-w-0 flex-1 break-all">{{ g.email }}</span>
+                        <select
+                          [ngModel]="g.canEdit ? 'editor' : 'viewer'"
+                          (ngModelChange)="setGuestRole(g.email, $event === 'editor')"
+                          class="shrink-0 rounded border border-gray-300 px-1 py-0.5 text-xs"
+                          [title]="tr.t('form.guestRoleHint')"
+                        >
+                          <option value="viewer">{{ tr.t('share.viewer') }}</option>
+                          <option value="editor">{{ tr.t('share.editor') }}</option>
+                        </select>
                         <button type="button" (click)="removeGuest(g.email)" class="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
                       </li>
                     }
@@ -496,12 +505,17 @@ export class EventFormModalComponent {
     const email = this.guestEmailDraft().trim();
     if (!email || !email.includes('@')) return;
     if (this.guests().some((g) => g.email.toLowerCase() === email.toLowerCase())) return;
-    this.guests.update((list) => [...list, { email, status: 'needsAction' }]);
+    this.guests.update((list) => [...list, { email, status: 'needsAction', canEdit: false }]);
     this.guestEmailDraft.set('');
   }
 
   removeGuest(email: string): void {
     this.guests.update((list) => list.filter((g) => g.email !== email));
+  }
+
+  /** Đổi quyền của 1 khách: editor (chỉnh sửa) hay viewer (chỉ xem). */
+  setGuestRole(email: string, canEdit: boolean): void {
+    this.guests.update((list) => list.map((g) => (g.email === email ? { ...g, canEdit } : g)));
   }
 
   close(): void {

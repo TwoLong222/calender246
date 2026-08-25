@@ -35,6 +35,8 @@ export class CalendarStateService {
     const me = this.supabase.user()?.email?.toLowerCase();
     if (!e.creatorEmail) return true; // event cũ chưa có creatorEmail -> thường của mình
     if (e.creatorEmail.toLowerCase() === me) return true;
+    // Khách mời được cấp quyền "chỉnh sửa" trong chính sự kiện này.
+    if (e.guests.some((g) => g.email.toLowerCase() === me && g.canEdit)) return true;
     return !!e.calendarId && this.editorCalendarIds().has(e.calendarId);
   }
 

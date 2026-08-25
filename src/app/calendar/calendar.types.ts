@@ -14,6 +14,8 @@ export type AttendeeStatus = 'needsAction' | 'accepted' | 'declined' | 'tentativ
 export interface Guest {
   email: string;
   status: AttendeeStatus;
+  /** true = khách được quyền CHỈNH SỬA nội dung sự kiện; false/undefined = chỉ xem. */
+  canEdit?: boolean;
 }
 
 export interface CalendarEvent {

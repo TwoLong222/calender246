@@ -72,7 +72,7 @@ export class NotificationService {
   private readonly settings = inject(SettingsService);
 
   /** Ảnh chụp các sự kiện DO NGƯỜI KHÁC mời mình (id -> thông tin) để phát hiện HỦY/ĐỔI. */
-  private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string }>();
+  private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string; description: string }>();
 
   /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY. Lưu localStorage, tự rơi
    *  khỏi chuông sau 3 ngày (xem BELL_MAX_AGE_MS) — khác history bên dưới (lưu vĩnh viễn). */
@@ -143,9 +143,9 @@ export class NotificationService {
         (e) => e.creatorEmail && e.creatorEmail.toLowerCase() !== me && !e.deletedAt,
       );
       const warmup = Date.now() - this.startedAt < 4000;
-      const next = new Map<string, { title: string; start: number; end: number; location: string }>();
+      const next = new Map<string, { title: string; start: number; end: number; location: string; description: string }>();
       for (const e of invited) {
-        next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '' });
+        next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '', description: e.description ?? '' });
       }
       if (!warmup) {
         // ĐỔI: có ở cả 2 nhưng khác nội dung
@@ -341,8 +341,8 @@ export class NotificationService {
 
   /** Mô tả từng thay đổi thành các DÒNG riêng (ngày giờ bắt đầu / kết thúc tách biệt). */
   private describeChanges(
-    prev: { title: string; start: number; end: number; location: string },
-    cur: { title: string; start: number; end: number; location: string },
+    prev: { title: string; start: number; end: number; location: string; description: string },
+    cur: { title: string; start: number; end: number; location: string; description: string },
     e: CalendarEvent,
   ): string[] {
     const lines: string[] = [];
@@ -351,6 +351,9 @@ export class NotificationService {
     if (prev.end !== cur.end) lines.push(`${this.tr.t('notif.fEnd')} → ${this.fmtDateTime(e.end, e.isAllDay)}`);
     if (prev.location !== cur.location) {
       lines.push(cur.location ? `${this.tr.t('notif.fLocation')} → ${cur.location}` : `${this.tr.t('notif.fLocation')} (đã gỡ)`);
+    }
+    if (prev.description !== cur.description) {
+      lines.push(cur.description ? `${this.tr.t('notif.fDesc')} → ${cur.description}` : `${this.tr.t('notif.fDesc')} (đã gỡ)`);
     }
     return lines;
   }
