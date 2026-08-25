@@ -17,8 +17,20 @@ interface ChatMsg {
   text: string;
 }
 
-/** Key lưu lịch sử chat AI (giữ khi rời trang / mở lại). */
+/** 1 cuộc trò chuyện với AI (lưu nhiều cuộc trên trình duyệt). */
+interface Conversation {
+  id: string;
+  messages: ChatMsg[];
+  updatedAt: number;
+}
+
+/** Key cũ (1 cuộc) — chỉ dùng để migrate sang danh sách nhiều cuộc. */
 const AI_CHAT_KEY = 'ai-chat-history';
+/** Danh sách cuộc trò chuyện + cuộc đang mở. */
+const AI_CONVS_KEY = 'ai-conversations';
+const AI_CURRENT_KEY = 'ai-current-conv';
+/** Giữ tối đa 20 cuộc gần nhất để localStorage không phình. */
+const MAX_CONVERSATIONS = 20;
 interface PlannedSlot {
   start: Date;
   end: Date;
@@ -64,14 +76,38 @@ type Pending =
             <app-icon name="robot" class="h-5 w-5 text-blue-700" /> {{ tr.t('ai.title') }}
           </span>
           <div class="flex items-center gap-1">
-            <button type="button" (click)="clearChat()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('ai.clear')" [title]="tr.t('ai.clear')">
-              <app-icon name="trash" class="h-4 w-4" />
+            <button type="button" (click)="newConversation()" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('ai.newChat')" [title]="tr.t('ai.newChat')">
+              <app-icon name="plus" class="h-4 w-4" />
             </button>
-            <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+            <button type="button" (click)="showList.set(!showList())" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [class.bg-gray-100]="showList()" [attr.aria-label]="tr.t('ai.history')" [title]="tr.t('ai.history')">
+              <app-icon name="menu" class="h-4 w-4" />
+            </button>
+            <button type="button" (click)="open.set(false)" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
               <app-icon name="x" class="h-4 w-4" />
             </button>
           </div>
         </div>
+
+        <!-- Bảng LỊCH SỬ các cuộc trò chuyện (đè lên phần chat khi mở) -->
+        @if (showList()) {
+          <div class="absolute inset-0 z-10 flex flex-col rounded-xl bg-white">
+            <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <span class="font-medium text-gray-800">{{ tr.t('ai.history') }}</span>
+              <div class="flex items-center gap-1">
+                <button type="button" (click)="newConversation()" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [title]="tr.t('ai.newChat')"><app-icon name="plus" class="h-4 w-4" /></button>
+                <button type="button" (click)="showList.set(false)" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+              </div>
+            </div>
+            <div class="flex-1 overflow-y-auto py-1">
+              @for (c of conversations(); track c.id) {
+                <div class="flex items-center gap-1 px-2" [class.bg-blue-50]="c.id === currentId()">
+                  <button type="button" (click)="switchConversation(c.id)" class="min-w-0 flex-1 truncate rounded px-2 py-2 text-left text-sm text-gray-800 hover:bg-gray-50">{{ conversationTitle(c) }}</button>
+                  <button type="button" (click)="deleteConversation(c.id)" class="tap shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-red-600" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-3.5 w-3.5" /></button>
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         <div #scrollBox class="flex-1 space-y-2 overflow-y-auto px-3 py-3">
           @for (m of messages(); track $index) {
@@ -159,7 +195,12 @@ export class AiAssistantComponent {
   input = signal('');
   loading = signal(false);
   pending = signal<Pending | null>(null);
-  messages = signal<ChatMsg[]>(this.loadMessages());
+  /** Danh sách cuộc trò chuyện (mới nhất lên đầu) + cuộc đang mở. */
+  protected readonly conversations = signal<Conversation[]>(this.loadConversations());
+  protected readonly currentId = signal<string>(this.initialCurrentId());
+  /** Bật/tắt bảng lịch sử các cuộc trò chuyện. */
+  protected readonly showList = signal(false);
+  messages = signal<ChatMsg[]>(this.currentMessages());
   /** true khi AI vừa trả lời trong lúc panel đóng -> hiện chấm đỏ trên nút nổi. */
   unread = signal(false);
 
@@ -172,8 +213,16 @@ export class AiAssistantComponent {
   private readonly scrollBox = viewChild<ElementRef<HTMLElement>>('scrollBox');
 
   constructor() {
-    // Tự lưu lịch sử chat mỗi khi đổi -> rời trang/mở lại vẫn còn.
-    effect(() => this.saveMessages(this.messages()));
+    // Tự lưu tin nhắn vào cuộc đang mở mỗi khi đổi -> rời trang/mở lại vẫn còn.
+    effect(() => {
+      const msgs = this.messages();
+      const id = this.currentId();
+      this.conversations.update((list) => {
+        const rest = list.filter((c) => c.id !== id);
+        return [{ id, messages: msgs.slice(-50), updatedAt: Date.now() }, ...rest].slice(0, MAX_CONVERSATIONS);
+      });
+      this.persist();
+    });
     // Tự cuộn xuống tin mới nhất mỗi khi có tin/loading/mở panel.
     effect(() => {
       this.messages();
@@ -191,27 +240,79 @@ export class AiAssistantComponent {
     }, 0);
   }
 
-  private loadMessages(): ChatMsg[] {
+  // ---------- Nhiều cuộc trò chuyện (lưu localStorage) ----------
+  private uid(): string {
+    return `c${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
+  }
+  private greeting(): ChatMsg {
+    return { role: 'ai', text: this.tr.t('ai.greeting') };
+  }
+  private loadConversations(): Conversation[] {
     try {
-      const raw = localStorage.getItem(AI_CHAT_KEY);
+      const raw = localStorage.getItem(AI_CONVS_KEY);
       const arr = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(arr) && arr.length) return arr as ChatMsg[];
-    } catch {
-      /* bỏ qua */
-    }
-    return [{ role: 'ai', text: this.tr.t('ai.greeting') }];
-  }
-  private saveMessages(m: ChatMsg[]): void {
+      if (Array.isArray(arr) && arr.length) return arr as Conversation[];
+    } catch { /* bỏ qua */ }
+    // Migrate dữ liệu cũ (1 cuộc) nếu có.
     try {
-      localStorage.setItem(AI_CHAT_KEY, JSON.stringify(m.slice(-50)));
-    } catch {
-      /* bỏ qua */
-    }
+      const old = localStorage.getItem(AI_CHAT_KEY);
+      const msgs = old ? JSON.parse(old) : null;
+      if (Array.isArray(msgs) && msgs.length) {
+        return [{ id: this.uid(), messages: msgs as ChatMsg[], updatedAt: Date.now() }];
+      }
+    } catch { /* bỏ qua */ }
+    return [{ id: this.uid(), messages: [this.greeting()], updatedAt: Date.now() }];
   }
-  /** Xóa hội thoại, về lời chào ban đầu. */
-  clearChat(): void {
-    this.messages.set([{ role: 'ai', text: this.tr.t('ai.greeting') }]);
+  private initialCurrentId(): string {
+    const saved = (() => { try { return localStorage.getItem(AI_CURRENT_KEY); } catch { return null; } })();
+    const list = this.conversations();
+    return (saved && list.some((c) => c.id === saved)) ? saved : list[0].id;
+  }
+  private currentMessages(): ChatMsg[] {
+    return this.conversations().find((c) => c.id === this.currentId())?.messages ?? [this.greeting()];
+  }
+  private persist(): void {
+    try {
+      localStorage.setItem(AI_CONVS_KEY, JSON.stringify(this.conversations()));
+      localStorage.setItem(AI_CURRENT_KEY, this.currentId());
+    } catch { /* bỏ qua */ }
+  }
+
+  /** Tiêu đề cuộc trò chuyện = câu đầu tiên của người dùng (hoặc "Cuộc mới"). */
+  protected conversationTitle(c: Conversation): string {
+    const firstUser = c.messages.find((m) => m.role === 'user');
+    return firstUser?.text.trim().slice(0, 40) || this.tr.t('ai.newChat');
+  }
+  /** Bắt đầu 1 cuộc trò chuyện MỚI (giữ các cuộc cũ). */
+  newConversation(): void {
+    const id = this.uid();
+    this.conversations.update((list) => [{ id, messages: [this.greeting()], updatedAt: Date.now() }, ...list]);
     this.pending.set(null);
+    this.currentId.set(id);
+    this.messages.set([this.greeting()]);
+    this.showList.set(false);
+  }
+  /** Mở lại 1 cuộc trò chuyện cũ. */
+  switchConversation(id: string): void {
+    const c = this.conversations().find((x) => x.id === id);
+    if (!c) return;
+    this.pending.set(null);
+    this.currentId.set(id);
+    this.messages.set(c.messages);
+    this.showList.set(false);
+  }
+  /** Xoá 1 cuộc trò chuyện. */
+  deleteConversation(id: string): void {
+    this.conversations.update((list) => list.filter((c) => c.id !== id));
+    if (this.conversations().length === 0) {
+      this.newConversation();
+      return;
+    }
+    if (this.currentId() === id) {
+      this.switchConversation(this.conversations()[0].id);
+    } else {
+      this.persist();
+    }
   }
 
   private push(text: string): void {

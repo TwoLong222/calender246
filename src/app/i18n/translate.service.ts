@@ -116,7 +116,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ai.enable': 'Bật Trợ lý AI', 'ai.permissions': 'Quyền của AI', 'ai.search': 'Tìm kiếm lịch',
     'ai.create': 'Tạo sự kiện', 'ai.update': 'Cập nhật sự kiện', 'ai.delete': 'Xoá sự kiện',
     'ai.note': 'Hành động phá huỷ (xoá, dời lịch lớn) luôn cần xác nhận, bất kể cài đặt.',
-    'ai.clear': 'Xóa hội thoại', 'ai.cleared': 'Đã xóa', 'ai.history': 'Lịch sử trò chuyện', 'ai.historyHint': 'Đoạn chat với trợ lý được lưu trên máy này. Xóa để bắt đầu lại.',
+    'ai.clear': 'Xóa hội thoại', 'ai.cleared': 'Đã xóa', 'ai.history': 'Lịch sử trò chuyện', 'ai.newChat': 'Cuộc trò chuyện mới', 'ai.historyHint': 'Đoạn chat với trợ lý được lưu trên máy này. Xóa để bắt đầu lại.',
     // Delete modal
     'del.title': 'Xoá tài khoản?',
     'del.body': 'Hành động này xoá vĩnh viễn tài khoản và toàn bộ dữ liệu. Không thể hoàn tác. Gõ',
@@ -284,7 +284,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ai.enable': 'Enable AI Assistant', 'ai.permissions': 'AI permissions', 'ai.search': 'Search calendar',
     'ai.create': 'Create events', 'ai.update': 'Update events', 'ai.delete': 'Delete events',
     'ai.note': 'Destructive actions (delete, major reschedule) always require confirmation, regardless of settings.',
-    'ai.clear': 'Clear chat', 'ai.cleared': 'Cleared', 'ai.history': 'Chat history', 'ai.historyHint': 'Your chat with the assistant is saved on this device. Clear to start over.',
+    'ai.clear': 'Clear chat', 'ai.cleared': 'Cleared', 'ai.history': 'Chat history', 'ai.newChat': 'New chat', 'ai.historyHint': 'Your chat with the assistant is saved on this device. Clear to start over.',
     'del.title': 'Delete account?',
     'del.body': 'This permanently deletes your account and all data. This cannot be undone. Type',
     'del.bodyEnd': 'to confirm.', 'del.cancel': 'Cancel', 'del.confirm': 'Delete permanently', 'del.deleting': 'Deleting…',
