@@ -13,8 +13,8 @@ import { SettingsService } from '../settings/settings.service';
 
 export interface Toast {
   id: string;
-  /** 'event' nhắc lịch; 'file' tài liệu; 'chat' tin nhắn; 'invite' lời mời; 'cancelled' hủy; 'changed' cập nhật. */
-  kind: 'event' | 'file' | 'chat' | 'invite' | 'cancelled' | 'changed';
+  /** 'event' nhắc lịch; 'file' tài liệu; 'chat' tin nhắn; 'invite' lời mời; 'cancelled' hủy; 'changed' cập nhật; 'shared' được chia sẻ lịch. */
+  kind: 'event' | 'file' | 'chat' | 'invite' | 'cancelled' | 'changed' | 'shared';
   title: string;
   /** Dòng phụ: giờ bắt đầu (event), tên sự kiện (file), hoặc email người mời (invite). */
   detail?: string;
@@ -98,6 +98,8 @@ export class NotificationService {
   private readonly notified = new Set<string>();
   /** Các lời mời đã hiện toast (tránh báo lại). */
   private readonly notifiedInvites = new Set<string>();
+  /** Các lịch được chia sẻ đã báo toast (tránh báo lại). */
+  private readonly notifiedShares = new Set<string>();
   /** Mốc mở app: trong ~4s đầu chỉ GHI NHẬN lời mời đang có, không bắn toast (tránh spam lúc mở). */
   private readonly startedAt = Date.now();
 
@@ -119,6 +121,15 @@ export class NotificationService {
         if (this.notifiedInvites.has(iv.eventId)) continue;
         this.notifiedInvites.add(iv.eventId);
         if (!warmup) this.fireInvite(iv);
+      }
+    });
+    // Bắn toast khi có LỊCH MỚI được người khác chia sẻ cho mình (phát hiện qua poll).
+    effect(() => {
+      const shares = this.state.newlyShared();
+      for (const s of shares) {
+        if (this.notifiedShares.has(s.id)) continue;
+        this.notifiedShares.add(s.id);
+        this.fireShared(s.name);
       }
     });
     // Phát hiện HỦY/ĐỔI sự kiện mình được mời (do NGƯỜI KHÁC thao tác) -> toast real-time.
@@ -301,6 +312,23 @@ export class NotificationService {
     if (this.canDesktopNotify()) {
       try {
         new Notification(`📩 Lời mời mới: ${iv.title || 'Sự kiện'}`, { body: iv.creatorEmail ? `Từ ${iv.creatorEmail}` : '' });
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  }
+
+  /** Toast khi được người khác CHIA SẺ LỊCH. Ẩn sau 15s. */
+  private fireShared(calendarName: string): void {
+    const toastId = `shared:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const title = this.tr.t('toast.catShared');
+    this.toasts.update((t) => [...t, { id: toastId, kind: 'shared', title, detail: calendarName }]);
+    this.pushHistory({ kind: 'shared', title, detail: calendarName });
+    setTimeout(() => this.dismiss(toastId), 15_000);
+    this.playBeep();
+    if (this.canDesktopNotify()) {
+      try {
+        new Notification(`👥 ${title}`, { body: calendarName });
       } catch {
         /* bỏ qua */
       }

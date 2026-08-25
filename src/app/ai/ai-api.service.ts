@@ -4,11 +4,12 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface AiParseResult {
-  intent: 'create_event' | 'plan_schedule' | 'search_events' | 'reschedule_event' | 'delete_event' | 'unclear';
+  intent: 'create_event' | 'plan_schedule' | 'search_events' | 'reschedule_event' | 'delete_event' | 'invite_guest' | 'unclear';
   title?: string;
   startTime?: string;
   endTime?: string;
   query?: string;
+  guestEmails?: string[];
   rangeStart?: string;
   rangeEnd?: string;
   newStartTime?: string;

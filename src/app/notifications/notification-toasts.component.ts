@@ -51,6 +51,9 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
           } @else if (t.kind === 'file') {
             <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
             <p class="text-xs text-gray-500">{{ tr.t('toast.ofEvent') }} {{ t.detail }}</p>
+          } @else if (t.kind === 'shared') {
+            <p class="text-sm font-medium text-gray-800">{{ t.detail }}</p>
+            <p class="text-xs text-gray-500">{{ tr.t('toast.sharedBody') }}</p>
           } @else {
             <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
             <p class="text-xs text-gray-500">{{ tr.t('toast.startsAt') }} {{ t.detail }}</p>

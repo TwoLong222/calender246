@@ -76,7 +76,7 @@ const MAX_CHIPS_PER_CELL = 3;
                   type="button"
                   (click)="onEventClick(e, $event)"
                   class="truncate rounded px-1 text-left text-[11px] text-white"
-                  [class]="colorClass(e.color)"
+                  [class]="colorClass(e.color) + (state.isHighlighted(e.id) ? ' ring-2 ring-amber-400 animate-pulse' : '')"
                 >
                   @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
                 </button>

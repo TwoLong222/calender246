@@ -43,14 +43,31 @@ export class CalendarStateService {
     return !!e.calendarId && this.sharedCalendarIds().has(e.calendarId);
   }
 
+  /** Lịch VỪA được chia sẻ cho mình (phát hiện khi poll) — NotificationService lắng nghe để báo toast. */
+  readonly newlyShared = signal<{ id: string; name: string }[]>([]);
+  /** Tập id lịch chia sẻ đã biết; null = lần tải đầu (chỉ ghi nhận, không báo). */
+  private knownSharedIds: Set<string> | null = null;
+
   private loadSharedCalendars(): void {
     this.sharingApi.sharedWithMe().subscribe({
-      next: (rows) =>
-        this.sharedCalendars.set(
-          (rows ?? [])
-            .filter((r) => r.calendar)
-            .map((r) => ({ id: r.calendar!.id, role: r.role })),
-        ),
+      next: (rows) => {
+        const list = (rows ?? [])
+          .filter((r) => r.calendar)
+          .map((r) => ({ id: r.calendar!.id, role: r.role, name: r.calendar!.name }));
+        this.sharedCalendars.set(list.map((c) => ({ id: c.id, role: c.role })));
+
+        const ids = new Set(list.map((c) => c.id));
+        if (this.knownSharedIds === null) {
+          this.knownSharedIds = ids; // lần đầu mở app: chỉ ghi nhận, không báo lịch cũ
+        } else {
+          const fresh = list.filter((c) => !this.knownSharedIds!.has(c.id));
+          if (fresh.length > 0) {
+            this.newlyShared.set(fresh.map((c) => ({ id: c.id, name: c.name })));
+            this.reload(); // tải lại sự kiện -> lịch mới TỰ hiện, không cần refresh tay
+          }
+          this.knownSharedIds = ids;
+        }
+      },
       error: () => {},
     });
   }
@@ -58,6 +75,20 @@ export class CalendarStateService {
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
+
+  /** Id các sự kiện vừa nhập/tạo hàng loạt -> tô nổi bật TẠM THỜI trên lịch để dễ thấy. */
+  readonly highlightedEventIds = signal<Set<string>>(new Set());
+  private highlightTimer?: ReturnType<typeof setTimeout>;
+  /** Bật highlight cho danh sách id trong ~5s rồi tự tắt. */
+  highlightEvents(ids: string[]): void {
+    if (ids.length === 0) return;
+    clearTimeout(this.highlightTimer);
+    this.highlightedEventIds.set(new Set(ids));
+    this.highlightTimer = setTimeout(() => this.highlightedEventIds.set(new Set()), 5000);
+  }
+  isHighlighted(id: string): boolean {
+    return this.highlightedEventIds().has(id);
+  }
 
   /** Thùng rác: các sự kiện đã xóa (xóa mềm) — chỉ tải khi mở modal thùng rác */
   readonly trashedEvents = signal<CalendarEvent[]>([]);
@@ -113,6 +144,8 @@ export class CalendarStateService {
     this.reload();
     this.reloadInvitations();
     this.loadSharedCalendars();
+    // Poll lịch được chia sẻ mỗi 30s -> phát hiện lịch mới được chia sẻ mà không cần refresh.
+    setInterval(() => this.loadSharedCalendars(), 30_000);
     // QUAN TRỌNG: chỉ đăng ký Realtime SAU khi đã có token đăng nhập, và gắn token cho kênh
     // (setAuth). Nếu đăng ký lúc chưa đăng nhập, kênh chạy quyền ẩn danh -> RLS chặn -> KHÔNG
     // nhận được thay đổi của người khác (vd khách vừa Đồng ý) nên phải F5 mới thấy.

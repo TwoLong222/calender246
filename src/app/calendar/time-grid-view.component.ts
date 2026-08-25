@@ -182,7 +182,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   [style.height.px]="item.height"
                   [style.left.%]="item.left"
                   [style.width.%]="item.width"
-                  [class]="colorClass(item.event.color)"
+                  [class]="colorClass(item.event.color) + (state.isHighlighted(item.event.id) ? ' ring-2 ring-amber-400 animate-pulse' : '')"
                 >
                   <!-- Tay cầm kéo mép TRÊN: đổi giờ bắt đầu -->
                   <div

@@ -32,7 +32,8 @@ type Pending =
   | { kind: 'create'; title: string; start: Date; end: Date }
   | { kind: 'plan'; title: string; slots: PlannedSlot[]; requestedCount: number }
   | { kind: 'reschedule'; event: CalendarEvent; start: Date; end: Date }
-  | { kind: 'delete'; event: CalendarEvent };
+  | { kind: 'delete'; event: CalendarEvent }
+  | { kind: 'invite'; event: CalendarEvent; emails: string[] };
 
 @Component({
   selector: 'app-ai-assistant',
@@ -43,11 +44,18 @@ type Pending =
     @if (!open()) {
       <button
         type="button"
-        (click)="open.set(true)"
+        (click)="openPanel()"
         class="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-700 text-white shadow-lg hover:bg-blue-800"
         [attr.aria-label]="tr.t('sec.ai')"
       >
         <app-icon name="robot" class="h-7 w-7" />
+        <!-- Chấm đỏ: AI vừa trả lời khi panel đang đóng -->
+        @if (unread()) {
+          <span class="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+            <span class="relative inline-flex h-3.5 w-3.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+          </span>
+        }
       </button>
     } @else {
       <div class="popup-in fixed bottom-6 right-6 z-40 flex h-[460px] w-80 flex-col rounded-xl border border-gray-200 bg-white shadow-2xl">
@@ -103,6 +111,11 @@ type Pending =
                   <p class="mb-1 font-medium text-red-800">{{ tr.t('ai.deleteEvent') }}</p>
                   <p class="text-gray-700">📌 {{ p.event.title }} — {{ eventLabel(p.event) }}</p>
                 }
+                @case ('invite') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.inviteGuest') }}</p>
+                  <p class="text-gray-700">📌 {{ p.event.title }} — {{ eventLabel(p.event) }}</p>
+                  <p class="text-gray-700">👤 {{ p.emails.join(', ') }}</p>
+                }
               }
               <div class="mt-2 flex gap-2">
                 <button
@@ -147,6 +160,14 @@ export class AiAssistantComponent {
   loading = signal(false);
   pending = signal<Pending | null>(null);
   messages = signal<ChatMsg[]>(this.loadMessages());
+  /** true khi AI vừa trả lời trong lúc panel đóng -> hiện chấm đỏ trên nút nổi. */
+  unread = signal(false);
+
+  /** Mở panel + xoá chấm đỏ chưa đọc. */
+  openPanel(): void {
+    this.open.set(true);
+    this.unread.set(false);
+  }
 
   private readonly scrollBox = viewChild<ElementRef<HTMLElement>>('scrollBox');
 
@@ -195,6 +216,8 @@ export class AiAssistantComponent {
 
   private push(text: string): void {
     this.messages.update((m) => [...m, { role: 'ai', text }]);
+    // AI trả lời khi panel đóng -> báo chấm đỏ để người dùng biết.
+    if (!this.open()) this.unread.set(true);
   }
 
   /** Tìm event thật từ dữ liệu đã tải (đúng quyền), theo từ khóa + khoảng thời gian */
@@ -406,6 +429,39 @@ export class AiAssistantComponent {
           return;
         }
 
+        if (res.intent === 'invite_guest') {
+          const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
+          if (emails.length === 0) {
+            this.push('Bạn muốn mời email nào? Nhập kèm địa chỉ email nhé.');
+            return;
+          }
+          const found = this.findEvents(res.query);
+          if (found.length === 0) {
+            this.push(`Không tìm thấy sự kiện "${res.query ?? ''}".`);
+            return;
+          }
+          if (found.length > 1) {
+            this.push(`Có ${found.length} sự kiện khớp:\n${this.listMsg(found)}\nBạn nói rõ hơn (ngày nào?) nhé.`);
+            return;
+          }
+          const e = found[0];
+          // Chỉ chủ event mới được thêm khách
+          if (e.creatorEmail && e.creatorEmail.toLowerCase() !== this.supabase.user()?.email?.toLowerCase()) {
+            this.push('Bạn chỉ có thể mời người vào sự kiện của chính mình.');
+            return;
+          }
+          // Bỏ những email đã có sẵn trong danh sách khách
+          const existing = new Set(e.guests.map((g) => g.email.toLowerCase()));
+          const toAdd = emails.filter((em) => !existing.has(em.toLowerCase()));
+          if (toAdd.length === 0) {
+            this.push('Những người này đã có trong sự kiện rồi.');
+            return;
+          }
+          this.push(res.reply);
+          this.pending.set({ kind: 'invite', event: e, emails: toAdd });
+          return;
+        }
+
         if (res.intent === 'reschedule_event' || res.intent === 'delete_event') {
           const found = this.findEvents(res.query);
           if (found.length === 0) {
@@ -482,6 +538,14 @@ export class AiAssistantComponent {
     } else if (p.kind === 'reschedule') {
       this.state.updateEventTimes({ ...p.event, start: p.start, end: p.end });
       this.push(`${this.tr.t('ai.msg.moved')} "${p.event.title}" ✅`);
+    } else if (p.kind === 'invite') {
+      // Gộp khách cũ + khách mới rồi lưu -> backend tự thêm attendee + gửi email mời.
+      const merged = [
+        ...p.event.guests,
+        ...p.emails.map((email) => ({ email, status: 'needsAction' as const })),
+      ];
+      this.state.saveEvent({ ...p.event, guests: merged });
+      this.push(`${this.tr.t('ai.msg.invited')} ${p.emails.join(', ')} → "${p.event.title}" ✅`);
     } else {
       this.state.deleteEvent(p.event.id);
       this.push(`${this.tr.t('ai.msg.deleted')} "${p.event.title}" ✅`);

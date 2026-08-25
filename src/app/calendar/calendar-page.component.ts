@@ -503,18 +503,32 @@ export class CalendarPageComponent implements OnInit {
           this.importMsg.set('Không tìm thấy sự kiện nào trong file.');
           return;
         }
+        // Thu thập id các sự kiện MỚI tạo để tô nổi bật sau khi lưu xong.
+        const newIds: string[] = [];
         for (const ev of imported) {
-          this.state.saveEvent({
-            kind: 'event',
-            title: ev.title,
-            description: ev.description,
-            location: ev.location,
-            start: ev.start,
-            end: ev.end,
-            isAllDay: ev.isAllDay,
-            guests: [],
-            color: 'sky',
-          });
+          this.state.saveEvent(
+            {
+              kind: 'event',
+              title: ev.title,
+              description: ev.description,
+              location: ev.location,
+              start: ev.start,
+              end: ev.end,
+              isAllDay: ev.isAllDay,
+              guests: [],
+              color: 'sky',
+            },
+            undefined,
+            // afterSave: gom id; khi gom đủ -> nhảy tới ngày sớm nhất + highlight.
+            (saved) => {
+              newIds.push(saved.id);
+              if (newIds.length === imported.length) {
+                const earliest = imported.reduce((a, b) => (a.start < b.start ? a : b)).start;
+                this.state.viewedDate.set(earliest);
+                this.state.highlightEvents(newIds);
+              }
+            },
+          );
         }
         this.importMsg.set(`Đã nhập ${imported.length} sự kiện.`);
       } catch {
