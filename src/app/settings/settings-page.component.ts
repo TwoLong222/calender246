@@ -418,11 +418,21 @@ type Section =
                     </select>
                     <button type="button" (click)="addMember()" class="tap rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">{{ tr.t('share.add') }}</button>
                   </div>
+                  <!-- Giới hạn khoảng ngày (tuỳ chọn): chỉ chia sẻ sự kiện trong khoảng này -->
+                  <div class="mt-2 grid grid-cols-2 gap-2">
+                    <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.from') }}
+                      <input type="date" [ngModel]="shareFrom()" (ngModelChange)="shareFrom.set($event)" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                    </label>
+                    <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.until') }}
+                      <input type="date" [ngModel]="shareUntil()" (ngModelChange)="shareUntil.set($event)" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                    </label>
+                    <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('share.rangeHint') }}</p>
+                  </div>
                   @if (shareError()) { <p class="mt-1 text-xs text-red-600">{{ shareError() }}</p> }
                   <ul class="mt-3 space-y-1">
                     @for (m of members(); track m.member_email) {
                       <li class="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5">
-                        <span class="truncate">{{ m.member_email }} <span class="ml-1 text-xs text-gray-400">· {{ m.role === 'editor' ? tr.t('share.editor') : tr.t('share.viewer') }}</span></span>
+                        <span class="truncate">{{ m.member_email }} <span class="ml-1 text-xs text-gray-400">· {{ m.role === 'editor' ? tr.t('share.editor') : tr.t('share.viewer') }}</span>@if (memberRange(m)) { <span class="ml-1 text-xs text-blue-600">· {{ memberRange(m) }}</span> }</span>
                         <button type="button" (click)="removeMember(m.member_email)" class="tap rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
                       </li>
                     } @empty {
@@ -624,6 +634,9 @@ export class SettingsPageComponent {
   protected readonly shareEmail = signal('');
   protected readonly shareRole = signal<'viewer' | 'editor'>('viewer');
   protected readonly shareError = signal('');
+  /** Khoảng ngày giới hạn chia sẻ (input date, YYYY-MM-DD). Rỗng = không giới hạn. */
+  protected readonly shareFrom = signal('');
+  protected readonly shareUntil = signal('');
 
   private loadMembers(): void {
     this.sharingApi.getMembers().subscribe({ next: (m) => this.members.set(m), error: () => {} });
@@ -631,11 +644,32 @@ export class SettingsPageComponent {
   protected addMember(): void {
     const email = this.shareEmail().trim();
     if (!email) return;
+    // from = 00:00 ngày bắt đầu; until = 23:59:59 ngày kết thúc (để bao trọn cả ngày cuối).
+    const from = this.shareFrom() ? new Date(`${this.shareFrom()}T00:00:00`).toISOString() : null;
+    const until = this.shareUntil() ? new Date(`${this.shareUntil()}T23:59:59`).toISOString() : null;
+    if (from && until && from > until) {
+      this.shareError.set(this.tr.t('share.rangeInvalid'));
+      return;
+    }
     this.shareError.set('');
-    this.sharingApi.addMember(email, this.shareRole()).subscribe({
-      next: () => { this.shareEmail.set(''); this.loadMembers(); },
+    this.sharingApi.addMember(email, this.shareRole(), { shareFrom: from, shareUntil: until }).subscribe({
+      next: () => {
+        this.shareEmail.set('');
+        this.shareFrom.set('');
+        this.shareUntil.set('');
+        this.loadMembers();
+      },
       error: (e) => this.shareError.set(e?.error?.message ?? 'Chia sẻ thất bại.'),
     });
+  }
+  /** Nhãn khoảng ngày cho danh sách thành viên (vd "1/8 – 31/8", "từ 1/8", "đến 31/8"). */
+  protected memberRange(m: CalendarMember): string {
+    const f = m.share_from ? new Date(m.share_from).toLocaleDateString('vi-VN') : '';
+    const u = m.share_until ? new Date(m.share_until).toLocaleDateString('vi-VN') : '';
+    if (f && u) return `${f} – ${u}`;
+    if (f) return `${this.tr.t('attach.from')} ${f}`;
+    if (u) return `${this.tr.t('attach.until')} ${u}`;
+    return '';
   }
   protected removeMember(email: string): void {
     this.sharingApi.removeMember(email).subscribe({ next: () => this.loadMembers(), error: () => {} });

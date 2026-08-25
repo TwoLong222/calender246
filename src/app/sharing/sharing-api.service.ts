@@ -8,6 +8,15 @@ export interface CalendarMember {
   member_email: string;
   role: 'viewer' | 'editor';
   created_at?: string;
+  /** Khoảng ngày được chia sẻ (ISO). null = không giới hạn. */
+  share_from?: string | null;
+  share_until?: string | null;
+}
+
+/** Tuỳ chọn khoảng ngày khi chia sẻ (ISO hoặc null). */
+export interface ShareWindow {
+  shareFrom?: string | null;
+  shareUntil?: string | null;
 }
 export interface SharedCalendar {
   role: 'viewer' | 'editor';
@@ -22,8 +31,8 @@ export class SharingApiService {
   getMembers(): Observable<CalendarMember[]> {
     return this.http.get<CalendarMember[]>(`${this.base}/members`);
   }
-  addMember(email: string, role: 'viewer' | 'editor'): Observable<CalendarMember> {
-    return this.http.post<CalendarMember>(`${this.base}/members`, { email, role });
+  addMember(email: string, role: 'viewer' | 'editor', window?: ShareWindow): Observable<CalendarMember> {
+    return this.http.post<CalendarMember>(`${this.base}/members`, { email, role, ...window });
   }
   removeMember(email: string): Observable<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`${this.base}/members/${encodeURIComponent(email)}`);
