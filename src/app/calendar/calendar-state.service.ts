@@ -342,6 +342,10 @@ export class CalendarStateService {
   focusEvent(eventId: string): void {
     const go = (e: CalendarEvent) => {
       this.viewedDate.set(startOfDay(e.start));
+      // Đang ở Tháng/Năm thì ô ngày quá nhỏ, không thấy sự kiện -> chuyển sang view Ngày.
+      // Đang ở Ngày/Tuần thì giữ nguyên (đổi viewedDate là đã tới đúng chỗ).
+      const mode = this.viewMode();
+      if (mode === 'month' || mode === 'year') this.viewMode.set('day');
       this.selectedEventId.set(e.id);
     };
     const found = this.events().find((e) => e.id === eventId);
