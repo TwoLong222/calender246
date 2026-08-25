@@ -72,7 +72,7 @@ export class NotificationService {
   private readonly settings = inject(SettingsService);
 
   /** Ảnh chụp các sự kiện DO NGƯỜI KHÁC mời mình (id -> thông tin) để phát hiện HỦY/ĐỔI. */
-  private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string; description: string }>();
+  private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean }>();
 
   /** Danh sách thông báo LƯU trong chuông: sự kiện bị SỬA và bị HỦY. Lưu localStorage, tự rơi
    *  khỏi chuông sau 3 ngày (xem BELL_MAX_AGE_MS) — khác history bên dưới (lưu vĩnh viễn). */
@@ -143,17 +143,21 @@ export class NotificationService {
         (e) => e.creatorEmail && e.creatorEmail.toLowerCase() !== me && !e.deletedAt,
       );
       const warmup = Date.now() - this.startedAt < 4000;
-      const next = new Map<string, { title: string; start: number; end: number; location: string; description: string }>();
+      const next = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean }>();
       for (const e of invited) {
-        next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '', description: e.description ?? '' });
+        const myCanEdit = e.guests.some((g) => g.email.toLowerCase() === me && g.canEdit);
+        next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '', description: e.description ?? '', myCanEdit });
       }
       if (!warmup) {
         // ĐỔI: có ở cả 2 nhưng khác nội dung
         for (const e of invited) {
           const prev = this.invitedSnapshot.get(e.id);
           if (!prev) continue; // mới xuất hiện (vừa Đồng ý) -> không phải "đổi"
-          const lines = this.describeChanges(prev, next.get(e.id)!, e);
+          const cur = next.get(e.id)!;
+          const lines = this.describeChanges(prev, cur, e);
           if (lines.length) this.fireChanged(e.id, e.title, lines);
+          // Vừa được CẤP quyền chỉnh sửa (false -> true)
+          if (!prev.myCanEdit && cur.myCanEdit) this.fireChanged(e.id, e.title, [this.tr.t('notif.grantedEdit')]);
         }
         // HỦY: có trong snapshot cũ nhưng biến mất khỏi danh sách (creator xóa/gỡ mình)
         for (const [id, prev] of this.invitedSnapshot) {
