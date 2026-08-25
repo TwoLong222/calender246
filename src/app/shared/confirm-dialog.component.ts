@@ -11,7 +11,7 @@ import { TranslateService } from '../i18n/translate.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (confirm.pending(); as p) {
-      <div class="modal-backdrop-in fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/40" (click)="confirm.answer(false)">
+      <div class="modal-backdrop-in fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/40" (click)="confirm.answer('no')">
         <div class="modal-card-in w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
           <div class="mb-3 flex items-start gap-3">
             <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full" [class]="p.danger ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-700'">
@@ -24,10 +24,15 @@ import { TranslateService } from '../i18n/translate.service';
               }
             </div>
           </div>
-          <div class="mt-5 flex justify-end gap-2">
-            <button type="button" (click)="confirm.answer(false)"
+          <div class="mt-5 flex flex-wrap justify-end gap-2">
+            <button type="button" (click)="confirm.answer('no')"
               class="tap rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ tr.t('del.cancel') }}</button>
-            <button type="button" (click)="confirm.answer(true)"
+            @if (p.secondaryText) {
+              <button type="button" (click)="confirm.answer('secondary')"
+                class="tap rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+              >{{ p.secondaryText }}</button>
+            }
+            <button type="button" (click)="confirm.answer('yes')"
               class="tap rounded-md px-4 py-2 text-sm font-medium text-white"
               [class]="p.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'"
             >{{ p.confirmText || tr.t('detail.delete') }}</button>

@@ -79,10 +79,11 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
             @for (n of reminders(); track n.id) {
               <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
                 <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400"></span>
-                <div class="min-w-0 flex-1">
+                <!-- Bấm -> mở đúng sự kiện được nhắc -->
+                <button type="button" (click)="goToEvent(n.eventId)" class="min-w-0 flex-1 text-left" [class.cursor-default]="!n.eventId">
                   <p class="truncate text-sm font-medium text-gray-800">{{ n.title }}</p>
                   @if (n.body) { <p class="text-xs text-gray-500">{{ n.body }}</p> }
-                </div>
+                </button>
                 <button type="button" (click)="notify.dismissReminder(n.id)"
                   class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
                   <app-icon name="x" class="h-3.5 w-3.5" />
@@ -127,14 +128,15 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
             </div>
             @for (n of changed(); track n.id) {
               <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
-                <div class="min-w-0 flex-1">
+                <!-- Bấm -> mở đúng sự kiện vừa bị sửa -->
+                <button type="button" (click)="goToEvent(n.eventId)" class="min-w-0 flex-1 text-left">
                   <p class="truncate text-sm font-medium text-gray-800">{{ n.title }}</p>
                   <ul class="mt-1 space-y-0.5">
                     @for (c of n.changes; track c) {
                       <li class="break-words text-xs text-gray-600">• {{ c }}</li>
                     }
                   </ul>
-                </div>
+                </button>
                 <button type="button" (click)="notify.dismissChange(n.id)"
                   class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
                   <app-icon name="x" class="h-3.5 w-3.5" />
@@ -210,6 +212,13 @@ export class InvitationBellComponent {
   protected clearAll(): void {
     this.notify.clearReminders();
     this.notify.clearNotices();
+  }
+
+  /** Bấm 1 thông báo -> nhảy tới đúng sự kiện trên lịch rồi đóng chuông. */
+  protected goToEvent(eventId: string | null | undefined): void {
+    if (!eventId) return;
+    this.state.focusEvent(eventId);
+    this.open.set(false);
   }
 
   protected respond(iv: Invitation, status: 'accepted' | 'declined'): void {

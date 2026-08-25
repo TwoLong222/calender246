@@ -340,7 +340,7 @@ export class NotificationService {
     this.reminderNotices.update((l) => [notice, ...l].slice(0, 50));
     if (!fireToast) return;
     const toastId = `reminder:${row.id}`;
-    this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: notice.title, detail: notice.body }]);
+    this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: notice.title, detail: notice.body, eventId: notice.eventId ?? undefined }]);
     setTimeout(() => this.dismiss(toastId), 15_000);
     this.playBeep();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -512,7 +512,7 @@ export class NotificationService {
       this.saveBellList(CHANGE_NOTICES_KEY, next);
       return next;
     });
-    this.toasts.update((t) => [...t, { id, kind: 'changed', title: safeTitle, body: lines.join(', ') }]);
+    this.toasts.update((t) => [...t, { id, kind: 'changed', title: safeTitle, body: lines.join(', '), eventId }]);
     this.pushHistory({ kind: 'changed', title: safeTitle, body: lines.join(', ') });
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
@@ -572,7 +572,7 @@ export class NotificationService {
   private fire(e: CalendarEvent): void {
     const timeLabel = e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const toastId = `${e.id}:${Date.now()}`;
-    this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel }]);
+    this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel, eventId: e.id }]);
     this.pushHistory({ kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel });
     setTimeout(() => this.dismiss(toastId), 15_000); // tự ẩn sau 15s
 

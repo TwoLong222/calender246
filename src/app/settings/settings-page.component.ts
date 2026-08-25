@@ -389,11 +389,15 @@ type Section =
                   @if (bookingPage()?.enabled) {
                     <div>
                       <label class="mb-1 block text-gray-600">{{ tr.t('booking.duration') }}</label>
-                      <select [ngModel]="bookingPage()?.duration_minutes" (ngModelChange)="setBooking({ duration_minutes: +$event })" class="w-full rounded-md border border-gray-300 px-3 py-2">
-                        <option [ngValue]="15">15 {{ tr.t('booking.min') }}</option>
-                        <option [ngValue]="30">30 {{ tr.t('booking.min') }}</option>
-                        <option [ngValue]="60">60 {{ tr.t('booking.min') }}</option>
-                      </select>
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="number" min="5" max="480" step="5" inputmode="numeric"
+                          [ngModel]="bookingPage()?.duration_minutes"
+                          (ngModelChange)="setBookingDuration($event)"
+                          class="w-28 rounded-md border border-gray-300 px-3 py-2"
+                        />
+                        <span class="text-gray-500">{{ tr.t('booking.min') }}</span>
+                      </div>
                     </div>
                     <div>
                       <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
@@ -606,6 +610,11 @@ export class SettingsPageComponent {
       next: (p) => this.bookingPage.set(p),
       error: () => { if (prev) this.bookingPage.set(prev); },
     });
+  }
+  /** Thời lượng lịch hẹn tự do, chặn 5..480 phút (khớp ràng buộc DB). */
+  protected setBookingDuration(v: number | string): void {
+    const n = Math.min(Math.max(Math.round(Number(v) || 0), 5), 480);
+    this.setBooking({ duration_minutes: n });
   }
   protected copyBookingLink(): void {
     navigator.clipboard?.writeText(this.bookingLink());

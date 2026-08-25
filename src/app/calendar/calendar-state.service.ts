@@ -326,6 +326,31 @@ export class CalendarStateService {
     this.selectedEventId.set(id);
   }
 
+  /**
+   * "Nhảy tới" 1 sự kiện từ thông báo: chuyển lịch về đúng NGÀY của sự kiện rồi mở
+   * popover chi tiết. Nếu chưa có trong danh sách đã tải (vd vừa được mời) thì tải
+   * lại rồi thử lần nữa — nhờ vậy bấm thông báo luôn tới đúng chỗ.
+   */
+  focusEvent(eventId: string): void {
+    const go = (e: CalendarEvent) => {
+      this.viewedDate.set(startOfDay(e.start));
+      this.selectedEventId.set(e.id);
+    };
+    const found = this.events().find((e) => e.id === eventId);
+    if (found) {
+      go(found);
+      return;
+    }
+    this.api.list().subscribe({
+      next: (list) => {
+        this.events.set(list);
+        const e = list.find((x) => x.id === eventId);
+        if (e) go(e);
+      },
+      error: () => {},
+    });
+  }
+
   closeDetail(): void {
     this.selectedEventId.set(null);
   }

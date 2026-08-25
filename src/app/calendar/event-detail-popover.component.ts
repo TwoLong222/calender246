@@ -35,7 +35,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
               <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
               @if (canManage()) {
                 <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.edit')"><app-icon name="pencil" class="h-4 w-4" /></button>
-                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
+                <button type="button" (click)="askDelete()" class="rounded-full p-2 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
               }
               <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
             </div>
@@ -239,24 +239,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             </div>
           </div>
 
-          <!-- Xác nhận xóa: nếu là sự kiện lặp thì cho chọn xóa riêng hoặc xóa cả chuỗi -->
-          @if (confirmingDelete()) {
-            <div class="mt-3 rounded-md bg-red-50 p-3 text-sm">
-              <p class="mb-2 text-red-800">{{ tr.t('detail.deleteEvent') }}</p>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" (click)="doDelete()" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">{{ tr.t('detail.deleteThis') }}
-                </button>
-                @if (e.seriesId) {
-                  <button type="button" (click)="doDelete('series')" class="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-800">
-                    {{ tr.t('detail.deleteSeries') }}
-                  </button>
-                }
-                <button type="button" (click)="confirmingDelete.set(false)" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-100">
-                  {{ tr.t('del.cancel') }}
-                </button>
-              </div>
-            </div>
-          }
+          <!-- Xác nhận xóa đã chuyển sang popup dùng chung (ConfirmService) — xem askDelete(). -->
         </div>
       </div>
     }
@@ -490,16 +473,7 @@ export class EventDetailPopoverComponent implements OnDestroy {
     if (e) this.state.openEditForm(e);
   }
 
-  /** Đang hiện menu xác nhận xóa (riêng cái này / cả chuỗi) hay không */
-  readonly confirmingDelete = signal(false);
-
   constructor() {
-    // Đổi sang event khác thì tắt menu xác nhận xóa (tránh bấm nhầm sang event mới)
-    effect(() => {
-      this.state.selectedEventId();
-      this.confirmingDelete.set(false);
-    });
-
     // Mở/đổi event -> tải bình luận của event đó; đóng popover -> dọn
     effect(() => {
       const e = this.event();
@@ -517,9 +491,17 @@ export class EventDetailPopoverComponent implements OnDestroy {
     });
   }
 
-  doDelete(scope?: 'series'): void {
+  /** Hỏi xác nhận bằng popup dùng chung; sự kiện lặp có thêm lựa chọn "Xóa cả chuỗi". */
+  async askDelete(): Promise<void> {
     const e = this.event();
-    if (e) this.state.deleteEvent(e.id, scope);
-    this.confirmingDelete.set(false);
+    if (!e) return;
+    const r = await this.confirm.askEx({
+      message: this.tr.t('detail.deleteEvent'),
+      detail: e.title || this.tr.t('common.untitled'),
+      confirmText: e.seriesId ? this.tr.t('detail.deleteThis') : this.tr.t('detail.delete'),
+      secondaryText: e.seriesId ? this.tr.t('detail.deleteSeries') : undefined,
+    });
+    if (r === 'no') return;
+    this.state.deleteEvent(e.id, r === 'secondary' ? 'series' : undefined);
   }
 }

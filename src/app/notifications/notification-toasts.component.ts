@@ -14,7 +14,12 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
   template: `
     <div class="fixed right-4 top-4 z-50 flex flex-col gap-2">
       @for (t of notify.toasts(); track t.id) {
-        <div class="toast-in w-72 rounded-lg border bg-white px-4 py-3 shadow-lg" [class]="borderClass(t.kind)">
+        <!-- Có eventId (nhắc lịch / sự kiện bị sửa...) -> bấm vào toast nhảy tới đúng sự kiện -->
+        <div
+          class="toast-in w-72 rounded-lg border bg-white px-4 py-3 shadow-lg"
+          [class]="borderClass(t.kind) + (t.eventId && t.kind !== 'invite' ? ' cursor-pointer hover:shadow-xl' : '')"
+          (click)="onToastClick(t)"
+        >
           <!-- Nhãn phân loại: cho biết ngay đây là loại thông báo gì, tách biệt với nội dung -->
           <div class="mb-1.5 flex items-center justify-between gap-2">
             <span
@@ -79,6 +84,13 @@ export class NotificationToastsComponent {
   /** Đồng ý/Từ chối lời mời ngay trên toast rồi ẩn toast. */
   protected respondInvite(t: { id: string; eventId?: string }, status: 'accepted' | 'declined'): void {
     if (t.eventId) this.state.respondInvitation(t.eventId, status);
+    this.notify.dismiss(t.id);
+  }
+
+  /** Bấm vào toast -> mở đúng sự kiện đó trên lịch (trừ toast lời mời: có nút riêng). */
+  protected onToastClick(t: Toast): void {
+    if (!t.eventId || t.kind === 'invite') return;
+    this.state.focusEvent(t.eventId);
     this.notify.dismiss(t.id);
   }
 }

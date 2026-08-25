@@ -327,11 +327,24 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
             @if (bookingPage()?.enabled) {
               <div>
                 <label class="mb-1 block text-gray-600">{{ tr.t('booking.duration') }}</label>
-                <select [ngModel]="bookingPage()?.duration_minutes" (ngModelChange)="setBooking({ duration_minutes: +$event })" class="w-full rounded-md border border-gray-300 px-3 py-2">
-                  <option [ngValue]="15">15 {{ tr.t('booking.min') }}</option>
-                  <option [ngValue]="30">30 {{ tr.t('booking.min') }}</option>
-                  <option [ngValue]="60">60 {{ tr.t('booking.min') }}</option>
-                </select>
+                <!-- Nhập TỰ DO 5..480 phút; kèm vài mốc nhanh cho tiện -->
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number" min="5" max="480" step="5" inputmode="numeric"
+                    [ngModel]="bookingPage()?.duration_minutes"
+                    (ngModelChange)="setDuration($event)"
+                    class="w-28 rounded-md border border-gray-300 px-3 py-2"
+                  />
+                  <span class="text-gray-500">{{ tr.t('booking.min') }}</span>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-1">
+                  @for (m of durationPresets; track m) {
+                    <button type="button" (click)="setDuration(m)"
+                      class="tap rounded-full border px-3 py-1 text-xs"
+                      [class]="bookingPage()?.duration_minutes === m ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'"
+                    >{{ m }}{{ tr.t('booking.minShort') }}</button>
+                  }
+                </div>
               </div>
               <div>
                 <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
@@ -463,6 +476,13 @@ export class EventFormModalComponent {
     navigator.clipboard?.writeText(this.bookingLink());
     this.bookingCopied.set(true);
     setTimeout(() => this.bookingCopied.set(false), 1500);
+  }
+  /** Mốc thời lượng bấm nhanh (vẫn nhập tự do được ở ô số). */
+  protected readonly durationPresets = [15, 30, 45, 60, 90, 120];
+  /** Đặt thời lượng, chặn trong khoảng hợp lệ 5..480 phút (khớp ràng buộc ở DB). */
+  protected setDuration(v: number | string): void {
+    const n = Math.min(Math.max(Math.round(Number(v) || 0), 5), 480);
+    this.setBooking({ duration_minutes: n });
   }
   /** Tải cấu hình trang đặt lịch (gọi khi mở tab Lịch hẹn lần đầu). */
   private loadBookingOnce(): void {
