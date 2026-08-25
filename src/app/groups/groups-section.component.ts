@@ -28,30 +28,45 @@ import { GroupChatService } from './chat.service';
       </div>
     }
 
-    <ul class="space-y-1 text-sm text-gray-700">
+    <!-- Mỗi nhóm là 1 THẺ riêng cho dễ phân biệt (trước đây các dòng dính liền nhau) -->
+    <ul class="space-y-2 text-sm text-gray-700">
       @for (g of groupsState.groups(); track g.id) {
-        <li class="flex items-center gap-2">
-          <input type="checkbox" [checked]="groupsState.isVisible(g.id)" (change)="groupsState.toggleVisible(g.id)" [class]="groupAccent(g.id)" />
-          <button type="button" (click)="openGroup(g.id)" class="flex-1 truncate py-1 text-left hover:underline">{{ g.name }}</button>
-          @if (groupsState.onlineCount(g.id) > 0) {
-            <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
-          }
-          <button
-            type="button"
-            (click)="openGroup(g.id, 'chat')"
-            class="relative shrink-0 rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-blue-700"
-            title="Mở trò chuyện"
-          >
-            💬
-            @if (chat.unreadOf(g.id) > 0) {
-              <span class="absolute -right-1 -top-1 min-w-[1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-medium leading-4 text-white">{{ chat.unreadOf(g.id) }}</span>
+        <li class="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2">
+          <div class="flex items-center gap-2">
+            <!-- Ô tick = HIỆN/ẨN sự kiện của nhóm này trên lịch (không phải tham gia/rời nhóm) -->
+            <input
+              type="checkbox"
+              [checked]="groupsState.isVisible(g.id)"
+              (change)="groupsState.toggleVisible(g.id)"
+              [class]="groupAccent(g.id)"
+              title="Hiện/ẩn sự kiện của nhóm này trên lịch"
+            />
+            <button type="button" (click)="openGroup(g.id)" class="min-w-0 flex-1 truncate py-1 text-left font-medium hover:underline">{{ g.name }}</button>
+            @if (groupsState.onlineCount(g.id) > 0) {
+              <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
             }
-          </button>
+            <button
+              type="button"
+              (click)="openGroup(g.id, 'chat')"
+              class="relative shrink-0 rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-blue-700"
+              title="Mở trò chuyện"
+            >
+              💬
+              @if (chat.unreadOf(g.id) > 0) {
+                <span class="absolute -right-1 -top-1 min-w-[1rem] rounded-full bg-red-600 px-1 text-center text-[10px] font-medium leading-4 text-white">{{ chat.unreadOf(g.id) }}</span>
+              }
+            </button>
+          </div>
         </li>
       } @empty {
-        <li class="text-xs text-gray-400">Chưa có nhóm nào.</li>
+        <li class="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-center text-xs text-gray-400">Chưa có nhóm nào.</li>
       }
     </ul>
+    @if (groupsState.groups().length > 0) {
+      <p class="mt-2 text-[11px] leading-relaxed text-gray-400">
+        ☑️ Ô tick = hiện/ẩn sự kiện của nhóm đó trên lịch. Bỏ tick chỉ ẩn đi, bạn vẫn ở trong nhóm.
+      </p>
+    }
 
     <!-- Tạo nhóm -->
     <div class="mt-2 flex gap-1">

@@ -226,11 +226,24 @@ input[type='radio'] {
 ::-webkit-scrollbar-thumb:active {
   background-color: rgba(51, 65, 85, 0.8);
 }
-/* Bỏ 2 nút mũi tên lên/xuống ở hai đầu thanh cuộn */
-::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0;
+/* Bỏ 2 nút mũi tên lên/xuống ở hai đầu thanh cuộn.
+   Chrome/Edge có nhiều biến thể nút (single/double, start/end, increment/decrement)
+   nên phải tắt hết, không chỉ ::-webkit-scrollbar-button chung. */
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:double-button,
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment,
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement,
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:end:increment,
+::-webkit-scrollbar-button:horizontal:start:decrement,
+::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 ::-webkit-scrollbar-corner {
   background: transparent;

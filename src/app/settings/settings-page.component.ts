@@ -62,7 +62,9 @@ type Section =
       </header>
 
       <div class="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:flex-row">
-        <nav class="flex gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-white p-1 md:w-56 md:flex-col md:overflow-visible md:p-2">
+        <!-- md:self-start: cột menu chỉ cao bằng nội dung của nó, KHÔNG bị kéo dài
+             bằng chiều cao panel bên phải khi mở mục nhiều nội dung. -->
+        <nav class="flex gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-white p-1 md:w-56 md:flex-col md:self-start md:overflow-visible md:p-2">
           @for (sec of sections; track sec.id) {
             <button
               type="button"

@@ -57,6 +57,8 @@ export interface HistoryEntry {
   detail?: string;
   body?: string;
   at: number;
+  /** Sự kiện liên quan (nếu có) -> bấm vào dòng lịch sử sẽ nhảy tới sự kiện đó. */
+  eventId?: string;
 }
 
 const SEEN_FILES_KEY = 'notified-file-open';
@@ -429,7 +431,7 @@ export class NotificationService {
       ...t,
       { id: toastId, kind: 'invite', title: iv.title || '(không tiêu đề)', detail: iv.creatorEmail ?? '', eventId: iv.eventId },
     ]);
-    this.pushHistory({ kind: 'invite', title: iv.title || '(không tiêu đề)', detail: iv.creatorEmail ?? '' });
+    this.pushHistory({ kind: 'invite', title: iv.title || '(không tiêu đề)', detail: iv.creatorEmail ?? '', eventId: iv.eventId });
     setTimeout(() => this.dismiss(toastId), 60_000);
     this.playBeep();
     if (this.canDesktopNotify()) {
@@ -513,7 +515,7 @@ export class NotificationService {
       return next;
     });
     this.toasts.update((t) => [...t, { id, kind: 'changed', title: safeTitle, body: lines.join(', '), eventId }]);
-    this.pushHistory({ kind: 'changed', title: safeTitle, body: lines.join(', ') });
+    this.pushHistory({ kind: 'changed', title: safeTitle, body: lines.join(', '), eventId });
     setTimeout(() => this.dismiss(id), 30_000);
     this.playBeep();
     if (this.canDesktopNotify()) {
@@ -573,7 +575,7 @@ export class NotificationService {
     const timeLabel = e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const toastId = `${e.id}:${Date.now()}`;
     this.toasts.update((t) => [...t, { id: toastId, kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel, eventId: e.id }]);
-    this.pushHistory({ kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel });
+    this.pushHistory({ kind: 'event', title: e.title || '(không tiêu đề)', detail: timeLabel, eventId: e.id });
     setTimeout(() => this.dismiss(toastId), 15_000); // tự ẩn sau 15s
 
     this.playBeep();

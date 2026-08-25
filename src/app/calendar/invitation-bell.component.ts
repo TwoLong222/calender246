@@ -51,7 +51,10 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
               <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.recentTitle') }}</span>
             </div>
             @for (h of notify.recentHistory(); track h.id) {
-              <div class="border-b border-gray-50 px-3 py-2.5">
+              <!-- Có sự kiện liên quan -> bấm cả dòng để nhảy tới sự kiện đó -->
+              <div class="w-full border-b border-gray-50 px-3 py-2.5 text-left"
+                [class]="h.eventId ? 'cursor-pointer hover:bg-gray-50' : ''"
+                (click)="goToEvent(h.eventId)">
                 <div class="flex items-center justify-between gap-2">
                   <span
                     class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
