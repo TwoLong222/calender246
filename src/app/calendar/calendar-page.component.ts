@@ -77,7 +77,7 @@ import { TranslateService } from '../i18n/translate.service';
         <button
           type="button"
           (click)="sidebarOpen.set(!sidebarOpen())"
-          class="tap rounded-full p-1.5 hover:bg-gray-100"
+          class="tap rounded-full p-2 hover:bg-gray-100"
           [attr.aria-label]="tr.t('nav.toggleSidebar')"
           [title]="tr.t('nav.toggleSidebar')"
         >
@@ -108,8 +108,8 @@ import { TranslateService } from '../i18n/translate.service';
         >{{ tr.t('nav.today') }}</button>
 
         <div class="flex gap-1">
-          <button type="button" (click)="state.goPrev()" class="tap rounded-full p-1.5 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.prev')"><app-icon name="chevron-left" /></button>
-          <button type="button" (click)="state.goNext()" class="tap rounded-full p-1.5 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.next')"><app-icon name="chevron-right" /></button>
+          <button type="button" (click)="state.goPrev()" class="tap rounded-full p-2 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.prev')"><app-icon name="chevron-left" /></button>
+          <button type="button" (click)="state.goNext()" class="tap rounded-full p-2 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.next')"><app-icon name="chevron-right" /></button>
         </div>
 
         <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
@@ -168,7 +168,7 @@ import { TranslateService } from '../i18n/translate.service';
             <button
               type="button"
               (click)="settingsMenuOpen.set(!settingsMenuOpen())"
-              class="tap rounded-full p-1.5 hover:bg-gray-100"
+              class="tap rounded-full p-2 hover:bg-gray-100"
               [title]="tr.t('nav.tools')"
               [attr.aria-label]="tr.t('nav.tools')"
             >
@@ -178,32 +178,32 @@ import { TranslateService } from '../i18n/translate.service';
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
               <div class="popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="download" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.export') }}
                 </button>
-                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="upload" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.import') }}
                 </button>
                 <div class="my-1 border-t border-gray-200"></div>
-                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="trash" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.trash') }}
                 </button>
-                <a routerLink="/tasks" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <a routerLink="/tasks" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="check" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.tasks') }}
                 </a>
-                <a routerLink="/am-lich" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <a routerLink="/am-lich" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="moon" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.lunar') }}
                 </a>
-                <a routerLink="/notes" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <a routerLink="/notes" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="notes" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.notes') }}
                 </a>
-                <a routerLink="/invitations" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <a routerLink="/invitations" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="mail" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.invitations') }}
                 </a>
-                <a routerLink="/notification-history" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <a routerLink="/notification-history" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="bell" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.notifHistory') }}
                 </a>
-                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="settings" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.settings') }}
                 </a>
               </div>
@@ -223,11 +223,11 @@ import { TranslateService } from '../i18n/translate.service';
           </select>
 
           @if (supabase.user(); as user) {
-            <div class="flex items-center gap-2" [title]="displayLabel(user)">
+            <div class="flex shrink-0 items-center gap-2" [title]="displayLabel(user)">
               @if (avatarUrl(user); as pic) {
-                <img [src]="pic" alt="avatar" referrerpolicy="no-referrer" class="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200" />
+                <img [src]="pic" alt="avatar" referrerpolicy="no-referrer" class="h-7 w-7 shrink-0 rounded-full object-cover ring-1 ring-gray-200" />
               } @else {
-                <span class="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-xs font-semibold text-white">{{ userInitial(user) }}</span>
+                <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-semibold text-white">{{ userInitial(user) }}</span>
               }
               @if (displayLabel(user); as label) {
                 <span class="hidden text-sm text-gray-500 sm:inline">{{ label }}</span>
@@ -261,13 +261,13 @@ import { TranslateService } from '../i18n/translate.service';
 
             @if (createMenuOpen()) {
               <div class="popup-in absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button type="button" (click)="openCreate('event')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="openCreate('event')" class="block w-full px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   {{ tr.t('kind.event') }}
                 </button>
-                <button type="button" (click)="openCreate('task')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="openCreate('task')" class="block w-full px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   {{ tr.t('kind.task') }}
                 </button>
-                <button type="button" (click)="openCreate('appointment')" class="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <button type="button" (click)="openCreate('appointment')" class="block w-full px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   {{ tr.t('kind.appointment') }}
                 </button>
               </div>
