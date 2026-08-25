@@ -223,13 +223,13 @@ import { TranslateService } from '../i18n/translate.service';
           </select>
 
           @if (supabase.user(); as user) {
-            <div class="flex items-center gap-2" [title]="user.email">
+            <div class="flex items-center gap-2" [title]="displayLabel(user)">
               @if (avatarUrl(user); as pic) {
                 <img [src]="pic" alt="avatar" referrerpolicy="no-referrer" class="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200" />
               } @else {
                 <span class="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-xs font-semibold text-white">{{ userInitial(user) }}</span>
               }
-              <span class="hidden text-sm text-gray-500 sm:inline">{{ user.email }}</span>
+              <span class="hidden text-sm text-gray-500 sm:inline">{{ displayLabel(user) }}</span>
             </div>
           }
           <button type="button" (click)="logout()" class="tap rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
@@ -663,6 +663,10 @@ export class CalendarPageComponent implements OnInit {
   protected userInitial(user: { email?: string; user_metadata?: Record<string, unknown> } | null): string {
     const name = ((user?.user_metadata?.['full_name'] as string) || user?.email || '?').trim();
     return name.charAt(0).toUpperCase() || '?';
+  }
+  /** Nhãn hiển thị cạnh avatar: ưu tiên BIỆT DANH (full_name), chưa đặt thì mới dùng email. */
+  protected displayLabel(user: { email?: string; user_metadata?: Record<string, unknown> } | null): string {
+    return ((user?.user_metadata?.['full_name'] as string) || '').trim() || user?.email || '';
   }
 
   async logout(): Promise<void> {

@@ -88,7 +88,12 @@ type Section =
                   <button type="button" (click)="saveProfile()" class="tap rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">{{ tr.t('acc.save') }}</button>
                 </div>
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.email') }}</label>
-                <input [value]="email()" disabled class="mb-4 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
+                <div class="mb-4 flex gap-2">
+                  <input [value]="emailShown()" disabled class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
+                  <button type="button" (click)="emailRevealed.set(!emailRevealed())" class="tap shrink-0 rounded-md border border-gray-300 px-3 text-sm text-gray-600 hover:bg-gray-50" [attr.aria-label]="emailRevealed() ? tr.t('acc.hideEmail') : tr.t('acc.showEmail')">
+                    <app-icon [name]="emailRevealed() ? 'eye-off' : 'eye'" class="h-4 w-4" />
+                  </button>
+                </div>
                 <p class="text-xs text-gray-400">{{ tr.t('acc.created') }}: {{ createdAt() }}</p>
                 @if (profileMsg(); as m) { <p class="mt-2 text-xs text-green-700">{{ m }}</p> }
               </section>
@@ -788,6 +793,16 @@ export class SettingsPageComponent {
   protected readonly deleting = signal(false);
 
   protected readonly email = computed(() => this.supabase.user()?.email ?? '');
+  /** Che email theo mặc định; bấm mắt để hiện. */
+  protected readonly emailRevealed = signal(false);
+  /** Email đã che: giữ 2 ký tự đầu + tên miền, vd "lo•••@gmail.com". */
+  protected readonly emailShown = computed(() => {
+    const e = this.email();
+    if (this.emailRevealed() || !e.includes('@')) return e;
+    const [name, domain] = e.split('@');
+    const head = name.slice(0, 2);
+    return `${head}${'•'.repeat(Math.max(3, name.length - 2))}@${domain}`;
+  });
   protected readonly createdAt = computed(() => {
     const c = this.supabase.user()?.created_at;
     return c ? new Date(c).toLocaleDateString(this.tr.lang() === 'en' ? 'en-GB' : 'vi-VN') : '—';
