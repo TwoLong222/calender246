@@ -229,7 +229,9 @@ import { TranslateService } from '../i18n/translate.service';
               } @else {
                 <span class="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-xs font-semibold text-white">{{ userInitial(user) }}</span>
               }
-              <span class="hidden text-sm text-gray-500 sm:inline">{{ displayLabel(user) }}</span>
+              @if (displayLabel(user); as label) {
+                <span class="hidden text-sm text-gray-500 sm:inline">{{ label }}</span>
+              }
             </div>
           }
           <button type="button" (click)="logout()" class="tap rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
@@ -664,9 +666,9 @@ export class CalendarPageComponent implements OnInit {
     const name = ((user?.user_metadata?.['full_name'] as string) || user?.email || '?').trim();
     return name.charAt(0).toUpperCase() || '?';
   }
-  /** Nhãn hiển thị cạnh avatar: ưu tiên BIỆT DANH (full_name), chưa đặt thì mới dùng email. */
+  /** Nhãn hiển thị cạnh avatar: CHỈ biệt danh (full_name). Chưa đặt -> rỗng (KHÔNG lộ email). */
   protected displayLabel(user: { email?: string; user_metadata?: Record<string, unknown> } | null): string {
-    return ((user?.user_metadata?.['full_name'] as string) || '').trim() || user?.email || '';
+    return ((user?.user_metadata?.['full_name'] as string) || '').trim();
   }
 
   async logout(): Promise<void> {
