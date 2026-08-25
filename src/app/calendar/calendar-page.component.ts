@@ -136,10 +136,10 @@ import { TranslateService } from '../i18n/translate.service';
               (blur)="onSearchBlur()"
               (keydown.escape)="clearSearch()"
               [placeholder]="tr.t('nav.search')"
-              class="w-32 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600 sm:w-56"
+              class="w-40 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600 sm:w-56"
             />
             @if (searchFocused() && searchQuery().trim()) {
-              <div class="popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:w-80">
                 @if (searchResults().length === 0) {
                   <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
                 } @else {
@@ -276,7 +276,7 @@ import { TranslateService } from '../i18n/translate.service';
 
           <app-mini-calendar [viewedDate]="state.viewedDate()" (dateSelected)="onMiniCalendarPick($event)" />
 
-          <div class="mt-6">
+          <div class="mt-6 border-t border-gray-200 pt-4">
             <p class="mb-2 text-sm font-medium text-gray-700">{{ tr.t('nav.show') }}</p>
             <ul class="space-y-1 text-sm text-gray-700">
               <li class="flex items-center gap-2">
@@ -295,7 +295,7 @@ import { TranslateService } from '../i18n/translate.service';
           </div>
 
           <!-- Nhóm lên lịch cùng nhau -->
-          <div class="mt-6">
+          <div class="mt-6 border-t border-gray-200 pt-4">
             <p class="mb-2 text-sm font-medium text-gray-700">Nhóm</p>
 
             <!-- Lời mời nhóm đang chờ mình đồng ý -->

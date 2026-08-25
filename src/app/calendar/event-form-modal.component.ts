@@ -21,6 +21,7 @@ import { SettingsService } from '../settings/settings.service';
 import { AttachmentsApiService, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { RecurrenceOptions } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -315,13 +316,34 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
           </div>
         }
 
-        <!-- Tab: Lên lịch hẹn (stub — cần trang đặt lịch công khai riêng, để Giai đoạn 2) -->
+        <!-- Tab: Lên lịch hẹn — bật/tắt trang đặt lịch công khai + lấy link chia sẻ (ngay tại đây) -->
         @if (tab() === 'appointment') {
-          <div class="rounded-md bg-gray-50 p-4 text-sm text-gray-600">
-            {{ tr.t('form.apptDesc') }}
-            <p class="mt-2 text-xs text-gray-400">
-              {{ tr.t('form.apptNote') }}
-            </p>
+          <div class="space-y-3 text-sm">
+            <p class="text-gray-600">{{ tr.t('form.apptDesc') }}</p>
+            <label class="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+              <span class="font-medium">{{ tr.t('booking.enable') }}</span>
+              <input type="checkbox" [checked]="bookingPage()?.enabled" (change)="setBooking({ enabled: !bookingPage()?.enabled })" class="accent-blue-600" />
+            </label>
+            @if (bookingPage()?.enabled) {
+              <div>
+                <label class="mb-1 block text-gray-600">{{ tr.t('booking.duration') }}</label>
+                <select [ngModel]="bookingPage()?.duration_minutes" (ngModelChange)="setBooking({ duration_minutes: +$event })" class="w-full rounded-md border border-gray-300 px-3 py-2">
+                  <option [ngValue]="15">15 {{ tr.t('booking.min') }}</option>
+                  <option [ngValue]="30">30 {{ tr.t('booking.min') }}</option>
+                  <option [ngValue]="60">60 {{ tr.t('booking.min') }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
+                <div class="flex flex-wrap gap-2">
+                  <input [value]="bookingLink()" readonly class="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
+                  <button type="button" (click)="copyBookingLink()" class="tap rounded-md border border-gray-300 px-3 text-sm hover:bg-gray-50">{{ bookingCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
+                  <a [href]="bookingLink()" target="_blank" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ tr.t('booking.open') }}</a>
+                </div>
+              </div>
+            } @else {
+              <p class="text-xs text-gray-400">{{ tr.t('form.apptHint') }}</p>
+            }
           </div>
         }
 
@@ -420,6 +442,33 @@ export class EventFormModalComponent {
   private readonly settings = inject(SettingsService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
   private readonly supabase = inject(SupabaseService);
+  private readonly bookingApi = inject(BookingApiService);
+
+  // ----- Lịch hẹn công khai (booking) — cấu hình ngay trong tab "Lên lịch hẹn" -----
+  protected readonly bookingPage = signal<BookingPage | null>(null);
+  protected readonly bookingCopied = signal(false);
+  protected bookingLink(): string {
+    const p = this.bookingPage();
+    return p ? `${window.location.origin}/book/${p.slug}` : '';
+  }
+  protected setBooking(patch: Partial<BookingPage>): void {
+    const prev = this.bookingPage();
+    if (prev) this.bookingPage.set({ ...prev, ...patch });
+    this.bookingApi.updateMyPage(patch).subscribe({
+      next: (p) => this.bookingPage.set(p),
+      error: () => { if (prev) this.bookingPage.set(prev); },
+    });
+  }
+  protected copyBookingLink(): void {
+    navigator.clipboard?.writeText(this.bookingLink());
+    this.bookingCopied.set(true);
+    setTimeout(() => this.bookingCopied.set(false), 1500);
+  }
+  /** Tải cấu hình trang đặt lịch (gọi khi mở tab Lịch hẹn lần đầu). */
+  private loadBookingOnce(): void {
+    if (this.bookingPage()) return;
+    this.bookingApi.getMyPage().subscribe({ next: (p) => this.bookingPage.set(p), error: () => {} });
+  }
 
   // ----- Tài liệu đính kèm ngay lúc tạo (xếp hàng, upload sau khi lưu) -----
   protected readonly stagedFiles = signal<{ file: File; from: string; until: string }[]>([]);
@@ -666,6 +715,10 @@ export class EventFormModalComponent {
   private editingId: string | null = null;
 
   constructor() {
+    // Mở tab "Lên lịch hẹn" -> nạp cấu hình trang đặt lịch công khai (booking) 1 lần.
+    effect(() => {
+      if (this.state.isFormOpen() && this.tab() === 'appointment') this.loadBookingOnce();
+    });
     // Mỗi khi modal được mở, nạp lại dữ liệu: nếu đang sửa -> điền dữ liệu event cũ,
     // nếu tạo mới -> điền giờ mặc định (giờ được click trên lưới, +1 tiếng cho giờ kết thúc)
     effect(() => {

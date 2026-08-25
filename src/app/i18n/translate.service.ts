@@ -163,6 +163,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'form.guestRoleHint': 'Chỉ xem = chỉ xem sự kiện; Chỉnh sửa = được sửa nội dung sự kiện.',
     'form.addLocation': 'Thêm vị trí', 'form.addDesc': 'Thêm mô tả', 'form.save': 'Lưu', 'form.saving': 'Đang lưu…',
     'form.apptDesc': 'Tạo một trang đặt lịch hẹn mà bạn có thể chia sẻ với người khác để họ tự đặt lịch với bạn.',
+    'form.apptHint': 'Bật công tắc trên để tạo trang đặt lịch + lấy link chia sẻ.',
     'form.apptNote': '✅ Tính năng này đã có! Vào Cài đặt › Quyền riêng tư › "Bật đặt lịch công khai" để tạo trang đặt lịch và lấy link chia sẻ.',
     'color.sky': 'Xanh dương', 'color.violet': 'Tím', 'color.emerald': 'Xanh lá', 'color.rose': 'Hồng', 'color.amber': 'Vàng',
     // Event detail + RSVP + comments
@@ -326,6 +327,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'form.guestRoleHint': 'Viewer = view only; Editor = can edit the event content.',
     'form.addLocation': 'Add location', 'form.addDesc': 'Add description', 'form.save': 'Save', 'form.saving': 'Saving…',
     'form.apptDesc': 'Create a bookable page you can share so others can book time with you.',
+    'form.apptHint': 'Turn on the switch above to create your booking page and get a shareable link.',
     'form.apptNote': '✅ This feature is ready! Go to Settings › Privacy › "Enable public booking" to create your booking page and get a shareable link.',
     'color.sky': 'Blue', 'color.violet': 'Purple', 'color.emerald': 'Green', 'color.rose': 'Pink', 'color.amber': 'Amber',
     'detail.edit': 'Edit', 'detail.delete': 'Delete', 'detail.creator': 'Created by', 'detail.guests': 'guests',
