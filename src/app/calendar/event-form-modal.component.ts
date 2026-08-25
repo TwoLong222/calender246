@@ -19,6 +19,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 import { AttachmentsApiService } from './attachments-api.service';
+import { RecurrenceOptions } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
 
 function toDateInputValue(d: Date): string {
@@ -49,6 +50,10 @@ function minutesToItem(min: number): ReminderItem {
   if (m > 0 && m % UNIT_MIN.hour === 0) return { value: m / UNIT_MIN.hour, unit: 'hour' };
   return { value: m, unit: 'minute' };
 }
+
+// ----- Lặp lại: khóa preset trong dropdown (nhãn tính động theo ngày bắt đầu) -----
+type RecurKey = 'none' | 'daily' | 'weekly' | 'monthlyNth' | 'monthlyLast' | 'yearly' | 'weekdays' | 'custom';
+type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 @Component({
   selector: 'app-event-form-modal',
@@ -119,20 +124,18 @@ function minutesToItem(min: number): ReminderItem {
             @if (!editing()) {
               <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
                 <span>🔁</span>
-                <select [(ngModel)]="repeat" class="rounded border border-gray-300 px-2 py-1">
-                  <option value="none">{{ tr.t('form.noRepeat') }}</option>
-                  <option value="daily">{{ tr.t('form.daily') }}</option>
-                  <option value="weekly">{{ tr.t('form.weekly') }}</option>
-                  <option value="monthly">{{ tr.t('form.monthly') }}</option>
+                <select [ngModel]="recurKey()" (ngModelChange)="onRecurChange($event)" class="rounded border border-gray-300 px-2 py-1">
+                  @for (o of recurOptions(); track o.key) {
+                    <option [value]="o.key">{{ o.label }}</option>
+                  }
                 </select>
-                @if (repeat() !== 'none') {
-                  <span>{{ tr.t('form.every') }}</span>
-                  <input type="number" min="1" max="30" [(ngModel)]="repeatInterval" class="w-14 rounded border border-gray-300 px-2 py-1" />
-                  <span>×</span>
-                  <input type="number" min="2" max="52" [(ngModel)]="repeatCount" class="w-16 rounded border border-gray-300 px-2 py-1" />
-                  <span>{{ tr.t('form.times') }}</span>
-                }
               </div>
+              @if (recurKey() === 'custom') {
+                <p class="pl-7 text-xs text-gray-500">
+                  {{ customSummary() }}
+                  <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600 hover:underline">{{ tr.t('detail.edit') }}</button>
+                </p>
+              }
             }
 
             @if (conflicts().length > 0) {
@@ -330,6 +333,71 @@ function minutesToItem(min: number): ReminderItem {
         </div>
       </div>
     </div>
+
+    <!-- Hộp thoại LẶP LẠI TÙY CHỈNH (lớp phủ riêng, nằm trên modal sự kiện) -->
+    @if (showCustomRecur()) {
+      <div class="modal-backdrop-in fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" (click)="cancelCustom()">
+        <div class="modal-card-in w-full max-w-sm rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+          <h3 class="mb-4 text-lg font-medium text-gray-800">{{ tr.t('recur.title') }}</h3>
+
+          <!-- Lặp lại mỗi N [đơn vị] -->
+          <div class="mb-4 flex items-center gap-2 text-sm">
+            <span class="text-gray-600">{{ tr.t('recur.every') }}</span>
+            <input type="number" min="1" max="999" [ngModel]="customInterval()" (ngModelChange)="customInterval.set(+$event || 1)" class="w-16 rounded border border-gray-300 px-2 py-1" />
+            <select [ngModel]="customFreq()" (ngModelChange)="setCustomFreq($event)" class="rounded border border-gray-300 px-2 py-1">
+              <option value="daily">{{ tr.t('recur.day') }}</option>
+              <option value="weekly">{{ tr.t('recur.week') }}</option>
+              <option value="monthly">{{ tr.t('recur.month') }}</option>
+              <option value="yearly">{{ tr.t('recur.year') }}</option>
+            </select>
+          </div>
+
+          <!-- Lặp lại vào các thứ (chỉ khi theo tuần) -->
+          @if (customFreq() === 'weekly') {
+            <div class="mb-4">
+              <p class="mb-2 text-sm text-gray-600">{{ tr.t('recur.on') }}</p>
+              <div class="flex flex-wrap gap-1.5">
+                @for (i of weekdayIdx; track i) {
+                  <button
+                    type="button" (click)="toggleCustomWeekday(i)"
+                    class="tap h-9 w-9 rounded-full text-xs font-medium"
+                    [class.bg-blue-600]="customWeekdays().includes(i)"
+                    [class.text-white]="customWeekdays().includes(i)"
+                    [class.bg-gray-100]="!customWeekdays().includes(i)"
+                    [class.text-gray-700]="!customWeekdays().includes(i)"
+                  >{{ tr.t('wd.' + i) }}</button>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Kết thúc -->
+          <div class="mb-5">
+            <p class="mb-2 text-sm text-gray-600">{{ tr.t('recur.ends') }}</p>
+            <label class="mb-1.5 flex items-center gap-2 text-sm">
+              <input type="radio" name="recurEnd" [checked]="customEndType() === 'never'" (change)="customEndType.set('never')" />
+              {{ tr.t('recur.never') }}
+            </label>
+            <label class="mb-1.5 flex flex-wrap items-center gap-2 text-sm">
+              <input type="radio" name="recurEnd" [checked]="customEndType() === 'until'" (change)="customEndType.set('until')" />
+              {{ tr.t('recur.onDate') }}
+              <input type="date" [ngModel]="customUntil()" (ngModelChange)="customUntil.set($event)" [disabled]="customEndType() !== 'until'" class="rounded border border-gray-300 px-2 py-1 disabled:bg-gray-100 disabled:text-gray-400" />
+            </label>
+            <label class="flex flex-wrap items-center gap-2 text-sm">
+              <input type="radio" name="recurEnd" [checked]="customEndType() === 'count'" (change)="customEndType.set('count')" />
+              {{ tr.t('recur.after') }}
+              <input type="number" min="1" max="366" [ngModel]="customCount()" (ngModelChange)="customCount.set(+$event || 1)" [disabled]="customEndType() !== 'count'" class="w-16 rounded border border-gray-300 px-2 py-1 disabled:bg-gray-100 disabled:text-gray-400" />
+              {{ tr.t('recur.times') }}
+            </label>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <button type="button" (click)="cancelCustom()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
+            <button type="button" (click)="applyCustom()" class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">{{ tr.t('recur.done') }}</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class EventFormModalComponent {
@@ -429,11 +497,138 @@ export class EventFormModalComponent {
   guests = signal<Guest[]>([]);
   guestEmailDraft = signal('');
   color = signal('sky');
-  repeat = signal<'none' | 'daily' | 'weekly' | 'monthly'>('none');
-  repeatCount = signal(4);
-  repeatInterval = signal(1);
   /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
   editing = signal(false);
+
+  // ----- Lặp lại (recurrence) -----
+  readonly weekdayIdx = [0, 1, 2, 3, 4, 5, 6];
+  readonly recurKey = signal<RecurKey>('none');
+  private prevRecurKey: RecurKey = 'none';
+  // Hộp thoại "Tùy chỉnh…"
+  readonly showCustomRecur = signal(false);
+  readonly customFreq = signal<CustomFreq>('weekly');
+  readonly customInterval = signal(1);
+  readonly customWeekdays = signal<number[]>([]);
+  readonly customEndType = signal<'never' | 'until' | 'count'>('never');
+  readonly customUntil = signal('');
+  readonly customCount = signal(13);
+
+  /** Các lựa chọn trong dropdown lặp — nhãn tính theo NGÀY bắt đầu (giống Google). */
+  readonly recurOptions = computed<{ key: RecurKey; label: string }[]>(() => {
+    const d = this.computedStart();
+    const en = this.tr.lang() === 'en';
+    const valid = !isNaN(d.getTime());
+    const locale = en ? 'en-US' : 'vi-VN';
+    const wd = valid ? new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(d) : '';
+    const day = valid ? d.getDate() : 1;
+    const month = valid ? d.getMonth() + 1 : 1;
+    const nth = Math.ceil(day / 7);
+    const nthLabel = en ? this.ordinalEn(nth) : `lần ${nth}`;
+    return [
+      { key: 'none', label: this.tr.t('form.noRepeat') },
+      { key: 'daily', label: this.tr.t('form.daily') },
+      { key: 'weekly', label: en ? `Weekly on ${wd}` : `Hàng tuần vào ${wd}` },
+      { key: 'monthlyNth', label: en ? `Monthly on the ${nthLabel} ${wd}` : `Hàng tháng vào ${wd} ${nthLabel}` },
+      { key: 'monthlyLast', label: en ? `Monthly on the last ${wd}` : `Hàng tháng vào ${wd} cuối cùng` },
+      { key: 'yearly', label: en ? `Annually on ${month}/${day}` : `Hàng năm vào ngày ${day}/${month}` },
+      { key: 'weekdays', label: this.tr.t('form.everyWeekday') },
+      { key: 'custom', label: this.tr.t('form.custom') },
+    ];
+  });
+
+  /** Tóm tắt ngắn cấu hình "Tùy chỉnh" để hiện dưới dropdown. */
+  readonly customSummary = computed<string>(() => {
+    const f = this.customFreq();
+    const n = Math.max(1, this.customInterval() || 1);
+    const unit = this.tr.t(f === 'daily' ? 'unit.day' : f === 'weekly' ? 'unit.week' : f === 'monthly' ? 'recur.month' : 'recur.year');
+    let s = `${this.tr.t('recur.every')} ${n} ${unit}`;
+    if (f === 'weekly' && this.customWeekdays().length) {
+      s += ` (${[...this.customWeekdays()].sort((a, b) => a - b).map((i) => this.tr.t('wd.' + i)).join(', ')})`;
+    }
+    const et = this.customEndType();
+    if (et === 'count') s += ` · ${this.tr.t('recur.after')} ${this.customCount()} ${this.tr.t('recur.times')}`;
+    else if (et === 'until' && this.customUntil()) s += ` · ${this.tr.t('recur.onDate')} ${this.customUntil()}`;
+    return s;
+  });
+
+  private ordinalEn(n: number): string {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  onRecurChange(key: RecurKey): void {
+    if (key === 'custom') {
+      if (this.recurKey() !== 'custom') this.prevRecurKey = this.recurKey();
+      this.initCustom();
+      this.recurKey.set('custom');
+      this.showCustomRecur.set(true);
+    } else {
+      this.recurKey.set(key);
+    }
+  }
+  private initCustom(): void {
+    const d = this.computedStart();
+    const wd = isNaN(d.getTime()) ? 1 : d.getDay();
+    this.customFreq.set('weekly');
+    this.customInterval.set(1);
+    this.customWeekdays.set([wd]);
+    this.customEndType.set('never');
+    this.customUntil.set('');
+    this.customCount.set(13);
+  }
+  openCustomAgain(): void {
+    this.showCustomRecur.set(true);
+  }
+  setCustomFreq(f: CustomFreq): void {
+    this.customFreq.set(f);
+    if (f === 'weekly' && this.customWeekdays().length === 0) {
+      const d = this.computedStart();
+      this.customWeekdays.set([isNaN(d.getTime()) ? 1 : d.getDay()]);
+    }
+  }
+  toggleCustomWeekday(i: number): void {
+    this.customWeekdays.update((l) => (l.includes(i) ? l.filter((x) => x !== i) : [...l, i].sort((a, b) => a - b)));
+  }
+  applyCustom(): void {
+    this.showCustomRecur.set(false);
+  }
+  cancelCustom(): void {
+    this.showCustomRecur.set(false);
+    this.recurKey.set(this.prevRecurKey);
+  }
+
+  /** Dựng tùy chọn lặp gửi backend từ preset / hộp thoại tùy chỉnh; undefined = không lặp. */
+  private buildRecurrence(): RecurrenceOptions | undefined {
+    const key = this.recurKey();
+    if (key === 'none') return undefined;
+    const d = this.computedStart();
+    const wd = isNaN(d.getTime()) ? 0 : d.getDay();
+    switch (key) {
+      case 'daily':
+        return { freq: 'daily', interval: 1 };
+      case 'weekly':
+        return { freq: 'weekly', interval: 1, weekdays: [wd] };
+      case 'monthlyNth':
+        return { freq: 'monthly', interval: 1, monthlyMode: 'nthWeekday' };
+      case 'monthlyLast':
+        return { freq: 'monthly', interval: 1, monthlyMode: 'lastWeekday' };
+      case 'yearly':
+        return { freq: 'yearly', interval: 1 };
+      case 'weekdays':
+        return { freq: 'weekly', interval: 1, weekdays: [1, 2, 3, 4, 5] };
+      case 'custom': {
+        const freq = this.customFreq();
+        const rec: RecurrenceOptions = { freq, interval: Math.max(1, this.customInterval() || 1) };
+        if (freq === 'weekly') rec.weekdays = this.customWeekdays().length ? this.customWeekdays() : [wd];
+        if (freq === 'monthly') rec.monthlyMode = 'monthday';
+        if (this.customEndType() === 'until' && this.customUntil()) rec.until = new Date(`${this.customUntil()}T23:59`).toISOString();
+        if (this.customEndType() === 'count') rec.count = Math.min(Math.max(this.customCount() || 1, 1), 366);
+        return rec;
+      }
+    }
+    return undefined;
+  }
 
   readonly colorOptions = [
     { name: 'sky', label: 'Xanh dương', class: 'bg-sky-600' },
@@ -493,9 +688,8 @@ export class EventFormModalComponent {
         this.description.set('');
         this.guests.set([]);
         this.color.set('sky');
-        this.repeat.set('none');
-        this.repeatCount.set(4);
-        this.repeatInterval.set(1);
+        this.recurKey.set('none');
+        this.showCustomRecur.set(false);
         // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới; null = không có mốc nào.
         const def = this.settings.settings().default_reminder;
         this.reminders.set(def != null ? [minutesToItem(def)] : []);
@@ -576,16 +770,8 @@ export class EventFormModalComponent {
     }
     this.formError.set('');
 
-    // Chỉ cho lặp khi TẠO MỚI và có chọn kiểu lặp
-    const repeat = this.repeat();
-    const recurrence =
-      !this.editingId && repeat !== 'none'
-        ? {
-            repeat,
-            count: Math.min(Math.max(this.repeatCount() || 1, 1), 52),
-            interval: Math.min(Math.max(this.repeatInterval() || 1, 1), 30),
-          }
-        : undefined;
+    // Chỉ cho lặp khi TẠO MỚI (sửa 1 event trong chuỗi lặp phức tạp -> để sau).
+    const recurrence = !this.editingId ? this.buildRecurrence() : undefined;
 
     this.state.saveEvent(
       {

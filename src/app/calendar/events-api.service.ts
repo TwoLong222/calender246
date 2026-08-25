@@ -109,12 +109,19 @@ export interface Invitation {
   myStatus: string;
 }
 
-/** Tùy chọn lặp lại khi tạo event mới (materialized: backend tạo `count` event thật) */
+/** Tùy chọn lặp lại khi tạo event mới (materialized: backend sinh các event thật). */
 export interface RecurrenceOptions {
-  repeat: 'daily' | 'weekly' | 'monthly';
-  count: number;
-  /** Lặp mỗi N đơn vị (mặc định 1). */
-  interval?: number;
+  freq: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  /** Lặp mỗi N đơn vị. */
+  interval: number;
+  /** Lặp theo tuần: các thứ được chọn (0=CN..6=T7). */
+  weekdays?: number[];
+  /** Lặp theo tháng: theo ngày / thứ thứ-n / thứ cuối cùng. */
+  monthlyMode?: 'monthday' | 'nthWeekday' | 'lastWeekday';
+  /** Kết thúc sau N lần (tính cả lần đầu). */
+  count?: number;
+  /** Kết thúc vào ngày (ISO). */
+  until?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -128,7 +135,15 @@ export class EventsApiService {
 
   create(draft: Omit<CalendarEvent, 'id'>, recurrence?: RecurrenceOptions): Observable<SaveResult> {
     const payload = recurrence
-      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count, repeatInterval: recurrence.interval ?? 1 }
+      ? {
+          ...toApiPayload(draft),
+          repeatFreq: recurrence.freq,
+          repeatInterval: recurrence.interval,
+          ...(recurrence.weekdays?.length ? { repeatWeekdays: recurrence.weekdays } : {}),
+          ...(recurrence.monthlyMode ? { repeatMonthlyMode: recurrence.monthlyMode } : {}),
+          ...(recurrence.count ? { repeatCount: recurrence.count } : {}),
+          ...(recurrence.until ? { repeatUntil: recurrence.until } : {}),
+        }
       : toApiPayload(draft);
     return this.http.post<MutationResponse>(this.base, payload).pipe(
       map((res) => ({
