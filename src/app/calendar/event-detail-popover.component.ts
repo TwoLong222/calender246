@@ -153,7 +153,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 @for (a of attachments(); track a.id) {
                   <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-sm">
                     @if (a.status === 'available' && a.url) {
-                      <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700 hover:underline">{{ a.file_name }}</a>
+                      <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700">{{ a.file_name }}</a>
                     } @else if (a.status === 'scheduled') {
                       <span class="min-w-0 flex-1 truncate text-gray-500" [title]="tr.t('attach.opensAt') + ' ' + fmt(a.available_from)">🔒 {{ a.file_name }}</span>
                     } @else if (a.status === 'expired') {
@@ -194,8 +194,8 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                   @if (editingId() === c.id) {
                     <textarea [(ngModel)]="editText" rows="2" class="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"></textarea>
                     <div class="mt-1 flex gap-3">
-                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700 hover:underline">{{ tr.t('form.save') }}</button>
-                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
+                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700">{{ tr.t('form.save') }}</button>
+                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
                     </div>
                   } @else {
                     <p class="mt-0.5 whitespace-pre-wrap break-words text-sm text-gray-800">{{ c.content }}</p>
@@ -203,13 +203,13 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                       @if (deletingId() === c.id) {
                         <div class="mt-1 flex items-center gap-3">
                           <span class="text-xs text-red-700">{{ tr.t('detail.delComment') }}</span>
-                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600 hover:underline">{{ tr.t('detail.delete') }}</button>
-                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
+                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600">{{ tr.t('detail.delete') }}</button>
+                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
                         </div>
                       } @else {
                         <div class="mt-1 flex gap-3">
-                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">{{ tr.t('detail.edit') }}</button>
-                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500 hover:underline">{{ tr.t('detail.delete') }}</button>
+                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500">{{ tr.t('detail.edit') }}</button>
+                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500">{{ tr.t('detail.delete') }}</button>
                         </div>
                       }
                     }

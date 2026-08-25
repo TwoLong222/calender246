@@ -180,7 +180,7 @@ import { TranslateService } from '../i18n/translate.service';
             <!-- Nút xem tin cũ hơn -->
             @if (chat.hasMore()[g.id]) {
               <div class="mb-2 text-center">
-                <button type="button" (click)="chat.loadOlder(g.id)" class="text-xs text-blue-600 hover:underline">Xem tin cũ hơn</button>
+                <button type="button" (click)="chat.loadOlder(g.id)" class="text-xs text-blue-600">Xem tin cũ hơn</button>
               </div>
             }
 
@@ -257,7 +257,7 @@ import { TranslateService } from '../i18n/translate.service';
 
           @if (isOwner()) {
             <div class="mt-2 shrink-0 border-t border-gray-100 pt-3 text-right">
-              <button type="button" (click)="confirmDelete(g.id, g.name)" class="text-sm text-red-600 hover:underline">Giải tán nhóm</button>
+              <button type="button" (click)="confirmDelete(g.id, g.name)" class="text-sm text-red-600">Giải tán nhóm</button>
             </div>
           }
         </div>

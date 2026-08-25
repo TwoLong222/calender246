@@ -303,9 +303,9 @@ type Section =
                   }
                 </div>
 
-                <!-- Màu tùy chỉnh -->
+                <!-- Màu tùy chỉnh: bấm ô màu để chọn bất kỳ màu nào ngoài các màu có sẵn ở trên -->
                 <label class="flex items-center gap-3 text-sm">
-                  <span class="text-gray-700">{{ tr.t('theme.custom') }}</span>
+                  <span class="text-gray-700">{{ tr.t('theme.pickOwn') }}</span>
                   <input
                     type="color"
                     [value]="themeBuilder.customBase()"
@@ -322,11 +322,12 @@ type Section =
                     <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm text-white">21</span>
                     <button type="button" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">{{ tr.t('form.save') }}</button>
                     <span class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700">{{ tr.t('theme.accent') }}</span>
-                    <a class="text-sm text-blue-600 hover:underline">{{ tr.t('theme.custom') }}</a>
+                    <!-- Chỉ là VÍ DỤ minh hoạ kiểu liên kết, không bấm được -->
+                    <a class="text-sm text-blue-600">{{ tr.t('theme.previewLink') }}</a>
                   </div>
                 </div>
 
-                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700">
                   {{ tr.t('theme.reset') }}
                 </button>
               </section>

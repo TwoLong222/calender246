@@ -134,7 +134,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               @if (recurKey() === 'custom') {
                 <p class="pl-7 text-xs text-gray-500">
                   {{ customSummary() }}
-                  <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600 hover:underline">{{ tr.t('detail.edit') }}</button>
+                  <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600">{{ tr.t('detail.edit') }}</button>
                 </p>
               }
             }

@@ -171,7 +171,7 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
           <!-- Xóa hết thông báo nhắc/hủy/sửa -->
           @if (reminders().length > 0 || changed().length > 0 || cancelled().length > 0) {
             <div class="px-3 py-2 text-right">
-              <button type="button" (click)="clearAll()" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+              <button type="button" (click)="clearAll()" class="text-xs text-gray-500 hover:text-gray-700">
                 {{ tr.t('notif.clearAll') }}
               </button>
             </div>

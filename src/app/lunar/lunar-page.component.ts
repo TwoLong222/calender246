@@ -60,7 +60,7 @@ interface LunarCell {
           </button>
           <div class="text-center">
             <p class="text-base font-medium">{{ monthLabel() }}</p>
-            <button type="button" (click)="goToday()" class="text-xs text-blue-600 hover:underline">{{ tr.t('lunar.today') }}</button>
+            <button type="button" (click)="goToday()" class="text-xs text-blue-600">{{ tr.t('lunar.today') }}</button>
           </div>
           <button type="button" (click)="nextMonth()" class="tap rounded-md border border-gray-300 bg-white p-2 hover:bg-gray-100">
             <app-icon name="chevron-right" class="h-5 w-5" />
