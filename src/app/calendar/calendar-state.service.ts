@@ -129,6 +129,8 @@ export class CalendarStateService {
   readonly editingEventId = signal<string | null>(null);
   readonly formInitialKind = signal<EventKind>('event');
   readonly formInitialStart = signal<Date>(new Date());
+  /** Giờ kết thúc khởi tạo khi TẠO MỚI (vd kéo chọn khoảng giờ trên lịch). null = form tự +1 tiếng. */
+  readonly formInitialEnd = signal<Date | null>(null);
   /** Tiêu đề các sự kiện bị trùng lịch — server xác nhận SAU khi lưu thành công, hiện cảnh báo cho người dùng */
   readonly lastSavedConflicts = signal<string[]>([]);
 
@@ -442,10 +444,11 @@ export class CalendarStateService {
     this.selectedEventId.set(null);
   }
 
-  openCreateForm(kind: EventKind = 'event', start?: Date): void {
+  openCreateForm(kind: EventKind = 'event', start?: Date, end?: Date): void {
     this.editingEventId.set(null);
     this.formInitialKind.set(kind);
     this.formInitialStart.set(start ?? new Date());
+    this.formInitialEnd.set(end ?? null);
     this.isFormOpen.set(true);
     this.selectedEventId.set(null);
   }
@@ -454,6 +457,7 @@ export class CalendarStateService {
     this.editingEventId.set(event.id);
     this.formInitialKind.set(event.kind);
     this.formInitialStart.set(event.start);
+    this.formInitialEnd.set(null);
     this.isFormOpen.set(true);
     this.selectedEventId.set(null);
   }

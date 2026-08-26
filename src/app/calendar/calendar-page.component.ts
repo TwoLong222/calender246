@@ -319,6 +319,7 @@ import { TranslateService } from '../i18n/translate.service';
                     [dates]="[state.viewedDate()]"
                     [events]="mergedEvents()"
                     (slotClicked)="onSlotClicked($event)"
+                    (rangeSelected)="onRangeSelected($event)"
                     (eventClicked)="onEventClicked($event)"
                     (eventTimesChanged)="onEventTimesChanged($event)"
                     (dateSelected)="onDayHeaderClicked($event)"
@@ -329,6 +330,7 @@ import { TranslateService } from '../i18n/translate.service';
                     [dates]="weekDates()"
                     [events]="mergedEvents()"
                     (slotClicked)="onSlotClicked($event)"
+                    (rangeSelected)="onRangeSelected($event)"
                     (eventClicked)="onEventClicked($event)"
                     (eventTimesChanged)="onEventTimesChanged($event)"
                     (dateSelected)="onDayHeaderClicked($event)"
@@ -612,6 +614,11 @@ export class CalendarPageComponent implements OnInit {
 
   onSlotClicked(start: Date): void {
     this.state.openCreateForm('event', start);
+  }
+
+  /** Kéo chọn 1 khoảng giờ trên lịch ngày/tuần -> mở form tạo với đúng giờ bắt đầu + kết thúc. */
+  onRangeSelected(range: { start: Date; end: Date }): void {
+    this.state.openCreateForm('event', range.start, range.end);
   }
 
   onEventClicked(event: CalendarEvent): void {

@@ -202,13 +202,30 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
 
           <!-- Các cột ngày -->
           @for (date of dates(); track date.getTime()) {
-            <div class="relative flex-1 border-l border-gray-100">
+            <div
+              class="relative flex-1 border-l border-gray-100"
+              (pointerdown)="createDown($event, date)"
+              (pointermove)="createMove($event)"
+              (pointerup)="createUp($event)"
+              (pointercancel)="createCancel()"
+            >
               @for (hour of hours; track hour) {
                 <div
                   class="cursor-pointer border-b border-gray-100 hover:bg-blue-50/40"
                   [style.height.px]="HOUR_HEIGHT"
                   (click)="onSlotClick(date, hour)"
                 ></div>
+              }
+
+              <!-- Ô "ghost" khi ĐANG KÉO để tạo sự kiện mới -->
+              @if (createGhost(date); as g) {
+                <div
+                  class="pointer-events-none absolute inset-x-0.5 z-[15] overflow-hidden rounded-md border border-blue-500 bg-blue-500/25 px-1.5 py-0.5"
+                  [style.top.px]="g.top"
+                  [style.height.px]="g.height"
+                >
+                  <span class="text-[11px] font-semibold text-blue-700">{{ g.label }}</span>
+                </div>
               }
 
               <!-- Vạch đỏ: giờ hiện tại (có thể tắt trong Cài đặt) -->
@@ -288,6 +305,8 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   events = input.required<CalendarEvent[]>();
 
   slotClicked = output<Date>();
+  /** Kéo chọn 1 khoảng giờ trên lưới -> tạo sự kiện mới với đúng giờ bắt đầu + kết thúc. */
+  rangeSelected = output<{ start: Date; end: Date }>();
   eventClicked = output<CalendarEvent>();
   /** Bấm vào 1 ngày ở header -> xem view Ngày của ngày đó */
   dateSelected = output<Date>();
@@ -355,6 +374,13 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   } | null = null;
 
   nowOffset = computed(() => (minutesSinceMidnight(this.nowSignal()) / 60) * HOUR_HEIGHT);
+
+  // ---------- Kéo để TẠO sự kiện mới (drag-to-create) ----------
+  /** Khoảng giờ đang kéo chọn (theo phút từ 0h). null = không kéo. */
+  readonly createPreview = signal<{ date: Date; startMin: number; endMin: number } | null>(null);
+  private createCtx: { date: Date; colTop: number; startMin: number; startY: number; moved: boolean; el: HTMLElement; pointerId: number } | null = null;
+  /** Vừa kéo-tạo xong -> nuốt click kế tiếp để không mở thêm form ở ô giờ. */
+  private suppressNextClick = false;
 
   ngAfterViewInit(): void {
     const el = this.scrollAreaRef()?.nativeElement;
@@ -589,9 +615,88 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   onSlotClick(date: Date, hour: number): void {
+    // Vừa kéo-tạo xong -> bỏ qua click này (tránh mở thêm form).
+    if (this.suppressNextClick) {
+      this.suppressNextClick = false;
+      return;
+    }
     const start = new Date(date);
     start.setHours(hour, 0, 0, 0);
     this.slotClicked.emit(start);
+  }
+
+  // ----- Kéo tạo sự kiện -----
+  private yToMin(y: number): number {
+    return Math.max(0, Math.min(1440, (y / HOUR_HEIGHT) * 60));
+  }
+  private snap15(min: number): number {
+    return Math.round(min / 15) * 15;
+  }
+  private minToDate(date: Date, min: number): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return new Date(d.getTime() + min * 60000);
+  }
+
+  /** Bắt đầu bấm-giữ trên vùng trống của cột ngày (chuột/bút — bỏ qua chạm để không phá cuộn). */
+  createDown(ev: PointerEvent, date: Date): void {
+    if (ev.pointerType === 'touch') return; // trên điện thoại: giữ cử chỉ cuộn + chạm (dùng click ô giờ)
+    if (ev.button !== 0) return; // chỉ chuột trái
+    if ((ev.target as HTMLElement).closest('button')) return; // bấm trúng 1 sự kiện -> để nó tự xử lý
+    this.suppressNextClick = false; // bắt đầu tương tác mới -> xóa cờ cũ (phòng lần kéo trước không sinh click)
+    const el = ev.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    const startMin = this.snap15(this.yToMin(ev.clientY - rect.top));
+    this.createCtx = { date, colTop: rect.top, startMin, startY: ev.clientY, moved: false, el, pointerId: ev.pointerId };
+  }
+
+  createMove(ev: PointerEvent): void {
+    const ctx = this.createCtx;
+    if (!ctx) return;
+    // Chưa vượt ngưỡng 5px thì coi là click (không kéo) -> để (click) ô giờ xử lý.
+    if (!ctx.moved && Math.abs(ev.clientY - ctx.startY) < 5) return;
+    if (!ctx.moved) {
+      ctx.moved = true;
+      ctx.el.setPointerCapture?.(ctx.pointerId); // chỉ giữ con trỏ KHI đã thật sự kéo
+    }
+    const curMin = this.snap15(this.yToMin(ev.clientY - ctx.colTop));
+    const s = Math.min(ctx.startMin, curMin);
+    const e = Math.max(ctx.startMin, curMin);
+    this.createPreview.set({ date: ctx.date, startMin: s, endMin: Math.max(e, s + 15) });
+  }
+
+  createUp(ev: PointerEvent): void {
+    const ctx = this.createCtx;
+    const cp = this.createPreview();
+    this.createCtx = null;
+    this.createPreview.set(null);
+    if (!ctx) return;
+    if (ctx.moved) {
+      try { ctx.el.releasePointerCapture?.(ev.pointerId); } catch { /* chưa giữ -> bỏ qua */ }
+    }
+    if (!ctx.moved || !cp) return; // click đơn -> để onSlotClick tạo như cũ
+    this.suppressNextClick = true; // đã kéo -> nuốt click theo sau
+    const start = this.minToDate(ctx.date, cp.startMin);
+    const end = this.minToDate(ctx.date, Math.max(cp.endMin, cp.startMin + 15));
+    this.rangeSelected.emit({ start, end });
+  }
+
+  createCancel(): void {
+    this.createCtx = null;
+    this.createPreview.set(null);
+  }
+
+  /** Geometry + nhãn của ô ghost cho đúng cột ngày đang kéo (null nếu không phải cột này). */
+  createGhost(date: Date): { top: number; height: number; label: string } | null {
+    const cp = this.createPreview();
+    if (!cp || !isSameDay(cp.date, date)) return null;
+    const top = (cp.startMin / 60) * HOUR_HEIGHT;
+    const height = Math.max(3, ((cp.endMin - cp.startMin) / 60) * HOUR_HEIGHT);
+    const fmt = (m: number) => {
+      const d = this.minToDate(date, m);
+      return this.settings.formatTime(d);
+    };
+    return { top, height, label: `${fmt(cp.startMin)} – ${fmt(cp.endMin)}` };
   }
 
   onEventClick(event: CalendarEvent, domEvent: Event): void {
