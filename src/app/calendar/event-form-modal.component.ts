@@ -16,6 +16,7 @@ import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
 import { TimePickerComponent } from '../shared/time-picker.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
+import { SelectComponent, SelectOption } from '../shared/select.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 import { AttachmentsApiService, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
@@ -59,31 +60,32 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
 @Component({
   selector: 'app-event-form-modal',
   standalone: true,
-  imports: [FormsModule, IconComponent, TimePickerComponent, DateTimePickerComponent],
+  imports: [FormsModule, IconComponent, TimePickerComponent, DateTimePickerComponent, SelectComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-10 sm:pt-20" (click)="close()">
-      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white p-4 shadow-xl sm:p-6" (click)="$event.stopPropagation()">
-        <div class="mb-3 flex items-start justify-between gap-4">
+    <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/40 px-4 pt-10 sm:pt-20" (click)="close()">
+      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col !rounded-[var(--radius-lg)] bg-white p-4 !shadow-[var(--shadow-lg)] sm:p-6" (click)="$event.stopPropagation()">
+        <div class="mb-4 flex items-start justify-between gap-4">
           <input
             type="text"
             [(ngModel)]="title"
             maxlength="200"
             [placeholder]="tr.t('form.addTitle')"
-            class="min-w-0 flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
+            class="min-w-0 flex-1 border-b border-gray-300 pb-1.5 text-xl font-medium outline-none focus:border-blue-600"
           />
-          <button type="button" (click)="close()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+          <button type="button" (click)="close()" class="btn-icon shrink-0" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
 
         <!-- Tabs: Sự kiện / Việc cần làm / Lên lịch hẹn -->
-        <div class="mb-4 flex gap-2">
+        <div class="mb-4 flex gap-1 rounded-md bg-gray-100 p-1 dark:bg-gray-800/60">
           @for (t of tabs; track t.key) {
             <button
               type="button"
               (click)="tab.set(t.key)"
-              class="rounded-full px-3 py-1 text-sm"
-              [class.bg-blue-100]="tab() === t.key"
-              [class.text-blue-800]="tab() === t.key"
+              class="flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors"
+              [class.bg-white]="tab() === t.key"
+              [class.shadow-sm]="tab() === t.key"
+              [class.text-blue-700]="tab() === t.key"
               [class.text-gray-600]="tab() !== t.key"
             >
               {{ tr.t('kind.' + t.key) }}
@@ -102,14 +104,14 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               <div class="flex flex-wrap items-center gap-2">
                 <span class="w-5 text-center">🕐</span>
                 <span class="w-16 shrink-0 font-medium text-gray-600">{{ tr.t('form.start') }}</span>
-                <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
+                <input type="date" [(ngModel)]="startDate" class="field disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
                 <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay() || !canEditTime()" />
               </div>
               <!-- Kết thúc — NGÀY khóa theo ngày bắt đầu (sự kiện gói gọn trong 1 ngày) -->
               <div class="flex flex-wrap items-center gap-2">
                 <span class="w-5 text-center"></span>
                 <span class="w-16 shrink-0 font-medium text-gray-600">{{ tr.t('form.end') }}</span>
-                <input type="date" [ngModel]="startDate()" [disabled]="true" [title]="tr.t('form.sameDayHint')" class="rounded border border-gray-300 px-2 py-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" />
+                <input type="date" [ngModel]="startDate()" [disabled]="true" [title]="tr.t('form.sameDayHint')" class="field disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" />
                 <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay() || !canEditTime()" />
               </div>
               <p class="pl-[5.75rem] text-xs text-gray-400">{{ tr.t('form.sameDayHint') }}</p>
@@ -125,11 +127,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
             @if (!editing()) {
               <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
                 <span>🔁</span>
-                <select [ngModel]="recurKey()" (ngModelChange)="onRecurChange($event)" class="rounded border border-gray-300 px-2 py-1">
-                  @for (o of recurOptions(); track o.key) {
-                    <option [value]="o.key">{{ o.label }}</option>
-                  }
-                </select>
+                <app-select [options]="recurSelectOptions()" [ngModel]="recurKey()" (ngModelChange)="onRecurChange($event)" class="min-w-[14rem] flex-1" />
               </div>
               @if (recurKey() === 'custom') {
                 <p class="pl-7 text-xs text-gray-500">
@@ -161,13 +159,13 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                       (keydown.enter)="addGuest()"
                       maxlength="254"
                       [placeholder]="tr.t('form.addGuest')"
-                      class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1"
+                      class="min-w-0 flex-1 field"
                     />
-                    <button type="button" (click)="addGuest()" class="rounded bg-gray-100 px-3 py-1 hover:bg-gray-200">{{ tr.t('form.add') }}</button>
+                    <button type="button" (click)="addGuest()" class="btn btn-secondary !py-1">{{ tr.t('form.add') }}</button>
                   </div>
                   <!-- Gợi ý các email đã từng mời (autocomplete) -->
                   @if (guestSuggestions().length > 0) {
-                    <div class="popup-in absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                    <div class="surface-panel popup-in absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden">
                       @for (s of guestSuggestions(); track s) {
                         <button
                           type="button"
@@ -185,15 +183,13 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                     @for (g of guests(); track g.email) {
                       <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1">
                         <span class="min-w-0 flex-1 break-all">{{ g.email }}</span>
-                        <select
+                        <app-select
+                          [options]="guestRoleOptions()"
                           [ngModel]="g.canEdit ? 'editor' : 'viewer'"
                           (ngModelChange)="setGuestRole(g.email, $event === 'editor')"
-                          class="shrink-0 rounded border border-gray-300 px-1 py-0.5 text-xs"
+                          class="w-24 shrink-0 !text-xs"
                           [title]="tr.t('form.guestRoleHint')"
-                        >
-                          <option value="viewer">{{ tr.t('share.viewer') }}</option>
-                          <option value="editor">{{ tr.t('share.editor') }}</option>
-                        </select>
+                        />
                         <button type="button" (click)="removeGuest(g.email)" class="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
                       </li>
                     }
@@ -204,12 +200,12 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
             <div class="flex items-center gap-2 text-sm">
               <span class="w-5 text-center">📍</span>
-              <input type="text" [(ngModel)]="location" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1" />
+              <input type="text" [(ngModel)]="location" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 field" />
             </div>
 
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="3" maxlength="2000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded border border-gray-300 px-2 py-1 [field-sizing:content]"></textarea>
+              <textarea [(ngModel)]="description" rows="3" maxlength="1000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
             </div>
 
             <!-- Chọn màu cho sự kiện -->
@@ -222,7 +218,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                     (click)="color.set(c.name)"
                     [title]="tr.t('color.' + c.name)"
                     [attr.aria-label]="tr.t('color.' + c.name)"
-                    [class]="c.class + ' h-6 w-6 rounded-full ' + (color() === c.name ? 'ring-2 ring-gray-800 ring-offset-1' : '')"
+                    [class]="c.class + ' tap h-6 w-6 rounded-full transition-transform hover:scale-110 ' + (color() === c.name ? 'ring-2 ring-offset-2 ring-gray-700' : '')"
                   ></button>
                 }
               </div>
@@ -239,14 +235,9 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                   <input
                     type="number" min="0" max="200" step="1"
                     [ngModel]="r.value" (ngModelChange)="setReminderValue($index, $event)"
-                    class="w-20 rounded border border-gray-300 px-2 py-1"
+                    class="w-20 field"
                   />
-                  <select [ngModel]="r.unit" (ngModelChange)="setReminderUnit($index, $event)" class="rounded border border-gray-300 px-2 py-1">
-                    <option value="minute">{{ tr.t('unit.minute') }}</option>
-                    <option value="hour">{{ tr.t('unit.hour') }}</option>
-                    <option value="day">{{ tr.t('unit.day') }}</option>
-                    <option value="week">{{ tr.t('unit.week') }}</option>
-                  </select>
+                  <app-select [options]="unitOptions()" [ngModel]="r.unit" (ngModelChange)="setReminderUnit($index, $event)" class="w-28" />
                   <span class="text-gray-500">{{ tr.t('notif.before') }}</span>
                   <button type="button" (click)="removeReminder($index)" class="tap ml-auto rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" [attr.aria-label]="tr.t('notif.removeReminder')">
                     <app-icon name="x" class="h-3.5 w-3.5" />
@@ -263,7 +254,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                 <input
                   type="text" [(ngModel)]="reminderMessage" maxlength="300"
                   [placeholder]="tr.t('notif.messagePlaceholder')"
-                  class="ml-6 block w-[calc(100%-1.5rem)] rounded border border-gray-300 px-2 py-1"
+                  class="ml-6 block w-[calc(100%-1.5rem)] field"
                 />
               }
             </div>
@@ -277,18 +268,20 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                   <input type="file" class="hidden" (change)="onStageFile($event)" />
                 </label>
               </div>
-              <p class="text-[11px] text-gray-400">{{ tr.t('attach.limit') }}</p>
+              <p class="text-[11px] text-gray-500">{{ tr.t('attach.limit') }}</p>
               @if (stageError()) {
                 <p class="rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ stageError() }}</p>
               }
-              <div class="grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
-                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.from') }}
+              <!-- Xếp DỌC thay vì grid-cols-2: 2 cột quá chật để vừa ô ngày + 2 ô giờ cạnh
+                   nhau trong modal, gây chồng/cắt chữ. Xếp dọc cho mỗi mốc đủ bề rộng. -->
+              <div class="flex flex-col gap-3 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex flex-col gap-1 text-gray-500">{{ tr.t('attach.from') }}
                   <app-datetime-picker [(ngModel)]="stageFrom" />
                 </label>
-                <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.until') }}
+                <label class="flex flex-col gap-1 text-gray-500">{{ tr.t('attach.until') }}
                   <app-datetime-picker [(ngModel)]="stageUntil" />
                 </label>
-                <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
+                <p class="text-[11px] text-gray-500">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
               @for (s of stagedFiles(); track $index) {
                 <div class="flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs">
@@ -306,12 +299,12 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
           <div class="space-y-4">
             <div class="flex items-center gap-2 text-sm">
               <app-icon name="target" class="h-4 w-4 text-gray-500" />
-              <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
+              <input type="date" [(ngModel)]="startDate" class="field" />
               <app-time-picker [(ngModel)]="startTime" />
             </div>
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="3" maxlength="2000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded border border-gray-300 px-2 py-1 [field-sizing:content]"></textarea>
+              <textarea [(ngModel)]="description" rows="3" maxlength="1000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
             </div>
           </div>
         }
@@ -333,7 +326,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                     type="number" min="5" max="480" step="5" inputmode="numeric"
                     [ngModel]="bookingPage()?.duration_minutes"
                     (ngModelChange)="setDuration($event)"
-                    class="w-28 rounded-md border border-gray-300 px-3 py-2"
+                    class="w-28 field !py-2"
                   />
                   <span class="text-gray-500">{{ tr.t('booking.min') }}</span>
                 </div>
@@ -350,8 +343,8 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                 <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
                 <input [value]="bookingLink()" readonly class="mb-2 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
                 <div class="flex flex-wrap gap-2">
-                  <button type="button" (click)="copyBookingLink()" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ bookingCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
-                  <a [href]="bookingLink()" target="_blank" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ tr.t('booking.open') }}</a>
+                  <button type="button" (click)="copyBookingLink()" class="btn btn-secondary">{{ bookingCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
+                  <a [href]="bookingLink()" target="_blank" class="btn btn-secondary">{{ tr.t('booking.open') }}</a>
                 </div>
               </div>
             } @else {
@@ -370,13 +363,13 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
         }
 
         <div class="mt-6 flex justify-end gap-2">
-          <button type="button" (click)="close()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
+          <button type="button" (click)="close()" class="btn btn-ghost">{{ tr.t('del.cancel') }}</button>
           @if (tab() !== 'appointment') {
             <button
               type="button"
               (click)="save()"
               [disabled]="saving()"
-              class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+              class="btn btn-primary"
             >{{ saving() ? tr.t('form.saving') : tr.t('form.save') }}</button>
           }
         </div>
@@ -386,19 +379,14 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
     <!-- Hộp thoại LẶP LẠI TÙY CHỈNH (lớp phủ riêng, nằm trên modal sự kiện) -->
     @if (showCustomRecur()) {
       <div class="modal-backdrop-in fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" (click)="cancelCustom()">
-        <div class="modal-card-in w-full max-w-sm rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+        <div class="modal-card-in w-full max-w-sm !rounded-[var(--radius-lg)] bg-white p-6 !shadow-[var(--shadow-lg)]" (click)="$event.stopPropagation()">
           <h3 class="mb-4 text-lg font-medium text-gray-800">{{ tr.t('recur.title') }}</h3>
 
           <!-- Lặp lại mỗi N [đơn vị] -->
           <div class="mb-4 flex items-center gap-2 text-sm">
             <span class="text-gray-600">{{ tr.t('recur.every') }}</span>
-            <input type="number" min="1" max="999" [ngModel]="customInterval()" (ngModelChange)="customInterval.set(+$event || 1)" class="w-16 rounded border border-gray-300 px-2 py-1" />
-            <select [ngModel]="customFreq()" (ngModelChange)="setCustomFreq($event)" class="rounded border border-gray-300 px-2 py-1">
-              <option value="daily">{{ tr.t('recur.day') }}</option>
-              <option value="weekly">{{ tr.t('recur.week') }}</option>
-              <option value="monthly">{{ tr.t('recur.month') }}</option>
-              <option value="yearly">{{ tr.t('recur.year') }}</option>
-            </select>
+            <input type="number" min="1" max="999" [ngModel]="customInterval()" (ngModelChange)="customInterval.set(+$event || 1)" class="w-16 field" />
+            <app-select [options]="customFreqOptions()" [ngModel]="customFreq()" (ngModelChange)="setCustomFreq($event)" class="w-32" />
           </div>
 
           <!-- Lặp lại vào các thứ (chỉ khi theo tuần) -->
@@ -430,19 +418,19 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
             <label class="mb-1.5 flex flex-wrap items-center gap-2 text-sm">
               <input type="radio" name="recurEnd" [checked]="customEndType() === 'until'" (change)="customEndType.set('until')" />
               {{ tr.t('recur.onDate') }}
-              <input type="date" [ngModel]="customUntil()" (ngModelChange)="customUntil.set($event)" [disabled]="customEndType() !== 'until'" class="rounded border border-gray-300 px-2 py-1 disabled:bg-gray-100 disabled:text-gray-400" />
+              <input type="date" [ngModel]="customUntil()" (ngModelChange)="customUntil.set($event)" [disabled]="customEndType() !== 'until'" class="field disabled:bg-gray-100 disabled:text-gray-400" />
             </label>
             <label class="flex flex-wrap items-center gap-2 text-sm">
               <input type="radio" name="recurEnd" [checked]="customEndType() === 'count'" (change)="customEndType.set('count')" />
               {{ tr.t('recur.after') }}
-              <input type="number" min="1" max="366" [ngModel]="customCount()" (ngModelChange)="customCount.set(+$event || 1)" [disabled]="customEndType() !== 'count'" class="w-16 rounded border border-gray-300 px-2 py-1 disabled:bg-gray-100 disabled:text-gray-400" />
+              <input type="number" min="1" max="366" [ngModel]="customCount()" (ngModelChange)="customCount.set(+$event || 1)" [disabled]="customEndType() !== 'count'" class="w-16 field disabled:bg-gray-100 disabled:text-gray-400" />
               {{ tr.t('recur.times') }}
             </label>
           </div>
 
           <div class="flex justify-end gap-2">
-            <button type="button" (click)="cancelCustom()" class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
-            <button type="button" (click)="applyCustom()" class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">{{ tr.t('recur.done') }}</button>
+            <button type="button" (click)="cancelCustom()" class="btn btn-ghost">{{ tr.t('del.cancel') }}</button>
+            <button type="button" (click)="applyCustom()" class="btn btn-primary">{{ tr.t('recur.done') }}</button>
           </div>
         </div>
       </div>
@@ -629,6 +617,29 @@ export class EventFormModalComponent {
       { key: 'custom', label: this.tr.t('form.custom') },
     ];
   });
+  /** app-select cần shape {value,label} — recurOptions() dùng {key,label} nên map lại. */
+  readonly recurSelectOptions = computed<SelectOption[]>(() =>
+    this.recurOptions().map((o) => ({ value: o.key, label: o.label })),
+  );
+
+  readonly guestRoleOptions = computed<SelectOption[]>(() => [
+    { value: 'viewer', label: this.tr.t('share.viewer') },
+    { value: 'editor', label: this.tr.t('share.editor') },
+  ]);
+
+  readonly unitOptions = computed<SelectOption[]>(() => [
+    { value: 'minute', label: this.tr.t('unit.minute') },
+    { value: 'hour', label: this.tr.t('unit.hour') },
+    { value: 'day', label: this.tr.t('unit.day') },
+    { value: 'week', label: this.tr.t('unit.week') },
+  ]);
+
+  readonly customFreqOptions = computed<SelectOption[]>(() => [
+    { value: 'daily', label: this.tr.t('recur.day') },
+    { value: 'weekly', label: this.tr.t('recur.week') },
+    { value: 'monthly', label: this.tr.t('recur.month') },
+    { value: 'yearly', label: this.tr.t('recur.year') },
+  ]);
 
   /** Tóm tắt ngắn cấu hình "Tùy chỉnh" để hiện dưới dropdown. */
   readonly customSummary = computed<string>(() => {

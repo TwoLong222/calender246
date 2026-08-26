@@ -27,29 +27,29 @@ const MAX_CHIPS_PER_CELL = 3;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-full flex-col">
-      <div class="grid grid-cols-7 border-b border-gray-200 text-center text-xs font-medium uppercase text-gray-500">
+      <div class="grid grid-cols-7 border-b border-gray-200 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500">
         @for (label of weekdayLabels(); track label) {
-          <div class="py-2">{{ label }}</div>
+          <div class="py-2.5">{{ label }}</div>
         }
       </div>
 
       <div class="grid flex-1 grid-cols-7 grid-rows-6">
         @for (cell of cells(); track cell.date.getTime()) {
           <div
-            class="flex flex-col border-b border-r border-gray-100 p-1"
+            class="group flex flex-col border-b border-r border-gray-100 p-1.5 transition-colors hover:bg-gray-50/70"
             [class.bg-gray-50]="!cell.inCurrentMonth"
             (click)="dateClicked.emit(cell.date)"
           >
-            <div class="mb-0.5 flex items-start justify-between">
+            <div class="mb-1 flex items-start justify-between">
               <span
-                class="text-[10px] leading-5"
+                class="pt-0.5 text-[10px] leading-5"
                 [class.text-gray-300]="!cell.inCurrentMonth"
                 [class.font-semibold]="cell.isLunarStart"
                 [class.text-amber-600]="cell.inCurrentMonth && cell.isLunarStart"
                 [class.text-gray-400]="cell.inCurrentMonth && !cell.isLunarStart"
               >{{ cell.lunarLabel }}</span>
               <span
-                class="flex h-6 w-6 items-center justify-center rounded-full text-sm"
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-medium"
                 [class.text-gray-300]="!cell.inCurrentMonth"
                 [class.text-red-600]="cell.inCurrentMonth && cell.holidayPublic && !isToday(cell.date)"
                 [class.text-gray-700]="cell.inCurrentMonth && !cell.holidayPublic && !isToday(cell.date)"
@@ -62,7 +62,7 @@ const MAX_CHIPS_PER_CELL = 3;
 
             @if (cell.holiday) {
               <p
-                class="mb-0.5 truncate text-[10px] leading-tight"
+                class="mb-1 truncate text-[10px] leading-tight"
                 [class.text-red-600]="cell.holidayPublic"
                 [class.text-gray-500]="!cell.holidayPublic"
                 [class.opacity-50]="!cell.inCurrentMonth"
@@ -70,19 +70,21 @@ const MAX_CHIPS_PER_CELL = 3;
               >{{ cell.holiday }}</p>
             }
 
-            <div class="flex flex-1 flex-col gap-0.5 overflow-hidden">
+            <div class="flex flex-1 flex-col gap-1 overflow-hidden">
               @for (e of eventsFor(cell.date); track e.id) {
                 <button
                   type="button"
                   (click)="onEventClick(e, $event)"
-                  class="truncate rounded px-1 text-left text-[11px] text-white"
+                  class="flex items-center gap-1 truncate rounded px-1.5 py-[3px] text-left text-[11px] font-medium text-white shadow-sm transition-transform hover:-translate-y-px hover:shadow"
                   [class]="colorClass(e.color) + (state.isHighlighted(e.id) ? ' ring-2 ring-amber-400 animate-pulse' : '')"
                 >
-                  @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
+                  @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥</span> }
+                  @if (!e.isAllDay) { <span class="mono shrink-0 opacity-80">{{ eventTime(e) }}</span> }
+                  <span class="truncate">{{ e.title || tr.t('common.untitled') }}</span>
                 </button>
               }
               @if (overflowCount(cell.date) > 0) {
-                <span class="px-1 text-[11px] text-gray-500">+{{ overflowCount(cell.date) }} nữa</span>
+                <span class="px-1.5 text-[11px] font-medium text-gray-400 group-hover:text-gray-500">+{{ overflowCount(cell.date) }} nữa</span>
               }
             </div>
           </div>
@@ -166,6 +168,11 @@ export class MonthViewComponent {
       amber: 'bg-amber-600',
     };
     return map[color] ?? 'bg-sky-600';
+  }
+
+  /** Giờ bắt đầu ngắn gọn cho chip sự kiện trong ô ngày (chỉ sự kiện không phải cả ngày). */
+  eventTime(e: CalendarEvent): string {
+    return e.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   }
 
   onEventClick(e: CalendarEvent, domEvent: Event): void {
