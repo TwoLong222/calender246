@@ -262,6 +262,15 @@ export class NotificationService {
     this.saveHistory([]);
   }
 
+  /** Xóa 1 dòng khỏi lịch sử (nút X ở "Sự kiện gần đây" trong chuông + trang Lịch sử). */
+  removeHistory(id: string): void {
+    this.history.update((list) => {
+      const next = list.filter((h) => h.id !== id);
+      this.saveHistory(next);
+      return next;
+    });
+  }
+
   // ---------- Chuông thông báo — Bị sửa/Bị hủy (localStorage, tự rơi khỏi chuông sau 3 ngày) ----------
 
   private loadBellList<T extends { at: number }>(key: string): T[] {

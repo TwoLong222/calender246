@@ -5,7 +5,7 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
 import { GroupChatService } from '../groups/chat.service';
@@ -468,7 +468,6 @@ export class CalendarPageComponent implements OnInit {
   protected readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);
-  private readonly router = inject(Router);
   /** Danh sách view cho bộ chọn dạng segmented ở header (desktop). */
   protected readonly viewOptions: { value: ViewMode; key: string }[] = [
     { value: 'day', key: 'view.day' },
@@ -722,7 +721,7 @@ export class CalendarPageComponent implements OnInit {
   }
 
   async logout(): Promise<void> {
-    await this.supabase.signOut();
-    this.router.navigateByUrl('/login');
+    // Đăng xuất -> ra thẳng trang landing (không phải trang đăng nhập).
+    await this.supabase.signOutToLanding();
   }
 }

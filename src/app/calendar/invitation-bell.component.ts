@@ -53,8 +53,8 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
               <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.recentTitle') }}</span>
             </div>
             @for (h of notify.recentHistory(); track h.id) {
-              <!-- Có sự kiện liên quan -> bấm cả dòng để nhảy tới sự kiện đó -->
-              <div class="w-full border-b border-gray-50 px-3 py-2.5 text-left"
+              <!-- Có sự kiện liên quan -> bấm cả dòng để nhảy tới sự kiện đó. Nút X ở góc để tự xóa dòng. -->
+              <div class="group relative w-full border-b border-gray-50 px-3 py-2.5 text-left"
                 [class]="canOpenHistory(h) ? 'cursor-pointer hover:bg-gray-50' : ''"
                 (click)="openHistoryEntry(h)">
                 <div class="flex items-center justify-between gap-2">
@@ -67,9 +67,14 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
                   </span>
                   <span class="shrink-0 text-xs text-gray-400">{{ recentTimeLabel(h.at) }}</span>
                 </div>
-                <p class="mt-1 break-words text-sm font-medium text-gray-800">{{ h.title }}</p>
-                @if (h.detail) { <p class="break-words text-xs text-gray-500">{{ h.detail }}</p> }
-                @if (h.body) { <p class="break-words text-xs text-gray-500">{{ h.body }}</p> }
+                <p class="mt-1 break-words pr-6 text-sm font-medium text-gray-800">{{ h.title }}</p>
+                @if (h.detail) { <p class="break-words pr-6 text-xs text-gray-500">{{ h.detail }}</p> }
+                @if (h.body) { <p class="break-words pr-6 text-xs text-gray-500">{{ h.body }}</p> }
+                <button type="button" (click)="removeRecent($event, h.id)"
+                  class="absolute bottom-2 right-2 rounded-full p-1 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
+                  [attr.aria-label]="tr.t('detail.delete')">
+                  <app-icon name="trash" class="h-3.5 w-3.5" />
+                </button>
               </div>
             }
             <!-- Mục "gần đây" chỉ hiện tối đa 5 (RECENT_MAX_ITEMS) — muốn xem cũ hơn thì qua
@@ -89,8 +94,8 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
             @for (n of remindersVisible(); track n.id) {
               <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
                 <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400"></span>
-                <!-- Bấm -> mở đúng sự kiện được nhắc -->
-                <button type="button" (click)="goToEvent(n.eventId)" class="min-w-0 flex-1 text-left" [class.cursor-default]="!n.eventId">
+                <!-- Bấm -> mở sự kiện được nhắc VÀ đánh dấu đã đọc (chấm đỏ tự mất, không cần bấm X) -->
+                <button type="button" (click)="openReminder(n)" class="min-w-0 flex-1 text-left">
                   <p class="truncate text-sm font-medium text-gray-800">{{ n.title }}</p>
                   @if (n.body) { <p class="text-xs text-gray-500">{{ n.body }}</p> }
                 </button>
@@ -276,6 +281,12 @@ export class InvitationBellComponent {
     this.open.set(false);
   }
 
+  /** Bấm 1 nhắc lịch: mở sự kiện (nếu có) + đánh dấu ĐÃ ĐỌC -> tự rơi khỏi chuông, chấm đỏ giảm. */
+  protected openReminder(n: { id: string; eventId: string | null }): void {
+    if (n.eventId) this.goToEvent(n.eventId);
+    this.notify.dismissReminder(n.id);
+  }
+
   /** Bấm 1 dòng trong "Sự kiện gần đây": tin nhắn -> mở chat nhóm; còn lại -> mở sự kiện. */
   protected openHistoryEntry(h: { eventId?: string; groupId?: string; title?: string }): void {
     if (h.groupId) {
@@ -290,6 +301,12 @@ export class InvitationBellComponent {
     // Thông báo CŨ (lưu trước khi có eventId) -> dò theo tiêu đề để vẫn bấm được.
     const byTitle = this.state.events().find((e) => e.title && e.title === h.title);
     if (byTitle) this.goToEvent(byTitle.id);
+  }
+
+  /** Xóa 1 dòng khỏi "Sự kiện gần đây" — chặn nổi bọt để không kích hoạt mở sự kiện của cả dòng. */
+  protected removeRecent(ev: Event, id: string): void {
+    ev.stopPropagation();
+    this.notify.removeHistory(id);
   }
 
   /** Dòng lịch sử có mở được gì không (dùng để bật con trỏ + hiệu ứng rê chuột). */

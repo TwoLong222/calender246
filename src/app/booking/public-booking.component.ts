@@ -38,6 +38,8 @@ interface DayGroup {
             <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-2xl">✓</div>
             <p class="text-lg font-medium">Đặt lịch thành công!</p>
             <p class="mt-1 text-sm text-gray-500">{{ chosenLabel() }}. Email xác nhận đã được gửi tới {{ email() }}.</p>
+            <button type="button" (click)="bookAgain()"
+              class="mt-4 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">← Đặt thêm lịch khác</button>
           </div>
         } @else {
           <div class="rounded-xl border border-gray-200 bg-white p-6">
@@ -86,9 +88,9 @@ interface DayGroup {
             } @else {
               <p class="mb-3 rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">{{ chosenLabel() }}</p>
               <label class="mb-1 block text-sm text-gray-600">Tên của bạn</label>
-              <input [(ngModel)]="name" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input [(ngModel)]="name" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               <label class="mb-1 block text-sm text-gray-600">Email</label>
-              <input type="email" [(ngModel)]="email" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input type="email" [(ngModel)]="email" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               @if (bookError()) { <p class="mb-2 text-sm text-red-600">{{ bookError() }}</p> }
               <div class="flex gap-2">
                 <button type="button" (click)="chosen.set(null)" class="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">← Chọn giờ khác</button>
@@ -181,23 +183,44 @@ export class PublicBookingComponent {
     this.api.getPublicPage(this.slug).subscribe({
       next: (p) => {
         this.page.set({ title: p.title, durationMinutes: p.durationMinutes });
-        this.api.getSlots(this.slug).subscribe({
-          next: (s) => {
-            this.slotList.set(s.slots);
-            if (s.workingDays?.length) this.workingDays.set(s.workingDays);
-            if (s.workingStart) this.workingStart.set(s.workingStart);
-            if (s.workingEnd) this.workingEnd.set(s.workingEnd);
-            if (s.daysAhead) this.daysAhead.set(s.daysAhead);
-            this.loading.set(false);
-          },
-          error: () => { this.slotList.set([]); this.loading.set(false); },
-        });
+        this.loadSlots();
       },
       error: (e) => {
         this.loading.set(false);
         this.loadError.set(e?.error?.message ?? 'Trang không tồn tại hoặc đang tắt.');
       },
     });
+  }
+
+  /** Tải (hoặc tải lại) danh sách khung giờ còn trống của trang đặt lịch. */
+  private loadSlots(): void {
+    this.loading.set(true);
+    this.api.getSlots(this.slug).subscribe({
+      next: (s) => {
+        this.slotList.set(s.slots);
+        if (s.workingDays?.length) this.workingDays.set(s.workingDays);
+        if (s.workingStart) this.workingStart.set(s.workingStart);
+        if (s.workingEnd) this.workingEnd.set(s.workingEnd);
+        if (s.daysAhead) this.daysAhead.set(s.daysAhead);
+        this.loading.set(false);
+      },
+      error: () => { this.slotList.set([]); this.loading.set(false); },
+    });
+  }
+
+  /** Sau khi đặt thành công, cho phép đặt tiếp một lịch hẹn khác (tải lại khung trống để bỏ khung vừa đặt). */
+  bookAgain(): void {
+    this.booked.set(false);
+    this.chosen.set(null);
+    this.pickedDay.set(null);
+    this.bookError.set(null);
+    this.loadSlots();
+  }
+
+  /** Bấm Enter trong ô Tên/Email -> đặt lịch (chỉ khi đã nhập đủ + không đang gửi). */
+  onBookingEnter(): void {
+    if (this.submitting() || !this.name().trim() || !this.email().trim()) return;
+    this.submit();
   }
 
   submit(): void {

@@ -155,8 +155,29 @@ export class EventsApiService {
     );
   }
 
-  update(id: string, draft: Omit<CalendarEvent, 'id'>): Observable<SaveResult> {
-    return this.http.patch<MutationResponse>(`${this.base}/${id}`, toApiPayload(draft)).pipe(
+  update(
+    id: string,
+    draft: Omit<CalendarEvent, 'id'>,
+    recurrence?: RecurrenceOptions,
+    editScope?: 'single' | 'series',
+  ): Observable<SaveResult> {
+    const payload = {
+      ...toApiPayload(draft),
+      // Sửa 1 sự kiện ĐƠN thành lặp -> gửi kèm luật lặp (backend sinh chuỗi).
+      ...(recurrence
+        ? {
+            repeatFreq: recurrence.freq,
+            repeatInterval: recurrence.interval,
+            ...(recurrence.weekdays?.length ? { repeatWeekdays: recurrence.weekdays } : {}),
+            ...(recurrence.monthlyMode ? { repeatMonthlyMode: recurrence.monthlyMode } : {}),
+            ...(recurrence.count ? { repeatCount: recurrence.count } : {}),
+            ...(recurrence.until ? { repeatUntil: recurrence.until } : {}),
+          }
+        : {}),
+      // Sửa 1 mắt trong chuỗi -> áp cho riêng mắt này hay cả chuỗi.
+      ...(editScope ? { editScope } : {}),
+    };
+    return this.http.patch<MutationResponse>(`${this.base}/${id}`, payload).pipe(
       map((res) => ({
         event: fromApiEvent(res.event),
         conflictTitles: res.conflicts.map((c) => c.title),

@@ -88,7 +88,7 @@ type Section =
                 <h2 class="mb-4 text-base font-semibold">{{ tr.t('acc.profile') }}</h2>
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.displayName') }}</label>
                 <div class="mb-4 flex gap-2">
-                  <input [(ngModel)]="displayName" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  <input [(ngModel)]="displayName" (keydown.enter)="saveProfile()" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <button type="button" (click)="saveProfile()" class="tap rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">{{ tr.t('acc.save') }}</button>
                 </div>
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.email') }}</label>
@@ -107,7 +107,7 @@ type Section =
                   <h2 class="mb-4 text-base font-semibold">{{ tr.t('acc.changePw') }}</h2>
                   <input type="password" [(ngModel)]="curPw" [placeholder]="tr.t('acc.curPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <input type="password" [(ngModel)]="newPw" [placeholder]="tr.t('acc.newPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                  <input type="password" [(ngModel)]="confirmPw" [placeholder]="tr.t('acc.confirmPw')" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  <input type="password" [(ngModel)]="confirmPw" (keydown.enter)="changePassword()" [placeholder]="tr.t('acc.confirmPw')" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <button type="button" (click)="changePassword()" class="tap rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">{{ tr.t('acc.changePw') }}</button>
                   @if (pwMsg(); as m) { <p class="mt-2 text-xs" [class.text-green-700]="pwOk()" [class.text-red-600]="!pwOk()">{{ m }}</p> }
                 </section>
@@ -970,23 +970,22 @@ export class SettingsPageComponent {
     this.deleting.set(true);
     try {
       await firstValueFrom(this.http.delete(`${environment.apiUrl}/account`));
-      await this.supabase.signOut();
       this.settings.reset();
-      await this.router.navigate(['/login']);
+      // Tài khoản đã bị xoá -> ra landing (không còn gì để đăng nhập lại).
+      await this.supabase.signOutToLanding();
     } catch {
       this.deleting.set(false);
     }
   }
 
   protected async logout(): Promise<void> {
-    await this.supabase.signOut();
     this.settings.reset();
-    await this.router.navigate(['/login']);
+    // Đăng xuất -> ra thẳng trang landing (không phải trang đăng nhập).
+    await this.supabase.signOutToLanding();
   }
 
   protected async logoutAll(): Promise<void> {
-    await this.supabase.client.auth.signOut({ scope: 'global' });
     this.settings.reset();
-    await this.router.navigate(['/login']);
+    await this.supabase.signOutToLanding('global');
   }
 }
