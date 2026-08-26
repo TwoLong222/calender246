@@ -134,6 +134,31 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
         }
       </div>
 
+      <!-- HÀNG "CẢ NGÀY": sự kiện cả ngày không có giờ nên không đặt được trên lưới giờ
+           -> cho riêng một dải ngay dưới header (giống Google Calendar). Trước đây chúng
+           bị lọc bỏ hoàn toàn nên tick "Cả ngày" xong là sự kiện biến mất. -->
+      @if (hasAllDay()) {
+        <div class="flex border-b border-gray-200 bg-gray-50/60">
+          <div class="flex w-14 shrink-0 items-center justify-end pr-2">
+            <span class="text-[11px] font-medium text-gray-500">{{ tr.t('common.allDay') }}</span>
+          </div>
+          @for (date of dates(); track date.getTime()) {
+            <div class="min-h-[2rem] flex-1 space-y-1 border-l border-gray-100 p-1">
+              @for (e of allDayEvents(date); track e.id) {
+                <button
+                  type="button"
+                  (click)="onEventClick(e, $event)"
+                  class="block w-full truncate rounded px-2 py-0.5 text-left text-xs text-white"
+                  [class]="colorClass(e.color)"
+                >
+                  @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
       <!-- Lưới thời gian, cuộn được -->
       <div #scrollArea class="relative flex-1 overflow-y-auto">
         <div #gridRow class="flex" [style.height.px]="HOUR_HEIGHT * 24">
@@ -320,6 +345,22 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   weekdayLabel(d: Date): string {
     return this.tr.t('wd.' + d.getDay());
+  }
+
+  /** Sự kiện CẢ NGÀY của 1 ngày — hiện ở dải riêng phía trên lưới giờ. */
+  allDayEvents(date: Date): CalendarEvent[] {
+    return this.events().filter((e) => e.isAllDay && this.coversDay(e, date));
+  }
+  /** Có sự kiện cả ngày nào trong các ngày đang xem không (để ẩn dải khi không có). */
+  hasAllDay(): boolean {
+    return this.dates().some((d) => this.allDayEvents(d).length > 0);
+  }
+  /** Sự kiện cả ngày có thể kéo dài nhiều ngày -> hiện ở MỌI ngày nó phủ qua. */
+  private coversDay(e: CalendarEvent, date: Date): boolean {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart.getTime() + 86_400_000 - 1);
+    return e.start <= dayEnd && e.end >= dayStart;
   }
 
   positionedEvents(date: Date): LayoutedEvent[] {
