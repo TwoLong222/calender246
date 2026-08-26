@@ -6,7 +6,7 @@ import { CalendarEvent } from '../calendar/calendar.types';
 import { GroupsApiService } from './groups-api.service';
 import { GoogleMeetService } from './google-meet.service';
 import { GroupRealtimeService, GroupEventMessage } from './realtime.service';
-import { GROUP_COLORS, Group } from './groups.types';
+import { GROUP_COLORS, Group, PendingGroupInvite } from './groups.types';
 
 @Injectable({ providedIn: 'root' })
 export class GroupsStateService {
@@ -18,6 +18,9 @@ export class GroupsStateService {
   readonly error = signal<string | null>(null);
   /** Thông báo ngắn khi lịch nhóm vừa thay đổi (tự ẩn) */
   readonly flash = signal<string | null>(null);
+
+  /** Lời mời nhóm đang chờ mình đồng ý (hiện nút Đồng ý/Từ chối ở sidebar). */
+  readonly pendingInvites = signal<PendingGroupInvite[]>([]);
 
   /** Nhóm nào đang được "hiện" trên lịch (mặc định: hiện tất cả) */
   readonly visibleGroupIds = signal<Set<string>>(new Set());
@@ -85,6 +88,32 @@ export class GroupsStateService {
     this.api.syncInvites().subscribe({ next: () => this.loadGroups(), error: () => this.loadGroups() });
   }
 
+  /** Tải danh sách lời mời nhóm đang chờ mình đồng ý. */
+  loadPendingInvites(): void {
+    this.api.listPendingInvites().subscribe({
+      next: (list) => this.pendingInvites.set(list),
+      error: () => this.pendingInvites.set([]),
+    });
+  }
+
+  /** Đồng ý 1 lời mời -> vào nhóm, tải lại danh sách. */
+  acceptInvite(groupId: string): void {
+    this.pendingInvites.update((l) => l.filter((i) => i.group_id !== groupId)); // ẩn ngay
+    this.api.acceptInvite(groupId).subscribe({
+      next: () => this.loadGroups(),
+      error: () => this.loadPendingInvites(),
+    });
+  }
+
+  /** Từ chối 1 lời mời (chủ nhóm vẫn thấy "đã từ chối"). */
+  declineInvite(groupId: string): void {
+    this.pendingInvites.update((l) => l.filter((i) => i.group_id !== groupId)); // ẩn ngay
+    this.api.declineInvite(groupId).subscribe({
+      next: () => {},
+      error: () => this.loadPendingInvites(),
+    });
+  }
+
   /**
    * Tải lại danh sách nhóm — gọi lúc mở trang VÀ mỗi khi nhận 'groups:changed' (realtime).
    * Giữ nguyên trạng thái hiện/ẩn của các nhóm ĐÃ biết (không reset toggle của user mỗi lần
@@ -97,6 +126,7 @@ export class GroupsStateService {
         const prevIds = new Set(this.groups().map((g) => g.id));
         const nextIds = new Set(groups.map((g) => g.id));
         this.groups.set(groups);
+        this.loadPendingInvites(); // lời mời chờ đổi khi có mời/đồng ý/từ chối
 
         this.visibleGroupIds.update((prevVisible) => {
           const next = new Set<string>();

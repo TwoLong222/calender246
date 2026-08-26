@@ -9,9 +9,12 @@ import { SupabaseService } from './supabase.service';
 export const homeGuard: CanActivateFn = async () => {
   const supabase = inject(SupabaseService);
 
-  const { data } = await supabase.client.auth.getSession();
+  // Dùng getSessionAfterOAuth: nếu vừa quay về từ màn hình cấp quyền Google (URL còn
+  // mang ?code=…) thì đợi đổi mã xong mới kết luận — tránh đá người dùng ra landing
+  // ngay sau khi họ vừa bấm "Continue".
+  const session = await supabase.getSessionAfterOAuth();
 
-  if (data.session) return true;
+  if (session) return true;
 
   window.location.href = '/landing/index.html';
   return false;

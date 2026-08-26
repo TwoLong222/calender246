@@ -17,11 +17,11 @@ interface MiniMonthCell {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="grid h-full grid-cols-4 gap-6 overflow-y-auto p-4">
+    <div class="grid h-full grid-cols-2 gap-4 overflow-y-auto p-4 sm:grid-cols-3 lg:grid-cols-4">
       @for (month of months(); track month.getTime()) {
-        <div>
-          <div class="mb-2 text-center text-sm font-medium text-gray-700">{{ tr.monthLong(month.getMonth()) }}</div>
-          <div class="grid grid-cols-7 gap-y-1 text-center text-[10px] text-gray-400">
+        <div class="rounded-lg p-2 transition-colors hover:bg-gray-50">
+          <div class="mb-2 text-center text-sm font-semibold text-gray-700">{{ tr.monthLong(month.getMonth()) }}</div>
+          <div class="grid grid-cols-7 gap-y-1 text-center text-[10px] font-medium text-gray-400">
             @for (label of weekdayLabels(); track label) {
               <span>{{ label }}</span>
             }
@@ -31,12 +31,12 @@ interface MiniMonthCell {
               <button
                 type="button"
                 (click)="dateClicked.emit(cell.date)"
-                class="relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[11px]"
+                class="relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[11px] transition-colors hover:bg-blue-100"
                 [class.text-gray-300]="!cell.inCurrentMonth"
                 [class.text-gray-700]="cell.inCurrentMonth && !isToday(cell.date)"
                 [class.bg-blue-700]="isToday(cell.date)"
                 [class.text-white]="isToday(cell.date)"
-                [class.font-medium]="cell.inCurrentMonth && hasEvent(cell.date)"
+                [class.font-semibold]="cell.inCurrentMonth && hasEvent(cell.date)"
               >
                 {{ cell.date.getDate() }}
                 <!-- Chấm nhỏ dưới ngày có sự kiện; hôm nay thì đổi thành trắng cho nổi trên nền xanh -->

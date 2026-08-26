@@ -14,6 +14,7 @@ const CAT_KEY: Record<NotifKind, string> = {
   cancelled: 'toast.catCancelled',
   file: 'toast.catFile',
   chat: 'toast.catChat',
+  shared: 'toast.catShared',
 };
 
 const ICON_NAME: Record<NotifKind, IconName> = {
@@ -23,6 +24,7 @@ const ICON_NAME: Record<NotifKind, IconName> = {
   cancelled: 'trash',
   file: 'notes',
   chat: 'message',
+  shared: 'user',
 };
 
 const BADGE_CLASS: Record<NotifKind, string> = {
@@ -32,6 +34,7 @@ const BADGE_CLASS: Record<NotifKind, string> = {
   cancelled: 'bg-red-50 text-red-700',
   file: 'bg-violet-50 text-violet-700',
   chat: 'bg-indigo-50 text-indigo-700',
+  shared: 'bg-teal-50 text-teal-700',
 };
 
 const BORDER_CLASS: Record<NotifKind, string> = {
@@ -41,6 +44,7 @@ const BORDER_CLASS: Record<NotifKind, string> = {
   cancelled: 'border-red-200',
   file: 'border-violet-200',
   chat: 'border-indigo-200',
+  shared: 'border-teal-200',
 };
 
 export function notifCatKey(kind: NotifKind): string {

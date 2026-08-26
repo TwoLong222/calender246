@@ -19,9 +19,13 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from './settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
+import { FeedApiService, CalendarFeed } from './feed-api.service';
+import { ConfirmService } from '../shared/confirm.service';
 import { SharingApiService, CalendarMember } from '../sharing/sharing-api.service';
+import { AttachmentsApiService, EventFileGroup } from '../calendar/attachments-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
 import { TimePickerComponent } from '../shared/time-picker.component';
+import { SelectComponent, SelectOption } from '../shared/select.component';
 import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
 import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { Toast } from '../notifications/notification.service';
@@ -39,12 +43,13 @@ type Section =
   | 'appearance'
   | 'privacy'
   | 'email'
+  | 'files'
   | 'ai';
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [FormsModule, IconComponent, RouterLink, TimePickerComponent],
+  imports: [FormsModule, IconComponent, RouterLink, TimePickerComponent, SelectComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="min-h-screen bg-gray-50 text-gray-800">
@@ -58,7 +63,9 @@ type Section =
       </header>
 
       <div class="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:flex-row">
-        <nav class="flex gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-white p-1 md:w-56 md:flex-col md:overflow-visible md:p-2">
+        <!-- md:self-start: cột menu chỉ cao bằng nội dung của nó, KHÔNG bị kéo dài
+             bằng chiều cao panel bên phải khi mở mục nhiều nội dung. -->
+        <nav class="flex gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-white p-1 md:w-56 md:flex-col md:self-start md:overflow-visible md:p-2">
           @for (sec of sections; track sec.id) {
             <button
               type="button"
@@ -81,11 +88,16 @@ type Section =
                 <h2 class="mb-4 text-base font-semibold">{{ tr.t('acc.profile') }}</h2>
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.displayName') }}</label>
                 <div class="mb-4 flex gap-2">
-                  <input [(ngModel)]="displayName" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  <input [(ngModel)]="displayName" (keydown.enter)="saveProfile()" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <button type="button" (click)="saveProfile()" class="tap rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">{{ tr.t('acc.save') }}</button>
                 </div>
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.email') }}</label>
-                <input [value]="email()" disabled class="mb-4 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
+                <div class="mb-4 flex gap-2">
+                  <input [value]="emailShown()" disabled class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
+                  <button type="button" (click)="emailRevealed.set(!emailRevealed())" class="tap shrink-0 rounded-md border border-gray-300 px-3 text-sm text-gray-600 hover:bg-gray-50" [attr.aria-label]="emailRevealed() ? tr.t('acc.hideEmail') : tr.t('acc.showEmail')">
+                    <app-icon [name]="emailRevealed() ? 'eye-off' : 'eye'" class="h-4 w-4" />
+                  </button>
+                </div>
                 <p class="text-xs text-gray-400">{{ tr.t('acc.created') }}: {{ createdAt() }}</p>
                 @if (profileMsg(); as m) { <p class="mt-2 text-xs text-green-700">{{ m }}</p> }
               </section>
@@ -95,7 +107,7 @@ type Section =
                   <h2 class="mb-4 text-base font-semibold">{{ tr.t('acc.changePw') }}</h2>
                   <input type="password" [(ngModel)]="curPw" [placeholder]="tr.t('acc.curPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <input type="password" [(ngModel)]="newPw" [placeholder]="tr.t('acc.newPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                  <input type="password" [(ngModel)]="confirmPw" [placeholder]="tr.t('acc.confirmPw')" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  <input type="password" [(ngModel)]="confirmPw" (keydown.enter)="changePassword()" [placeholder]="tr.t('acc.confirmPw')" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <button type="button" (click)="changePassword()" class="tap rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">{{ tr.t('acc.changePw') }}</button>
                   @if (pwMsg(); as m) { <p class="mt-2 text-xs" [class.text-green-700]="pwOk()" [class.text-red-600]="!pwOk()">{{ m }}</p> }
                 </section>
@@ -117,40 +129,25 @@ type Section =
                 <h2 class="text-base font-semibold">{{ tr.t('sec.general') }}</h2>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.language') }}</label>
-                  <select [ngModel]="s().language" (ngModelChange)="set({ language: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                  </select>
+                  <app-select [options]="languageOptions" [ngModel]="s().language" (ngModelChange)="set({ language: $any($event) })" class="w-full" />
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.timezone') }}</label>
-                  <select [ngModel]="s().timezone" (ngModelChange)="set({ timezone: $event })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    @for (tz of timezones; track tz) { <option [value]="tz">{{ tz }}</option> }
-                  </select>
+                  <app-select [options]="timezoneOptions" [ngModel]="s().timezone" (ngModelChange)="set({ timezone: $event })" class="w-full" />
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.dateFormat') }}</label>
-                  <select [ngModel]="s().date_format" (ngModelChange)="set({ date_format: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                  </select>
+                  <app-select [options]="dateFormatOptions" [ngModel]="s().date_format" (ngModelChange)="set({ date_format: $any($event) })" class="w-full" />
                   <p class="mt-1 text-xs text-gray-400">{{ tr.t('common.preview') }}: {{ settings.formatDate(now) }}</p>
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.timeFormat') }}</label>
-                  <select [ngModel]="s().time_format" (ngModelChange)="set({ time_format: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="24h">{{ tr.t('gen.time24') }}</option>
-                    <option value="12h">{{ tr.t('gen.time12') }}</option>
-                  </select>
+                  <app-select [options]="timeFormatOptions()" [ngModel]="s().time_format" (ngModelChange)="set({ time_format: $any($event) })" class="w-full" />
                   <p class="mt-1 text-xs text-gray-400">{{ tr.t('common.preview') }}: {{ settings.formatTime(now) }}</p>
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.startWeek') }}</label>
-                  <select [ngModel]="s().start_of_week" (ngModelChange)="set({ start_of_week: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option [ngValue]="1">{{ tr.t('gen.monday') }}</option>
-                    <option [ngValue]="0">{{ tr.t('gen.sunday') }}</option>
-                  </select>
+                  <app-select [options]="startWeekOptions()" [ngModel]="str(s().start_of_week)" (ngModelChange)="set({ start_of_week: $any(+$event) })" class="w-full" />
                 </div>
               </section>
             }
@@ -160,12 +157,7 @@ type Section =
                 <h2 class="text-base font-semibold">{{ tr.t('sec.calendar') }}</h2>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.defaultView') }}</label>
-                  <select [ngModel]="s().default_calendar_view" (ngModelChange)="set({ default_calendar_view: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="day">{{ tr.t('view.day') }}</option>
-                    <option value="week">{{ tr.t('view.week') }}</option>
-                    <option value="month">{{ tr.t('view.month') }}</option>
-                    <option value="year">{{ tr.t('view.year') }}</option>
-                  </select>
+                  <app-select [options]="defaultViewOptions()" [ngModel]="s().default_calendar_view" (ngModelChange)="set({ default_calendar_view: $any($event) })" class="w-full" />
                 </div>
                 <div>
                   <label class="mb-2 block text-sm text-gray-600">{{ tr.t('cal.workingDays') }}</label>
@@ -189,11 +181,7 @@ type Section =
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.slot') }}</label>
-                  <select [ngModel]="s().time_slot_duration" (ngModelChange)="set({ time_slot_duration: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option [ngValue]="15">15 {{ tr.t('cal.min') }}</option>
-                    <option [ngValue]="30">30 {{ tr.t('cal.min') }}</option>
-                    <option [ngValue]="60">60 {{ tr.t('cal.min') }}</option>
-                  </select>
+                  <app-select [options]="slotDurationOptions()" [ngModel]="str(s().time_slot_duration)" (ngModelChange)="set({ time_slot_duration: $any(+$event) })" class="w-full" />
                 </div>
                 <div class="space-y-2 border-t border-gray-200 pt-3">
                   <p class="text-sm font-medium text-gray-600">{{ tr.t('cal.display') }}</p>
@@ -236,15 +224,18 @@ type Section =
                   @if (notifMsg(); as m) { <p class="text-xs text-gray-400">{{ m }}</p> }
                   <div>
                     <label class="mb-1 block text-sm text-gray-600">{{ tr.t('notif.defaultReminder') }}</label>
-                    <select [ngModel]="reminderValue()" (ngModelChange)="setReminder($event)" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                      <option value="none">{{ tr.t('notif.none') }}</option>
-                      <option value="5">{{ tr.t('notif.r5') }}</option>
-                      <option value="10">{{ tr.t('notif.r10') }}</option>
-                      <option value="15">{{ tr.t('notif.r15') }}</option>
-                      <option value="30">{{ tr.t('notif.r30') }}</option>
-                      <option value="60">{{ tr.t('notif.r60') }}</option>
-                      <option value="1440">{{ tr.t('notif.r1440') }}</option>
-                    </select>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <label class="flex items-center gap-1.5 text-sm">
+                        <input type="checkbox" [checked]="s().default_reminder !== null" (change)="toggleDefaultReminder($event)" class="accent-blue-600" />
+                        {{ tr.t('notif.remindBefore') }}
+                      </label>
+                      @if (s().default_reminder !== null) {
+                        <input type="number" min="0" inputmode="numeric" [ngModel]="s().default_reminder" (ngModelChange)="setReminderNum($event)" class="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                        <span class="text-sm text-gray-500">{{ tr.t('notif.minutesBefore') }}</span>
+                      } @else {
+                        <span class="text-sm text-gray-400">{{ tr.t('notif.remindOff') }}</span>
+                      }
+                    </div>
                     <p class="mt-1 text-xs text-gray-400">{{ tr.t('notif.reminderNote') }}</p>
                   </div>
                 </div>
@@ -289,9 +280,9 @@ type Section =
                   }
                 </div>
 
-                <!-- Màu tùy chỉnh -->
+                <!-- Màu tùy chỉnh: bấm ô màu để chọn bất kỳ màu nào ngoài các màu có sẵn ở trên -->
                 <label class="flex items-center gap-3 text-sm">
-                  <span class="text-gray-700">{{ tr.t('theme.custom') }}</span>
+                  <span class="text-gray-700">{{ tr.t('theme.pickOwn') }}</span>
                   <input
                     type="color"
                     [value]="themeBuilder.customBase()"
@@ -308,11 +299,12 @@ type Section =
                     <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm text-white">21</span>
                     <button type="button" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">{{ tr.t('form.save') }}</button>
                     <span class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700">{{ tr.t('theme.accent') }}</span>
-                    <a class="text-sm text-blue-600 hover:underline">{{ tr.t('theme.custom') }}</a>
+                    <!-- Chỉ là VÍ DỤ minh hoạ kiểu liên kết, không bấm được -->
+                    <a class="text-sm text-blue-600">{{ tr.t('theme.previewLink') }}</a>
                   </div>
                 </div>
 
-                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700">
                   {{ tr.t('theme.reset') }}
                 </button>
               </section>
@@ -364,10 +356,7 @@ type Section =
                 <h2 class="text-base font-semibold">{{ tr.t('sec.privacy') }}</h2>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('priv.eventDefault') }}</label>
-                  <select [ngModel]="s().event_default_privacy" (ngModelChange)="set({ event_default_privacy: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="private">{{ tr.t('priv.private') }}</option>
-                    <option value="public">{{ tr.t('priv.public') }}</option>
-                  </select>
+                  <app-select [options]="privacyOptions()" [ngModel]="s().event_default_privacy" (ngModelChange)="set({ event_default_privacy: $any($event) })" class="w-full" />
                 </div>
                 <div class="space-y-3 border-t border-gray-200 pt-3 text-sm">
                   <label class="flex items-center justify-between">
@@ -377,11 +366,15 @@ type Section =
                   @if (bookingPage()?.enabled) {
                     <div>
                       <label class="mb-1 block text-gray-600">{{ tr.t('booking.duration') }}</label>
-                      <select [ngModel]="bookingPage()?.duration_minutes" (ngModelChange)="setBooking({ duration_minutes: +$event })" class="w-full rounded-md border border-gray-300 px-3 py-2">
-                        <option [ngValue]="15">15 {{ tr.t('booking.min') }}</option>
-                        <option [ngValue]="30">30 {{ tr.t('booking.min') }}</option>
-                        <option [ngValue]="60">60 {{ tr.t('booking.min') }}</option>
-                      </select>
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="number" min="5" max="480" step="5" inputmode="numeric"
+                          [ngModel]="bookingPage()?.duration_minutes"
+                          (ngModelChange)="setBookingDuration($event)"
+                          class="w-28 rounded-md border border-gray-300 px-3 py-2"
+                        />
+                        <span class="text-gray-500">{{ tr.t('booking.min') }}</span>
+                      </div>
                     </div>
                     <div>
                       <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
@@ -406,23 +399,60 @@ type Section =
                   <p class="mb-3 text-xs text-gray-400">{{ tr.t('share.desc') }}</p>
                   <div class="flex flex-wrap gap-2">
                     <input type="email" [ngModel]="shareEmail()" (ngModelChange)="shareEmail.set($event)" [placeholder]="tr.t('share.email')" class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2" />
-                    <select [ngModel]="shareRole()" (ngModelChange)="shareRole.set($event)" class="rounded-md border border-gray-300 px-2 py-2">
-                      <option value="viewer">{{ tr.t('share.viewer') }}</option>
-                      <option value="editor">{{ tr.t('share.editor') }}</option>
-                    </select>
+                    <app-select [options]="guestRoleOptions()" [ngModel]="shareRole()" (ngModelChange)="shareRole.set($any($event))" class="w-32" />
                     <button type="button" (click)="addMember()" class="tap rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">{{ tr.t('share.add') }}</button>
+                  </div>
+                  <!-- Giới hạn khoảng ngày (tuỳ chọn): chỉ chia sẻ sự kiện trong khoảng này -->
+                  <div class="mt-2 grid grid-cols-2 gap-2">
+                    <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.from') }}
+                      <input type="date" [ngModel]="shareFrom()" (ngModelChange)="shareFrom.set($event)" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                    </label>
+                    <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.until') }}
+                      <input type="date" [ngModel]="shareUntil()" (ngModelChange)="shareUntil.set($event)" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                    </label>
+                    <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('share.rangeHint') }}</p>
                   </div>
                   @if (shareError()) { <p class="mt-1 text-xs text-red-600">{{ shareError() }}</p> }
                   <ul class="mt-3 space-y-1">
                     @for (m of members(); track m.member_email) {
                       <li class="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5">
-                        <span class="truncate">{{ m.member_email }} <span class="ml-1 text-xs text-gray-400">· {{ m.role === 'editor' ? tr.t('share.editor') : tr.t('share.viewer') }}</span></span>
+                        <span class="truncate">{{ m.member_email }} <span class="ml-1 text-xs text-gray-400">· {{ m.role === 'editor' ? tr.t('share.editor') : tr.t('share.viewer') }}</span>@if (memberRange(m)) { <span class="ml-1 text-xs text-blue-600">· {{ memberRange(m) }}</span> }</span>
                         <button type="button" (click)="removeMember(m.member_email)" class="tap rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
                       </li>
                     } @empty {
                       <li class="text-xs text-gray-400">{{ tr.t('share.none') }}</li>
                     }
                   </ul>
+                </div>
+
+                <!-- Feed lịch công khai (.ics) — link đăng ký thường niên/định kỳ -->
+                <div class="border-t border-gray-200 pt-3 text-sm">
+                  <label class="flex items-center justify-between">
+                    <span class="font-medium">{{ tr.t('feed.enable') }}</span>
+                    <input type="checkbox" [checked]="calendarFeed()?.enabled" (change)="setFeed({ enabled: !calendarFeed()?.enabled })" class="accent-blue-600" />
+                  </label>
+                  <p class="mt-1 text-xs text-gray-400">{{ tr.t('feed.desc') }}</p>
+                  @if (calendarFeed()?.enabled) {
+                    <div class="mt-2">
+                      <label class="mb-1 block text-gray-600">{{ tr.t('feed.link') }}</label>
+                      <div class="flex flex-wrap gap-2">
+                        <input [value]="feedLink()" readonly class="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
+                        <button type="button" (click)="copyFeedLink()" class="tap rounded-md border border-gray-300 px-3 text-sm hover:bg-gray-50">{{ feedCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
+                      </div>
+                      <p class="mt-1 text-xs text-gray-400">{{ tr.t('feed.hint') }}</p>
+                      <!-- Giới hạn khoảng ngày chia sẻ qua link (để trống = tất cả) -->
+                      <div class="mt-3 grid grid-cols-2 gap-2">
+                        <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.from') }}
+                          <input type="date" [ngModel]="feedFromInput()" (ngModelChange)="setFeedRange($event, feedUntilInput())" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                        </label>
+                        <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.until') }}
+                          <input type="date" [ngModel]="feedUntilInput()" (ngModelChange)="setFeedRange(feedFromInput(), $event)" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                        </label>
+                        <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('feed.rangeHint') }}</p>
+                      </div>
+                      <button type="button" (click)="setFeed({ rotate: true })" class="tap mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50">{{ tr.t('feed.rotate') }}</button>
+                    </div>
+                  }
                 </div>
               </section>
             }
@@ -436,6 +466,60 @@ type Section =
                     <span>{{ tr.t('email.' + key) }}</span>
                     <input type="checkbox" [checked]="s().email_preferences[key]" (change)="toggleEmail(key)" class="accent-blue-600" />
                   </label>
+                }
+              </section>
+            }
+
+            @case ('files') {
+              <section class="rounded-lg border border-gray-200 bg-white p-5">
+                <div class="mb-1 flex items-center gap-2">
+                  <h2 class="text-base font-semibold">{{ tr.t('sec.files') }}</h2>
+                  @if (fileTotal() > 0) {
+                    <span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{{ fileTotal() }} {{ tr.t('files.unit') }}</span>
+                  }
+                </div>
+                <p class="mb-4 text-xs text-gray-400">{{ tr.t('files.sub') }}</p>
+
+                @if (filesLoading()) {
+                  <p class="text-sm text-gray-500">{{ tr.t('files.loading') }}</p>
+                } @else if (fileGroups().length === 0) {
+                  <div class="flex flex-col items-center gap-2 py-10 text-center">
+                    <app-icon name="inbox" class="h-8 w-8 text-gray-300" />
+                    <p class="text-sm text-gray-500">{{ tr.t('files.empty') }}</p>
+                  </div>
+                } @else {
+                  <div class="space-y-5">
+                    @for (g of fileGroups(); track g.event_id) {
+                      <div>
+                        <div class="mb-2 flex items-baseline gap-2 border-b border-gray-100 pb-1">
+                          <app-icon name="calendar" class="h-4 w-4 shrink-0 text-blue-600" />
+                          <span class="truncate text-sm font-medium text-gray-800">{{ g.event_title }}</span>
+                          @if (g.event_start) { <span class="ml-auto shrink-0 text-xs text-gray-400">{{ fmtDateTime(g.event_start) }}</span> }
+                        </div>
+                        <ul class="space-y-1">
+                          @for (f of g.files; track f.id) {
+                            <li class="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-gray-50">
+                              <app-icon name="download" class="h-4 w-4 shrink-0 text-gray-400" />
+                              <div class="min-w-0 flex-1">
+                                <div class="truncate text-sm text-gray-700">{{ f.file_name }}</div>
+                                <div class="text-xs text-gray-400">
+                                  {{ fmtSize(f.size_bytes) }}
+                                  @if (f.status === 'scheduled') { · <span class="text-amber-600">{{ tr.t('files.scheduled') }}</span> }
+                                  @if (f.status === 'expired') { · <span class="text-gray-500">{{ tr.t('files.expired') }}</span> }
+                                </div>
+                              </div>
+                              @if (f.url) {
+                                <a [href]="f.url" target="_blank" rel="noopener" class="tap shrink-0 rounded-md px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50">{{ tr.t('files.download') }}</a>
+                              }
+                              <button type="button" (click)="deleteFile(f.event_id, f.id)" class="tap shrink-0 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" [title]="tr.t('files.delete')">
+                                <app-icon name="trash" class="h-4 w-4" />
+                              </button>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </div>
                 }
               </section>
             }
@@ -495,6 +579,7 @@ export class SettingsPageComponent {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly bookingApi = inject(BookingApiService);
+  private readonly confirmSvc = inject(ConfirmService);
 
   protected readonly bookingPage = signal<BookingPage | null>(null);
   protected readonly bookingCopied = signal(false);
@@ -510,10 +595,54 @@ export class SettingsPageComponent {
       error: () => { if (prev) this.bookingPage.set(prev); },
     });
   }
+  /** Thời lượng lịch hẹn tự do, chặn 5..480 phút (khớp ràng buộc DB). */
+  protected setBookingDuration(v: number | string): void {
+    const n = Math.min(Math.max(Math.round(Number(v) || 0), 5), 480);
+    this.setBooking({ duration_minutes: n });
+  }
   protected copyBookingLink(): void {
     navigator.clipboard?.writeText(this.bookingLink());
     this.bookingCopied.set(true);
     setTimeout(() => this.bookingCopied.set(false), 1500);
+  }
+
+  // ---- Feed lịch công khai (.ics) ----
+  private readonly feedApi = inject(FeedApiService);
+  protected readonly calendarFeed = signal<CalendarFeed | null>(null);
+  protected readonly feedCopied = signal(false);
+  protected feedLink(): string {
+    const f = this.calendarFeed();
+    return f ? this.feedApi.feedUrl(f.token) : '';
+  }
+  /** Giá trị cho 2 ô ngày của feed (yyyy-MM-dd; rỗng nếu không giới hạn). */
+  protected feedFromInput(): string {
+    const v = this.calendarFeed()?.feed_from;
+    return v ? new Date(v).toISOString().slice(0, 10) : '';
+  }
+  protected feedUntilInput(): string {
+    const v = this.calendarFeed()?.feed_until;
+    return v ? new Date(v).toISOString().slice(0, 10) : '';
+  }
+  /** Lưu khoảng ngày chia sẻ: from = 00:00 ngày đầu, until = 23:59:59 ngày cuối. */
+  protected setFeedRange(from: string, until: string): void {
+    this.setFeed({
+      feedFrom: from ? new Date(`${from}T00:00:00`).toISOString() : null,
+      feedUntil: until ? new Date(`${until}T23:59:59`).toISOString() : null,
+    });
+  }
+
+  protected setFeed(patch: { enabled?: boolean; rotate?: boolean; feedFrom?: string | null; feedUntil?: string | null }): void {
+    const prev = this.calendarFeed();
+    if (prev && patch.enabled !== undefined) this.calendarFeed.set({ ...prev, enabled: patch.enabled });
+    this.feedApi.updateMyFeed(patch).subscribe({
+      next: (f) => this.calendarFeed.set(f),
+      error: () => { if (prev) this.calendarFeed.set(prev); },
+    });
+  }
+  protected copyFeedLink(): void {
+    navigator.clipboard?.writeText(this.feedLink());
+    this.feedCopied.set(true);
+    setTimeout(() => this.feedCopied.set(false), 1500);
   }
 
   // ---- Chia sẻ lịch ----
@@ -522,6 +651,9 @@ export class SettingsPageComponent {
   protected readonly shareEmail = signal('');
   protected readonly shareRole = signal<'viewer' | 'editor'>('viewer');
   protected readonly shareError = signal('');
+  /** Khoảng ngày giới hạn chia sẻ (input date, YYYY-MM-DD). Rỗng = không giới hạn. */
+  protected readonly shareFrom = signal('');
+  protected readonly shareUntil = signal('');
 
   private loadMembers(): void {
     this.sharingApi.getMembers().subscribe({ next: (m) => this.members.set(m), error: () => {} });
@@ -529,14 +661,77 @@ export class SettingsPageComponent {
   protected addMember(): void {
     const email = this.shareEmail().trim();
     if (!email) return;
+    // from = 00:00 ngày bắt đầu; until = 23:59:59 ngày kết thúc (để bao trọn cả ngày cuối).
+    const from = this.shareFrom() ? new Date(`${this.shareFrom()}T00:00:00`).toISOString() : null;
+    const until = this.shareUntil() ? new Date(`${this.shareUntil()}T23:59:59`).toISOString() : null;
+    if (from && until && from > until) {
+      this.shareError.set(this.tr.t('share.rangeInvalid'));
+      return;
+    }
     this.shareError.set('');
-    this.sharingApi.addMember(email, this.shareRole()).subscribe({
-      next: () => { this.shareEmail.set(''); this.loadMembers(); },
+    this.sharingApi.addMember(email, this.shareRole(), { shareFrom: from, shareUntil: until }).subscribe({
+      next: () => {
+        this.shareEmail.set('');
+        this.shareFrom.set('');
+        this.shareUntil.set('');
+        this.loadMembers();
+      },
       error: (e) => this.shareError.set(e?.error?.message ?? 'Chia sẻ thất bại.'),
     });
   }
-  protected removeMember(email: string): void {
+  /** Nhãn khoảng ngày cho danh sách thành viên (vd "1/8 – 31/8", "từ 1/8", "đến 31/8"). */
+  protected memberRange(m: CalendarMember): string {
+    const f = m.share_from ? new Date(m.share_from).toLocaleDateString('vi-VN') : '';
+    const u = m.share_until ? new Date(m.share_until).toLocaleDateString('vi-VN') : '';
+    if (f && u) return `${f} – ${u}`;
+    if (f) return `${this.tr.t('attach.from')} ${f}`;
+    if (u) return `${this.tr.t('attach.until')} ${u}`;
+    return '';
+  }
+  protected async removeMember(email: string): Promise<void> {
+    const ok = await this.confirmSvc.ask({ message: this.tr.t('confirm.delShare'), detail: email });
+    if (!ok) return;
     this.sharingApi.removeMember(email).subscribe({ next: () => this.loadMembers(), error: () => {} });
+  }
+
+  // ----- Tệp đính kèm: gom tất cả file theo sự kiện -----
+  private readonly attachmentsApi = inject(AttachmentsApiService);
+  protected readonly fileGroups = signal<EventFileGroup[]>([]);
+  protected readonly filesLoading = signal(false);
+  /** Tổng số file trên tất cả sự kiện (hiện ở tiêu đề mục). */
+  protected readonly fileTotal = computed(() =>
+    this.fileGroups().reduce((sum, g) => sum + g.files.length, 0),
+  );
+
+  private loadFiles(): void {
+    this.filesLoading.set(true);
+    this.attachmentsApi.listAllGrouped().subscribe({
+      next: (g) => { this.fileGroups.set(g); this.filesLoading.set(false); },
+      error: () => { this.fileGroups.set([]); this.filesLoading.set(false); },
+    });
+  }
+  protected deleteFile(eventId: string, attId: string): void {
+    // Xoá lạc quan: bỏ khỏi danh sách ngay, gọi API; lỗi thì nạp lại cho khớp server.
+    this.fileGroups.update((groups) =>
+      groups
+        .map((g) => (g.event_id === eventId ? { ...g, files: g.files.filter((f) => f.id !== attId) } : g))
+        .filter((g) => g.files.length > 0),
+    );
+    this.attachmentsApi.remove(eventId, attId).subscribe({ error: () => this.loadFiles() });
+  }
+  /** Dung lượng byte -> chuỗi gọn (KB/MB). */
+  protected fmtSize(bytes: number | null): string {
+    if (!bytes || bytes <= 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  /** ISO -> chuỗi ngày giờ gọn cho tiêu đề nhóm sự kiện. */
+  protected fmtDateTime(iso: string | null): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString('vi-VN', {
+      day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
   }
 
   protected readonly section = signal<Section>('general');
@@ -544,6 +739,51 @@ export class SettingsPageComponent {
   protected readonly timezones = COMMON_TIMEZONES;
 
   protected readonly s = this.settings.settings;
+
+  /** Angular template không gọi được hàm global (String, +...) trực tiếp -> lộ ra 1 helper
+   *  để app-select (chỉ nhận value kiểu string) khớp với các field number trong settings. */
+  protected str(v: unknown): string {
+    return String(v);
+  }
+
+  // ----- Options cho app-select (thay <select> gốc — xem select.component.ts) -----
+  protected readonly languageOptions: SelectOption[] = [
+    { value: 'vi', label: 'Tiếng Việt' },
+    { value: 'en', label: 'English' },
+  ];
+  protected readonly timezoneOptions: SelectOption[] = COMMON_TIMEZONES.map((tz) => ({ value: tz, label: tz }));
+  protected readonly dateFormatOptions: SelectOption[] = [
+    { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+    { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+    { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+  ];
+  protected readonly timeFormatOptions = computed<SelectOption[]>(() => [
+    { value: '24h', label: this.tr.t('gen.time24') },
+    { value: '12h', label: this.tr.t('gen.time12') },
+  ]);
+  protected readonly startWeekOptions = computed<SelectOption[]>(() => [
+    { value: '1', label: this.tr.t('gen.monday') },
+    { value: '0', label: this.tr.t('gen.sunday') },
+  ]);
+  protected readonly defaultViewOptions = computed<SelectOption[]>(() => [
+    { value: 'day', label: this.tr.t('view.day') },
+    { value: 'week', label: this.tr.t('view.week') },
+    { value: 'month', label: this.tr.t('view.month') },
+    { value: 'year', label: this.tr.t('view.year') },
+  ]);
+  protected readonly slotDurationOptions = computed<SelectOption[]>(() => [
+    { value: '15', label: `15 ${this.tr.t('cal.min')}` },
+    { value: '30', label: `30 ${this.tr.t('cal.min')}` },
+    { value: '60', label: `60 ${this.tr.t('cal.min')}` },
+  ]);
+  protected readonly privacyOptions = computed<SelectOption[]>(() => [
+    { value: 'private', label: this.tr.t('priv.private') },
+    { value: 'public', label: this.tr.t('priv.public') },
+  ]);
+  protected readonly guestRoleOptions = computed<SelectOption[]>(() => [
+    { value: 'viewer', label: this.tr.t('share.viewer') },
+    { value: 'editor', label: this.tr.t('share.editor') },
+  ]);
 
   protected readonly sections: { id: Section; icon: IconName }[] = [
     { id: 'account', icon: 'user' },
@@ -553,6 +793,7 @@ export class SettingsPageComponent {
     { id: 'appearance', icon: 'palette' },
     { id: 'privacy', icon: 'shield' },
     { id: 'email', icon: 'mail' },
+    { id: 'files', icon: 'inbox' },
     { id: 'ai', icon: 'robot' },
   ];
 
@@ -611,6 +852,16 @@ export class SettingsPageComponent {
   protected readonly deleting = signal(false);
 
   protected readonly email = computed(() => this.supabase.user()?.email ?? '');
+  /** Che email theo mặc định; bấm mắt để hiện. */
+  protected readonly emailRevealed = signal(false);
+  /** Email đã che: giữ 2 ký tự đầu + tên miền, vd "lo•••@gmail.com". */
+  protected readonly emailShown = computed(() => {
+    const e = this.email();
+    if (this.emailRevealed() || !e.includes('@')) return e;
+    const [name, domain] = e.split('@');
+    const head = name.slice(0, 2);
+    return `${head}${'•'.repeat(Math.max(3, name.length - 2))}@${domain}`;
+  });
   protected readonly createdAt = computed(() => {
     const c = this.supabase.user()?.created_at;
     return c ? new Date(c).toLocaleDateString(this.tr.lang() === 'en' ? 'en-GB' : 'vi-VN') : '—';
@@ -625,19 +876,26 @@ export class SettingsPageComponent {
       next: (p) => this.bookingPage.set(p),
       error: () => {},
     });
+    this.feedApi.getMyFeed().subscribe({
+      next: (f) => this.calendarFeed.set(f),
+      error: () => {},
+    });
     this.loadMembers();
+    this.loadFiles();
   }
 
   protected set(patch: Parameters<SettingsService['update']>[0]): void {
     void this.settings.update(patch);
   }
 
-  protected reminderValue(): string {
-    const r = this.s().default_reminder;
-    return r == null ? 'none' : String(r);
+  /** Bật/tắt nhắc mặc định. Bật -> 10 phút; tắt -> null. */
+  protected toggleDefaultReminder(evt: Event): void {
+    const on = (evt.target as HTMLInputElement).checked;
+    this.set({ default_reminder: on ? (this.s().default_reminder ?? 10) : null });
   }
-  protected setReminder(v: string): void {
-    this.set({ default_reminder: v === 'none' ? null : +v });
+  /** Nhập số phút mặc định tuỳ ý (>= 0). */
+  protected setReminderNum(v: number | string): void {
+    this.set({ default_reminder: Math.max(0, Math.floor(Number(v) || 0)) });
   }
 
   protected toggleWorkingDay(day: number): void {
@@ -656,7 +914,7 @@ export class SettingsPageComponent {
 
   /** Các loại thông báo LUÔN bật trong app — không có công tắc tắt riêng cho từng loại
    *  (đồng bộ với danh sách kind trong NotificationService/NotificationToastsComponent). */
-  protected readonly defaultNotifKinds: readonly DefaultNotifKind[] = ['invite', 'changed', 'cancelled', 'file', 'chat'];
+  protected readonly defaultNotifKinds: readonly DefaultNotifKind[] = ['invite', 'changed', 'cancelled', 'file', 'chat', 'shared'];
 
   protected notifCatKey = notifCatKey;
   protected notifIconName = notifIconName;
@@ -665,7 +923,7 @@ export class SettingsPageComponent {
   protected notifDescKey(kind: DefaultNotifKind): string {
     const map: Record<DefaultNotifKind, string> = {
       invite: 'notif.descInvite', changed: 'notif.descChanged', cancelled: 'notif.descCancelled',
-      file: 'notif.descFile', chat: 'notif.descChat',
+      file: 'notif.descFile', chat: 'notif.descChat', shared: 'notif.descShared',
     };
     return map[kind];
   }
@@ -712,23 +970,22 @@ export class SettingsPageComponent {
     this.deleting.set(true);
     try {
       await firstValueFrom(this.http.delete(`${environment.apiUrl}/account`));
-      await this.supabase.signOut();
       this.settings.reset();
-      await this.router.navigate(['/login']);
+      // Tài khoản đã bị xoá -> ra landing (không còn gì để đăng nhập lại).
+      await this.supabase.signOutToLanding();
     } catch {
       this.deleting.set(false);
     }
   }
 
   protected async logout(): Promise<void> {
-    await this.supabase.signOut();
     this.settings.reset();
-    await this.router.navigate(['/login']);
+    // Đăng xuất -> ra thẳng trang landing (không phải trang đăng nhập).
+    await this.supabase.signOutToLanding();
   }
 
   protected async logoutAll(): Promise<void> {
-    await this.supabase.client.auth.signOut({ scope: 'global' });
     this.settings.reset();
-    await this.router.navigate(['/login']);
+    await this.supabase.signOutToLanding('global');
   }
 }

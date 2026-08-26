@@ -9,9 +9,11 @@ export const authGuard: CanActivateFn = async () => {
   const supabase = inject(SupabaseService);
   const router = inject(Router);
 
-  const { data } = await supabase.client.auth.getSession();
+  // Chờ nếu đang quay về từ màn hình cấp quyền Google (vd bấm "Tạo Meet" ở trang Cài đặt)
+  // — lúc đó URL còn mang mã OAuth và session chỉ có sau khi đổi mã xong.
+  const session = await supabase.getSessionAfterOAuth();
 
-  if (data.session) return true;
+  if (session) return true;
 
   router.navigateByUrl('/login');
   return false;

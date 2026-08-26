@@ -13,6 +13,7 @@ interface ApiAttendee {
   id: string;
   email: string;
   status: AttendeeStatus;
+  can_edit?: boolean;
 }
 
 export interface ApiEvent {
@@ -29,6 +30,8 @@ export interface ApiEvent {
   series_id: string | null;
   creator_email?: string | null;
   reminder_minutes?: number | null;
+  reminders?: { minutes_before: number }[];
+  reminder_message?: string | null;
   completed?: boolean;
   deleted_at?: string | null;
   group_id?: string | null;
@@ -58,8 +61,11 @@ export function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
     // "Lên lịch hẹn" (appointment) chưa có bảng riêng ở backend -> tạm lưu như "event" thường
     kind: (e.kind === 'appointment' ? 'event' : e.kind) as 'event' | 'task',
     color: e.color,
-    reminderMinutes: e.reminderMinutes ?? null,
+    // Nhắc lịch linh hoạt: gửi mảng mốc nhắc (phút) + nội dung tùy chỉnh.
+    reminders: e.reminders ?? [],
+    reminderMessage: e.reminderMessage ?? undefined,
     guestEmails: e.guests.map((g) => g.email),
+    guestEditors: e.guests.filter((g) => g.canEdit).map((g) => g.email),
   };
 }
 
@@ -77,12 +83,14 @@ export function fromApiEvent(row: ApiEvent): CalendarEvent {
     // Không hiển thị chính mình như một "khách mời" -> lọc bỏ theo creator_email.
     guests: (row.attendees ?? [])
       .filter((a) => a.email.toLowerCase() !== (row.creator_email ?? '').toLowerCase())
-      .map((a) => ({ email: a.email, status: a.status })),
+      .map((a) => ({ email: a.email, status: a.status, canEdit: a.can_edit ?? false })),
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,
     calendarId: row.calendar_id ?? undefined,
     reminderMinutes: row.reminder_minutes ?? null,
+    reminders: (row.reminders ?? []).map((r) => r.minutes_before).sort((a, b) => a - b),
+    reminderMessage: row.reminder_message ?? null,
     completed: row.completed ?? false,
     deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
     groupId: row.group_id ?? undefined,
@@ -103,12 +111,19 @@ export interface Invitation {
   myStatus: string;
 }
 
-/** Tùy chọn lặp lại khi tạo event mới (materialized: backend tạo `count` event thật) */
+/** Tùy chọn lặp lại khi tạo event mới (materialized: backend sinh các event thật). */
 export interface RecurrenceOptions {
-  repeat: 'daily' | 'weekly' | 'monthly';
-  count: number;
-  /** Lặp mỗi N đơn vị (mặc định 1). */
-  interval?: number;
+  freq: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  /** Lặp mỗi N đơn vị. */
+  interval: number;
+  /** Lặp theo tuần: các thứ được chọn (0=CN..6=T7). */
+  weekdays?: number[];
+  /** Lặp theo tháng: theo ngày / thứ thứ-n / thứ cuối cùng. */
+  monthlyMode?: 'monthday' | 'nthWeekday' | 'lastWeekday';
+  /** Kết thúc sau N lần (tính cả lần đầu). */
+  count?: number;
+  /** Kết thúc vào ngày (ISO). */
+  until?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -122,7 +137,15 @@ export class EventsApiService {
 
   create(draft: Omit<CalendarEvent, 'id'>, recurrence?: RecurrenceOptions): Observable<SaveResult> {
     const payload = recurrence
-      ? { ...toApiPayload(draft), repeat: recurrence.repeat, repeatCount: recurrence.count, repeatInterval: recurrence.interval ?? 1 }
+      ? {
+          ...toApiPayload(draft),
+          repeatFreq: recurrence.freq,
+          repeatInterval: recurrence.interval,
+          ...(recurrence.weekdays?.length ? { repeatWeekdays: recurrence.weekdays } : {}),
+          ...(recurrence.monthlyMode ? { repeatMonthlyMode: recurrence.monthlyMode } : {}),
+          ...(recurrence.count ? { repeatCount: recurrence.count } : {}),
+          ...(recurrence.until ? { repeatUntil: recurrence.until } : {}),
+        }
       : toApiPayload(draft);
     return this.http.post<MutationResponse>(this.base, payload).pipe(
       map((res) => ({
@@ -132,8 +155,29 @@ export class EventsApiService {
     );
   }
 
-  update(id: string, draft: Omit<CalendarEvent, 'id'>): Observable<SaveResult> {
-    return this.http.patch<MutationResponse>(`${this.base}/${id}`, toApiPayload(draft)).pipe(
+  update(
+    id: string,
+    draft: Omit<CalendarEvent, 'id'>,
+    recurrence?: RecurrenceOptions,
+    editScope?: 'single' | 'series',
+  ): Observable<SaveResult> {
+    const payload = {
+      ...toApiPayload(draft),
+      // Sửa 1 sự kiện ĐƠN thành lặp -> gửi kèm luật lặp (backend sinh chuỗi).
+      ...(recurrence
+        ? {
+            repeatFreq: recurrence.freq,
+            repeatInterval: recurrence.interval,
+            ...(recurrence.weekdays?.length ? { repeatWeekdays: recurrence.weekdays } : {}),
+            ...(recurrence.monthlyMode ? { repeatMonthlyMode: recurrence.monthlyMode } : {}),
+            ...(recurrence.count ? { repeatCount: recurrence.count } : {}),
+            ...(recurrence.until ? { repeatUntil: recurrence.until } : {}),
+          }
+        : {}),
+      // Sửa 1 mắt trong chuỗi -> áp cho riêng mắt này hay cả chuỗi.
+      ...(editScope ? { editScope } : {}),
+    };
+    return this.http.patch<MutationResponse>(`${this.base}/${id}`, payload).pipe(
       map((res) => ({
         event: fromApiEvent(res.event),
         conflictTitles: res.conflicts.map((c) => c.title),

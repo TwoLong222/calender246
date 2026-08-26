@@ -1,14 +1,15 @@
 // Popover chi tiết sự kiện — khớp bố cục hình 7: tiêu đề, thời gian, danh sách khách
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
-import { AttachmentsApiService, EventAttachment } from './attachments-api.service';
+import { AttachmentsApiService, EventAttachment, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { ConfirmService } from '../shared/confirm.service';
 import { AttendeeStatus } from './calendar.types';
 import { IconComponent } from '../shared/icon.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
@@ -22,35 +23,37 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
     @if (event(); as e) {
       <div class="fixed inset-0 z-30" (click)="state.closeDetail()">
         <div
-          class="popup-in absolute left-1/2 top-24 max-h-[calc(100vh-8rem)] w-80 -translate-x-1/2 overflow-y-auto overflow-x-hidden rounded-xl bg-white p-4 shadow-2xl"
+          class="popup-in surface-panel absolute max-h-[calc(100vh-8rem)] w-80 overflow-y-auto overflow-x-hidden !rounded-[var(--radius-lg)] p-4 !shadow-[var(--shadow-lg)]"
+          [style.left.px]="panelPos().left"
+          [style.top.px]="panelPos().top"
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <span class="h-3 w-3 rounded-full" [class]="dotClass(e.color)"></span>
-              <h3 class="font-medium text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
+            <div class="flex min-w-0 items-center gap-2">
+              <span class="h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)"></span>
+              <h3 class="truncate font-semibold text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
             </div>
-            <div class="flex shrink-0 gap-1">
+            <div class="flex shrink-0 gap-0.5">
               <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
               @if (canManage()) {
-                <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.edit')"><app-icon name="pencil" class="h-4 w-4" /></button>
-                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
+                <button type="button" (click)="edit()" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('detail.edit')"><app-icon name="pencil" class="h-4 w-4" /></button>
+                <button type="button" (click)="askDelete()" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
               }
-              <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+              <button type="button" (click)="state.closeDetail()" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
             </div>
           </div>
 
-          <p class="mb-2 text-sm text-gray-600">{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</p>
+          <p class="mono mb-2 text-sm text-gray-600">{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</p>
 
           <!-- Google Meet -->
           <div class="mb-2 flex items-center gap-2">
             @if (e.meetLink) {
-              <a [href]="e.meetLink" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded bg-emerald-600 px-2 py-1 text-sm text-white hover:bg-emerald-700">📹 Tham gia Google Meet</a>
+              <a [href]="e.meetLink" target="_blank" rel="noopener" class="btn btn-primary !bg-emerald-600 hover:!bg-emerald-700">📹 Tham gia Google Meet</a>
               @if (canManage()) {
-                <button type="button" (click)="state.removeMeetForEvent(e.id)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet"><app-icon name="x" class="h-4 w-4" /></button>
+                <button type="button" (click)="state.removeMeetForEvent(e.id)" class="btn-icon !p-1.5 hover:!text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet"><app-icon name="x" class="h-4 w-4" /></button>
               }
             } @else if (canManage()) {
-              <button type="button" (click)="state.createMeetForEvent(e.id)" class="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-100" title="Tạo phòng họp Google Meet">📹 Tạo Google Meet</button>
+              <button type="button" (click)="state.createMeetForEvent(e.id)" class="btn btn-secondary">📹 Tạo Google Meet</button>
             }
           </div>
 
@@ -89,7 +92,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             <button
               type="button"
               (click)="rsvp('accepted')"
-              class="rounded-full border px-3 py-1"
+              class="tap rounded-full border px-3 py-1 text-xs font-medium transition-colors"
               [class]="myStatus() === 'accepted' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
               {{ tr.t('rsvp.yes') }}
@@ -97,7 +100,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             <button
               type="button"
               (click)="rsvp('declined')"
-              class="rounded-full border px-3 py-1"
+              class="tap rounded-full border px-3 py-1 text-xs font-medium transition-colors"
               [class]="myStatus() === 'declined' ? 'border-red-600 bg-red-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
               {{ tr.t('rsvp.no') }}
@@ -105,7 +108,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             <button
               type="button"
               (click)="rsvp('tentative')"
-              class="rounded-full border px-3 py-1"
+              class="tap rounded-full border px-3 py-1 text-xs font-medium transition-colors"
               [class]="myStatus() === 'tentative' ? 'border-amber-500 bg-amber-500 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
               {{ tr.t('rsvp.maybe') }}
@@ -119,24 +122,32 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 <app-icon name="notes" class="h-4 w-4" /> {{ tr.t('attach.title') }}
               </p>
               @if (canManage()) {
-                <label class="tap cursor-pointer rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50">
+                <label class="btn btn-secondary !py-1 !text-xs cursor-pointer">
                   {{ uploading() ? tr.t('attach.uploading') : tr.t('attach.add') }}
                   <input type="file" class="hidden" (change)="onFileSelected($event)" [disabled]="uploading()" />
                 </label>
               }
             </div>
             @if (canManage()) {
-              <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp) -->
-              <div class="mb-2 grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
-                <label class="flex flex-col gap-0.5 text-gray-500">
+              <p class="mb-1 text-[11px] text-gray-500">{{ tr.t('attach.limit') }}</p>
+            }
+            @if (uploadError()) {
+              <p class="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ uploadError() }}</p>
+            }
+            @if (canManage()) {
+              <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp). Xếp DỌC (không phải
+                   grid-cols-2): popover chỉ rộng w-80, 2 cột không đủ chỗ cho ô ngày + 2 ô
+                   giờ cạnh nhau -> chữ bị cắt/chồng lên nhau. -->
+              <div class="mb-2 flex flex-col gap-3 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex flex-col gap-1 text-gray-500">
                   {{ tr.t('attach.from') }}
                   <app-datetime-picker [(ngModel)]="newFrom" />
                 </label>
-                <label class="flex flex-col gap-0.5 text-gray-500">
+                <label class="flex flex-col gap-1 text-gray-500">
                   {{ tr.t('attach.until') }}
                   <app-datetime-picker [(ngModel)]="newUntil" />
                 </label>
-                <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
+                <p class="text-[11px] text-gray-500">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
             }
             @if (attachments().length === 0) {
@@ -146,7 +157,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 @for (a of attachments(); track a.id) {
                   <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-sm">
                     @if (a.status === 'available' && a.url) {
-                      <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700 hover:underline">{{ a.file_name }}</a>
+                      <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700">{{ a.file_name }}</a>
                     } @else if (a.status === 'scheduled') {
                       <span class="min-w-0 flex-1 truncate text-gray-500" [title]="tr.t('attach.opensAt') + ' ' + fmt(a.available_from)">🔒 {{ a.file_name }}</span>
                     } @else if (a.status === 'expired') {
@@ -185,10 +196,10 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                     <span class="shrink-0 text-[10px] text-gray-400">{{ commentTime(c.createdAt) }}</span>
                   </div>
                   @if (editingId() === c.id) {
-                    <textarea [(ngModel)]="editText" rows="2" class="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"></textarea>
+                    <textarea [(ngModel)]="editText" rows="2" class="field mt-1 w-full text-sm"></textarea>
                     <div class="mt-1 flex gap-3">
-                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700 hover:underline">{{ tr.t('form.save') }}</button>
-                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
+                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700">{{ tr.t('form.save') }}</button>
+                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
                     </div>
                   } @else {
                     <p class="mt-0.5 whitespace-pre-wrap break-words text-sm text-gray-800">{{ c.content }}</p>
@@ -196,13 +207,13 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                       @if (deletingId() === c.id) {
                         <div class="mt-1 flex items-center gap-3">
                           <span class="text-xs text-red-700">{{ tr.t('detail.delComment') }}</span>
-                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600 hover:underline">{{ tr.t('detail.delete') }}</button>
-                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
+                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600">{{ tr.t('detail.delete') }}</button>
+                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
                         </div>
                       } @else {
                         <div class="mt-1 flex gap-3">
-                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">{{ tr.t('detail.edit') }}</button>
-                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500 hover:underline">{{ tr.t('detail.delete') }}</button>
+                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500">{{ tr.t('detail.edit') }}</button>
+                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500">{{ tr.t('detail.delete') }}</button>
                         </div>
                       }
                     }
@@ -220,64 +231,123 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 [(ngModel)]="newComment"
                 rows="1"
                 [placeholder]="tr.t('detail.writeComment')"
-                class="flex-1 resize-none rounded border border-gray-300 px-2 py-1 text-sm"
+                class="field flex-1 resize-none text-sm"
               ></textarea>
+              <!-- Bỏ [disabled]="!newComment().trim()" — trước đây nút bị khóa/mờ đi trong
+                   lúc đang gõ khiến người dùng tưởng bị "lock". sendComment() tự kiểm tra
+                   rỗng bên trong (xem bên dưới), bấm khi chưa gõ gì chỉ no-op, không lỗi. -->
               <button
                 type="button"
                 (click)="sendComment()"
-                [disabled]="!newComment().trim()"
-                class="shrink-0 self-start rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-40"
+                class="tap btn btn-primary shrink-0 self-start !py-1.5"
               >{{ tr.t('detail.send') }}
               </button>
             </div>
           </div>
 
-          <!-- Xác nhận xóa: nếu là sự kiện lặp thì cho chọn xóa riêng hoặc xóa cả chuỗi -->
-          @if (confirmingDelete()) {
-            <div class="mt-3 rounded-md bg-red-50 p-3 text-sm">
-              <p class="mb-2 text-red-800">{{ tr.t('detail.deleteEvent') }}</p>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" (click)="doDelete()" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">{{ tr.t('detail.deleteThis') }}
-                </button>
-                @if (e.seriesId) {
-                  <button type="button" (click)="doDelete('series')" class="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-800">
-                    {{ tr.t('detail.deleteSeries') }}
-                  </button>
-                }
-                <button type="button" (click)="confirmingDelete.set(false)" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-100">
-                  {{ tr.t('del.cancel') }}
-                </button>
-              </div>
-            </div>
-          }
+          <!-- Xác nhận xóa đã chuyển sang popup dùng chung (ConfirmService) — xem askDelete(). -->
         </div>
       </div>
     }
   `,
 })
-export class EventDetailPopoverComponent {
+export class EventDetailPopoverComponent implements OnDestroy {
   protected readonly state = inject(CalendarStateService);
   private readonly supabase = inject(SupabaseService);
   protected readonly comments = inject(CommentsService);
   private readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
+  private readonly confirm = inject(ConfirmService);
+
+  /**
+   * Vị trí bảng chi tiết — CHỐT MỘT LẦN lúc mở sự kiện (xem effect trong constructor).
+   * KHÔNG được tính lại theo con trỏ: nếu tính lại, mỗi lần bấm trong bảng (nút X, nút
+   * xoá…) bảng sẽ nhích theo chuột, nút trượt khỏi ngón tay và cú bấm không ăn.
+   */
+  protected readonly panelPos = signal<{ left: number; top: number }>({ left: 0, top: 96 });
+
+  /** Tính chỗ đặt bảng từ vị trí vừa bấm, kẹp lại để không tràn khỏi màn hình. */
+  private computePanelPos(): { left: number; top: number } {
+    const W = 320; // = w-80
+    const M = 12; // chừa mép
+    const vw = typeof window === 'undefined' ? 1280 : window.innerWidth;
+    const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+    const p = this.state.lastPointer();
+    if (!p || vw < 768) return { left: Math.max(M, (vw - W) / 2), top: 96 };
+    return {
+      left: Math.min(Math.max(p.x - W / 2, M), Math.max(M, vw - W - M)),
+      top: Math.min(Math.max(p.y - 24, M), Math.max(M, vh - 360)),
+    };
+  }
 
   // ----- Tài liệu đính kèm -----
   protected readonly attachments = signal<EventAttachment[]>([]);
   protected readonly uploading = signal(false);
+  /** Thông báo lỗi khi chọn tệp không hợp lệ (vd quá dung lượng). */
+  protected readonly uploadError = signal('');
   /** Giờ hẹn cho file sẽ tải lên (datetime-local: "YYYY-MM-DDTHH:mm"). */
   protected readonly newFrom = signal('');
   protected readonly newUntil = signal('');
 
+  /** Đồng hồ hẹn tự mở khóa/hết hạn file (dọn khi đổi event / đóng popover). */
+  private unlockTimers: ReturnType<typeof setTimeout>[] = [];
+
+  private clearUnlockTimers(): void {
+    for (const t of this.unlockTimers) clearTimeout(t);
+    this.unlockTimers = [];
+  }
+
+  /**
+   * Hẹn giờ tự LÀM MỚI danh sách file đúng lúc mở khóa / hết hạn — không cần F5.
+   * Vì việc mở khóa là theo THỜI GIAN (không có thay đổi DB nào để websocket bắn),
+   * ta đặt setTimeout tới đúng mốc rồi gọi lại server để lấy link tải + trạng thái mới.
+   */
+  private scheduleUnlockTimers(eventId: string, list: EventAttachment[]): void {
+    this.clearUnlockTimers();
+    const now = Date.now();
+    const MAX = 24 * 60 * 60 * 1000; // setTimeout không nhận số quá lớn -> chỉ hẹn trong 24h
+    const at = new Set<number>();
+    for (const a of list) {
+      // File đang khóa -> hẹn tới đúng giờ mở
+      if (a.status === 'scheduled' && a.available_from) at.add(new Date(a.available_from).getTime());
+      // File đang mở nhưng có hạn -> hẹn tới lúc hết hạn để chuyển sang "hết hạn"
+      if (a.status === 'available' && a.available_until) at.add(new Date(a.available_until).getTime());
+      // Lệch giờ máy/server: lẽ ra đã mở mà vẫn khóa -> thử lại sau 5s
+      if (a.status === 'scheduled' && a.available_from && new Date(a.available_from).getTime() <= now) {
+        at.add(now + 5000);
+      }
+    }
+    for (const t of at) {
+      const delay = t - now + 1000; // +1s đệm cho chắc server đã tính là "mở"
+      if (delay > 0 && delay <= MAX) {
+        this.unlockTimers.push(setTimeout(() => this.loadAttachments(eventId), delay));
+      }
+    }
+  }
+
   private loadAttachments(eventId: string): void {
-    this.attachmentsApi.list(eventId).subscribe({ next: (a) => this.attachments.set(a), error: () => this.attachments.set([]) });
+    this.attachmentsApi.list(eventId).subscribe({
+      next: (a) => { this.attachments.set(a); this.scheduleUnlockTimers(eventId, a); },
+      error: () => { this.attachments.set([]); this.clearUnlockTimers(); },
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.clearUnlockTimers();
   }
   protected onFileSelected(evt: Event): void {
     const input = evt.target as HTMLInputElement;
     const file = input.files?.[0];
     const e = this.event();
     if (!file || !e) return;
+    // Chặn ngay ở client nếu file vượt giới hạn -> khỏi tải lên vô ích rồi mới lỗi.
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      this.uploadError.set(this.tr.t('attach.tooLarge'));
+      input.value = '';
+      return;
+    }
+    this.uploadError.set('');
     this.uploading.set(true);
     const schedule = {
       availableFrom: this.newFrom() ? new Date(this.newFrom()).toISOString() : null,
@@ -294,9 +364,12 @@ export class EventDetailPopoverComponent {
       error: () => { this.uploading.set(false); input.value = ''; },
     });
   }
-  protected removeAttachment(attId: string): void {
+  protected async removeAttachment(attId: string): Promise<void> {
     const e = this.event();
     if (!e) return;
+    const name = this.attachments().find((a) => a.id === attId)?.file_name;
+    const ok = await this.confirm.ask({ message: this.tr.t('confirm.delFile'), detail: name });
+    if (!ok) return;
     this.attachmentsApi.remove(e.id, attId).subscribe({ next: () => this.loadAttachments(e.id), error: () => {} });
   }
   protected fileSize(bytes: number | null): string {
@@ -427,14 +500,13 @@ export class EventDetailPopoverComponent {
     if (e) this.state.openEditForm(e);
   }
 
-  /** Đang hiện menu xác nhận xóa (riêng cái này / cả chuỗi) hay không */
-  readonly confirmingDelete = signal(false);
-
   constructor() {
-    // Đổi sang event khác thì tắt menu xác nhận xóa (tránh bấm nhầm sang event mới)
+    // CHỐT vị trí bảng ngay khi mở (hoặc đổi sang sự kiện khác). untracked() để hàm
+    // tính vị trí đọc lastPointer mà KHÔNG bị chạy lại mỗi lần con trỏ bấm chỗ mới.
     effect(() => {
-      this.state.selectedEventId();
-      this.confirmingDelete.set(false);
+      const id = this.state.selectedEventId();
+      if (!id) return;
+      untracked(() => this.panelPos.set(this.computePanelPos()));
     });
 
     // Mở/đổi event -> tải bình luận của event đó; đóng popover -> dọn
@@ -446,6 +518,7 @@ export class EventDetailPopoverComponent {
       } else {
         this.comments.clear();
         this.attachments.set([]);
+        this.clearUnlockTimers();
         this.editingId.set(null);
         this.deletingId.set(null);
         this.newComment.set('');
@@ -453,9 +526,17 @@ export class EventDetailPopoverComponent {
     });
   }
 
-  doDelete(scope?: 'series'): void {
+  /** Hỏi xác nhận bằng popup dùng chung; sự kiện lặp có thêm lựa chọn "Xóa cả chuỗi". */
+  async askDelete(): Promise<void> {
     const e = this.event();
-    if (e) this.state.deleteEvent(e.id, scope);
-    this.confirmingDelete.set(false);
+    if (!e) return;
+    const r = await this.confirm.askEx({
+      message: this.tr.t('detail.deleteEvent'),
+      detail: e.title || this.tr.t('common.untitled'),
+      confirmText: e.seriesId ? this.tr.t('detail.deleteThis') : this.tr.t('detail.delete'),
+      secondaryText: e.seriesId ? this.tr.t('detail.deleteSeries') : undefined,
+    });
+    if (r === 'no') return;
+    this.state.deleteEvent(e.id, r === 'secondary' ? 'series' : undefined);
   }
 }

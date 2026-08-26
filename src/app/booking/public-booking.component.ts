@@ -6,8 +6,17 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BookingApiService } from './booking-api.service';
 
+/** Nhãn thứ ngắn theo getDay(): 0=CN..6=T7. */
+const WEEKDAY_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
 interface DayGroup {
+  /** Khoá theo ngày (yyyy-mm-dd) để chọn/so sánh. */
+  key: string;
+  /** Nhãn đầy đủ, vd "Thứ Hai, 25/8". */
   label: string;
+  /** Nhãn ngắn trên thẻ ngày: "T2" và "25". */
+  weekday: string;
+  dayNum: number;
   slots: { iso: string; label: string }[];
 }
 
@@ -29,6 +38,8 @@ interface DayGroup {
             <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-2xl">✓</div>
             <p class="text-lg font-medium">Đặt lịch thành công!</p>
             <p class="mt-1 text-sm text-gray-500">{{ chosenLabel() }}. Email xác nhận đã được gửi tới {{ email() }}.</p>
+            <button type="button" (click)="bookAgain()"
+              class="mt-4 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">← Đặt thêm lịch khác</button>
           </div>
         } @else {
           <div class="rounded-xl border border-gray-200 bg-white p-6">
@@ -38,28 +49,48 @@ interface DayGroup {
             @if (loading()) {
               <p class="py-8 text-center text-sm text-gray-400">Đang tải khung giờ…</p>
             } @else if (!chosen()) {
+              <!-- Giải thích QUY LUẬT: chỉ nhận hẹn trong giờ làm việc, bỏ khung đã bận -->
+              <p class="mb-3 rounded-md bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-500">
+                📌 Chỉ hiện khung còn trống trong giờ nhận hẹn:
+                <strong>{{ workingDaysLabel() }}</strong>, {{ workingStart() }}–{{ workingEnd() }}.
+                Ngày nghỉ và khung đã có lịch sẽ không hiện.
+              </p>
+
               @if (days().length === 0) {
-                <p class="py-8 text-center text-sm text-gray-400">Hiện chưa có khung giờ trống trong 2 tuần tới.</p>
-              }
-              @for (d of days(); track d.label) {
-                <div class="mb-4">
-                  <p class="mb-2 text-sm font-medium text-gray-600">{{ d.label }}</p>
-                  <div class="flex flex-wrap gap-2">
-                    @for (s of d.slots; track s.iso) {
-                      <button type="button" (click)="chosen.set(s.iso)"
-                        class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:border-blue-600 hover:bg-blue-50">
-                        {{ s.label }}
-                      </button>
-                    }
-                  </div>
+                <p class="py-8 text-center text-sm text-gray-400">Hiện chưa có khung giờ trống trong {{ daysAhead() }} ngày tới.</p>
+              } @else {
+                <!-- BƯỚC 1: chọn NGÀY (dải ngang, cuộn được) -->
+                <p class="mb-2 text-sm font-medium text-gray-600">1. Chọn ngày</p>
+                <div class="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-2">
+                  @for (d of days(); track d.key) {
+                    <button type="button" (click)="pickedDay.set(d.key)"
+                      class="flex w-16 shrink-0 flex-col items-center rounded-xl border px-2 py-2"
+                      [class]="d.key === activeDay() ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'"
+                    >
+                      <span class="text-[11px] uppercase">{{ d.weekday }}</span>
+                      <span class="text-lg font-semibold leading-tight">{{ d.dayNum }}</span>
+                      <span class="text-[10px] text-gray-400">{{ d.slots.length }} giờ</span>
+                    </button>
+                  }
+                </div>
+
+                <!-- BƯỚC 2: chọn GIỜ trong ngày đã chọn -->
+                <p class="mb-2 text-sm font-medium text-gray-600">2. Chọn giờ — {{ activeDayLabel() }}</p>
+                <div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  @for (s of activeSlots(); track s.iso) {
+                    <button type="button" (click)="chosen.set(s.iso)"
+                      class="rounded-md border border-gray-300 px-2 py-2 text-sm hover:border-blue-600 hover:bg-blue-50">
+                      {{ s.label }}
+                    </button>
+                  }
                 </div>
               }
             } @else {
               <p class="mb-3 rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">{{ chosenLabel() }}</p>
               <label class="mb-1 block text-sm text-gray-600">Tên của bạn</label>
-              <input [(ngModel)]="name" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input [(ngModel)]="name" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               <label class="mb-1 block text-sm text-gray-600">Email</label>
-              <input type="email" [(ngModel)]="email" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input type="email" [(ngModel)]="email" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               @if (bookError()) { <p class="mb-2 text-sm text-red-600">{{ bookError() }}</p> }
               <div class="flex gap-2">
                 <button type="button" (click)="chosen.set(null)" class="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">← Chọn giờ khác</button>
@@ -92,19 +123,54 @@ export class PublicBookingComponent {
   readonly bookError = signal<string | null>(null);
   readonly booked = signal(false);
 
+  /** Ngày người dùng đang chọn ở bước 1 (null = tự lấy ngày đầu tiên còn trống). */
+  readonly pickedDay = signal<string | null>(null);
+  /** Giờ nhận hẹn của chủ trang — để giải thích vì sao một số ngày không hiện. */
+  readonly workingDays = signal<number[]>([1, 2, 3, 4, 5]);
+  readonly workingStart = signal('08:00');
+  readonly workingEnd = signal('17:00');
+  readonly daysAhead = signal(14);
+
   readonly days = computed<DayGroup[]>(() => {
     const groups = new Map<string, DayGroup>();
     for (const iso of this.slotList()) {
       const d = new Date(iso);
-      const key = d.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' });
-      if (!groups.has(key)) groups.set(key, { label: key, slots: [] });
+      // Khoá theo NGÀY địa phương (không dùng ISO/UTC để khỏi lệch múi giờ)
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          label: d.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' }),
+          weekday: WEEKDAY_SHORT[d.getDay()],
+          dayNum: d.getDate(),
+          slots: [],
+        });
+      }
       groups.get(key)!.slots.push({
         iso,
         label: d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       });
     }
-    return [...groups.values()];
+    // Sắp xếp ngày tăng dần cho chắc (không phụ thuộc thứ tự backend trả về)
+    return [...groups.values()].sort((a, b) => (a.slots[0].iso < b.slots[0].iso ? -1 : 1));
   });
+
+  /** Ngày đang xem: ưu tiên ngày đã bấm, không thì ngày trống gần nhất. */
+  readonly activeDay = computed(() => {
+    const picked = this.pickedDay();
+    const list = this.days();
+    if (picked && list.some((d) => d.key === picked)) return picked;
+    return list[0]?.key ?? '';
+  });
+  readonly activeSlots = computed(() => this.days().find((d) => d.key === this.activeDay())?.slots ?? []);
+  activeDayLabel(): string {
+    return this.days().find((d) => d.key === this.activeDay())?.label ?? '';
+  }
+  /** "T2, T3, T4, T5, T6" — các thứ chủ trang nhận hẹn. */
+  workingDaysLabel(): string {
+    const ds = [...this.workingDays()].sort((a, b) => ((a || 7) - (b || 7)));
+    return ds.map((d) => WEEKDAY_SHORT[d]).join(', ');
+  }
 
   chosenLabel(): string {
     const iso = this.chosen();
@@ -117,16 +183,44 @@ export class PublicBookingComponent {
     this.api.getPublicPage(this.slug).subscribe({
       next: (p) => {
         this.page.set({ title: p.title, durationMinutes: p.durationMinutes });
-        this.api.getSlots(this.slug).subscribe({
-          next: (s) => { this.slotList.set(s.slots); this.loading.set(false); },
-          error: () => { this.slotList.set([]); this.loading.set(false); },
-        });
+        this.loadSlots();
       },
       error: (e) => {
         this.loading.set(false);
         this.loadError.set(e?.error?.message ?? 'Trang không tồn tại hoặc đang tắt.');
       },
     });
+  }
+
+  /** Tải (hoặc tải lại) danh sách khung giờ còn trống của trang đặt lịch. */
+  private loadSlots(): void {
+    this.loading.set(true);
+    this.api.getSlots(this.slug).subscribe({
+      next: (s) => {
+        this.slotList.set(s.slots);
+        if (s.workingDays?.length) this.workingDays.set(s.workingDays);
+        if (s.workingStart) this.workingStart.set(s.workingStart);
+        if (s.workingEnd) this.workingEnd.set(s.workingEnd);
+        if (s.daysAhead) this.daysAhead.set(s.daysAhead);
+        this.loading.set(false);
+      },
+      error: () => { this.slotList.set([]); this.loading.set(false); },
+    });
+  }
+
+  /** Sau khi đặt thành công, cho phép đặt tiếp một lịch hẹn khác (tải lại khung trống để bỏ khung vừa đặt). */
+  bookAgain(): void {
+    this.booked.set(false);
+    this.chosen.set(null);
+    this.pickedDay.set(null);
+    this.bookError.set(null);
+    this.loadSlots();
+  }
+
+  /** Bấm Enter trong ô Tên/Email -> đặt lịch (chỉ khi đã nhập đủ + không đang gửi). */
+  onBookingEnter(): void {
+    if (this.submitting() || !this.name().trim() || !this.email().trim()) return;
+    this.submit();
   }
 
   submit(): void {

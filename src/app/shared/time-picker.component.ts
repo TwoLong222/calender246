@@ -3,40 +3,37 @@
 // thả vào [(ngModel)] y như <input type="time"> (giá trị "HH:mm").
 
 import { ChangeDetectionStrategy, Component, forwardRef, signal } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { SelectComponent, SelectOption } from './select.component';
+
+const HOUR_OPTIONS: SelectOption[] = Array.from({ length: 24 }, (_, i) => {
+  const v = String(i).padStart(2, '0');
+  return { value: v, label: v };
+});
+const MINUTE_OPTIONS: SelectOption[] = Array.from({ length: 60 }, (_, i) => {
+  const v = String(i).padStart(2, '0');
+  return { value: v, label: v };
+});
 
 @Component({
   selector: 'app-time-picker',
   standalone: true,
+  imports: [SelectComponent, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => TimePickerComponent), multi: true },
   ],
   template: `
     <span class="inline-flex items-center gap-1">
-      <select
-        [value]="hour()"
-        (change)="setHour($event)"
-        [disabled]="disabled()"
-        class="rounded border border-gray-300 px-2 py-1 text-sm disabled:opacity-50"
-      >
-        @for (h of hours; track h) { <option [value]="h">{{ h }}</option> }
-      </select>
+      <app-select [options]="hourOptions" [ngModel]="hour()" (ngModelChange)="setHour($event)" [disabled]="disabled()" class="w-[4.5rem]" />
       <span class="text-gray-400">:</span>
-      <select
-        [value]="minute()"
-        (change)="setMinute($event)"
-        [disabled]="disabled()"
-        class="rounded border border-gray-300 px-2 py-1 text-sm disabled:opacity-50"
-      >
-        @for (m of minutes; track m) { <option [value]="m">{{ m }}</option> }
-      </select>
+      <app-select [options]="minuteOptions" [ngModel]="minute()" (ngModelChange)="setMinute($event)" [disabled]="disabled()" class="w-[4.5rem]" />
     </span>
   `,
 })
 export class TimePickerComponent implements ControlValueAccessor {
-  protected readonly hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-  protected readonly minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+  protected readonly hourOptions = HOUR_OPTIONS;
+  protected readonly minuteOptions = MINUTE_OPTIONS;
   protected readonly hour = signal('00');
   protected readonly minute = signal('00');
   protected readonly disabled = signal(false);
@@ -55,7 +52,7 @@ export class TimePickerComponent implements ControlValueAccessor {
   registerOnTouched(fn: () => void): void { this.onTouched = fn; }
   setDisabledState(d: boolean): void { this.disabled.set(d); }
 
-  protected setHour(e: Event): void { this.hour.set((e.target as HTMLSelectElement).value); this.emit(); }
-  protected setMinute(e: Event): void { this.minute.set((e.target as HTMLSelectElement).value); this.emit(); }
+  protected setHour(v: string): void { this.hour.set(v); this.emit(); }
+  protected setMinute(v: string): void { this.minute.set(v); this.emit(); }
   private emit(): void { this.onChange(`${this.hour()}:${this.minute()}`); this.onTouched(); }
 }

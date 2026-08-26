@@ -4,6 +4,7 @@ import { NotificationService, Toast } from './notification.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
+import { GroupsStateService } from '../groups/groups-state.service';
 import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from './notif-kind.util';
 
 @Component({
@@ -14,7 +15,12 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
   template: `
     <div class="fixed right-4 top-4 z-50 flex flex-col gap-2">
       @for (t of notify.toasts(); track t.id) {
-        <div class="toast-in w-72 rounded-lg border bg-white px-4 py-3 shadow-lg" [class]="borderClass(t.kind)">
+        <!-- Có eventId (nhắc lịch / sự kiện bị sửa...) -> bấm vào toast nhảy tới đúng sự kiện -->
+        <div
+          class="toast-in w-72 rounded-lg border bg-white px-4 py-3 shadow-lg"
+          [class]="borderClass(t.kind) + ((t.eventId || t.groupId) && t.kind !== 'invite' ? ' cursor-pointer hover:shadow-xl' : '')"
+          (click)="onToastClick(t)"
+        >
           <!-- Nhãn phân loại: cho biết ngay đây là loại thông báo gì, tách biệt với nội dung -->
           <div class="mb-1.5 flex items-center justify-between gap-2">
             <span
@@ -51,6 +57,9 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
           } @else if (t.kind === 'file') {
             <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
             <p class="text-xs text-gray-500">{{ tr.t('toast.ofEvent') }} {{ t.detail }}</p>
+          } @else if (t.kind === 'shared') {
+            <p class="text-sm font-medium text-gray-800">{{ t.detail }}</p>
+            <p class="text-xs text-gray-500">{{ tr.t('toast.sharedBody') }}</p>
           } @else {
             <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
             <p class="text-xs text-gray-500">{{ tr.t('toast.startsAt') }} {{ t.detail }}</p>
@@ -64,6 +73,7 @@ export class NotificationToastsComponent {
   protected readonly notify = inject(NotificationService);
   protected readonly tr = inject(TranslateService);
   private readonly state = inject(CalendarStateService);
+  private readonly groupsState = inject(GroupsStateService);
 
   /** Nhãn phân loại ngắn gọn — hiện trong badge màu ở đầu mỗi toast. */
   protected catLabel(kind: Toast['kind']): string {
@@ -76,6 +86,24 @@ export class NotificationToastsComponent {
   /** Đồng ý/Từ chối lời mời ngay trên toast rồi ẩn toast. */
   protected respondInvite(t: { id: string; eventId?: string }, status: 'accepted' | 'declined'): void {
     if (t.eventId) this.state.respondInvitation(t.eventId, status);
+    this.notify.dismiss(t.id);
+  }
+
+  /**
+   * Bấm vào toast -> mở đúng thứ liên quan:
+   *  - Tin nhắn nhóm: mở cuộc trò chuyện của nhóm đó.
+   *  - Sự kiện: nhảy tới sự kiện trên lịch.
+   *  - Lời mời: bỏ qua (đã có nút Đồng ý/Từ chối riêng trên toast).
+   */
+  protected onToastClick(t: Toast): void {
+    if (t.kind === 'invite') return;
+    if (t.groupId) {
+      this.groupsState.openPanel(t.groupId, 'chat');
+      this.notify.dismiss(t.id);
+      return;
+    }
+    if (!t.eventId) return;
+    this.state.focusEvent(t.eventId);
     this.notify.dismiss(t.id);
   }
 }

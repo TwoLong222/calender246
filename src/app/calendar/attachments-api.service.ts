@@ -4,6 +4,10 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+/** Giới hạn dung lượng 1 file đính kèm — PHẢI khớp với backend (Multer + AttachmentsService.MAX_BYTES). */
+export const MAX_ATTACHMENT_MB = 10;
+export const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024;
+
 export type AttachmentStatus = 'available' | 'scheduled' | 'expired';
 
 export interface EventAttachment {
@@ -48,6 +52,18 @@ export class AttachmentsApiService {
   recentAvailable(): Observable<RecentAttachment[]> {
     return this.http.get<RecentAttachment[]>(`${this.base}/attachments/recent-available`);
   }
+  /** Tất cả tài liệu của mình, gom nhóm theo sự kiện (cho mục Cài đặt > Tệp đính kèm). */
+  listAllGrouped(): Observable<EventFileGroup[]> {
+    return this.http.get<EventFileGroup[]>(`${this.base}/attachments/by-event`);
+  }
+}
+
+/** 1 nhóm file thuộc cùng 1 sự kiện. */
+export interface EventFileGroup {
+  event_id: string;
+  event_title: string;
+  event_start: string | null;
+  files: (EventAttachment & { event_id: string })[];
 }
 
 export interface RecentAttachment {
