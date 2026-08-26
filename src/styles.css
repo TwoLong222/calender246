@@ -198,6 +198,21 @@ input[type='radio'] {
 }
 
 /* ============================================================
+   CHỪA CHỖ THANH CUỘN — cho các hàng nằm NGOÀI vùng cuộn (header ngày,
+   dải "Cả ngày") thẳng cột với lưới giờ bên trong (vốn bị thanh cuộn ăn bớt
+   ~10px bên phải). Giữ khớp với ::-webkit-scrollbar { width: 10px } bên dưới.
+   ============================================================ */
+.gutter-pr {
+  padding-right: 10px;
+}
+/* Máy dùng thanh cuộn kiểu overlay (macOS, mobile) không ăn bớt chỗ -> bỏ chừa. */
+@media (pointer: coarse) {
+  .gutter-pr {
+    padding-right: 0;
+  }
+}
+
+/* ============================================================
    THANH CUỘN — mảnh, bo tròn, KHÔNG có 2 nút mũi tên ở hai đầu.
    Áp cho MỌI vùng cuộn được trong app (lưới giờ, popup, danh sách…).
    Firefox dùng scrollbar-width/color; Chrome/Edge/Safari dùng ::-webkit-*.

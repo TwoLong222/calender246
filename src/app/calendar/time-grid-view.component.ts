@@ -24,6 +24,7 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { CalendarStateService } from './calendar-state.service';
+import { IconComponent } from '../shared/icon.component';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -109,11 +110,13 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
 @Component({
   selector: 'app-time-grid-view',
   standalone: true,
+  imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-full flex-col overflow-hidden">
-      <!-- Header: tên ngày + số ngày, hôm nay có vòng tròn xanh. Bấm vào ngày -> xem view Ngày. -->
-      <div class="flex border-b border-gray-200 pl-14">
+      <!-- Header: tên ngày + số ngày, hôm nay có vòng tròn xanh. Bấm vào ngày -> xem view Ngày.
+           gutter-pr: chừa đúng bề rộng thanh cuộn của lưới bên dưới -> các cột thẳng hàng. -->
+      <div class="gutter-pr flex border-b border-gray-200 pl-14">
         @for (date of dates(); track date.getTime()) {
           <button
             type="button"
@@ -138,13 +141,25 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
            -> cho riêng một dải ngay dưới header (giống Google Calendar). Trước đây chúng
            bị lọc bỏ hoàn toàn nên tick "Cả ngày" xong là sự kiện biến mất. -->
       @if (hasAllDay()) {
-        <div class="flex border-b border-gray-200 bg-gray-50/60">
-          <div class="flex w-14 shrink-0 items-center justify-end pr-2">
-            <span class="text-[11px] font-medium text-gray-500">{{ tr.t('common.allDay') }}</span>
+        <div class="gutter-pr flex border-b border-gray-200 bg-gray-50/60">
+          <!-- Cột nhãn: chữ "Cả ngày" + nút thu gọn/mở rộng khi có nhiều sự kiện -->
+          <div class="flex w-14 shrink-0 flex-col items-end justify-start gap-0.5 py-1 pr-2">
+            <span class="text-[11px] font-medium leading-tight text-gray-500">{{ tr.t('common.allDay') }}</span>
+            @if (allDayOverflow()) {
+              <button
+                type="button"
+                (click)="allDayExpanded.set(!allDayExpanded())"
+                class="rounded p-0.5 text-gray-500 hover:bg-gray-200"
+                [title]="allDayExpanded() ? tr.t('allday.collapse') : tr.t('allday.expand')"
+                [attr.aria-label]="allDayExpanded() ? tr.t('allday.collapse') : tr.t('allday.expand')"
+              >
+                <app-icon [name]="allDayExpanded() ? 'chevron-up' : 'chevron-down'" class="h-3.5 w-3.5" />
+              </button>
+            }
           </div>
           @for (date of dates(); track date.getTime()) {
-            <div class="min-h-[2rem] flex-1 space-y-1 border-l border-gray-100 p-1">
-              @for (e of allDayEvents(date); track e.id) {
+            <div class="min-h-[2rem] min-w-0 flex-1 space-y-1 border-l border-gray-100 p-1">
+              @for (e of visibleAllDay(date); track e.id) {
                 <button
                   type="button"
                   (click)="onEventClick(e, $event)"
@@ -153,6 +168,14 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                 >
                   @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
                 </button>
+              }
+              <!-- Còn dư -> "N mục khác" (bấm để mở rộng), giống Google Calendar -->
+              @if (hiddenAllDayCount(date) > 0) {
+                <button
+                  type="button"
+                  (click)="allDayExpanded.set(true)"
+                  class="block w-full truncate px-2 text-left text-xs text-gray-600 hover:underline"
+                >{{ hiddenAllDayCount(date) }} {{ tr.t('allday.more') }}</button>
               }
             </div>
           }
@@ -166,7 +189,13 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
           <div class="w-14 shrink-0">
             @for (hour of hours; track hour) {
               <div class="relative" [style.height.px]="HOUR_HEIGHT">
-                <span class="absolute -top-2 right-2 text-[11px] font-semibold text-gray-600">{{ formatHourLabel(hour, settings.is24h()) }}</span>
+                <!-- Nhãn giờ nhô lên -8px để canh đúng vạch kẻ. Riêng giờ ĐẦU TIÊN (0h) thì
+                     không nhô, nếu không nó tràn lên trên và bị dải "Cả ngày" che mất. -->
+                <span
+                  class="absolute right-2 text-[11px] font-semibold text-gray-600"
+                  [class.-top-2]="hour > 0"
+                  [class.top-0]="hour === 0"
+                >{{ formatHourLabel(hour, settings.is24h()) }}</span>
               </div>
             }
           </div>
@@ -354,6 +383,25 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   /** Có sự kiện cả ngày nào trong các ngày đang xem không (để ẩn dải khi không có). */
   hasAllDay(): boolean {
     return this.dates().some((d) => this.allDayEvents(d).length > 0);
+  }
+
+  /** Số sự kiện cả ngày hiện tối đa khi CHƯA mở rộng (giống Google Calendar). */
+  private readonly ALL_DAY_COLLAPSED = 2;
+  /** Người dùng đã bấm mở rộng dải "Cả ngày" hay chưa. */
+  readonly allDayExpanded = signal(false);
+  /** Có ngày nào nhiều sự kiện hơn mức hiện được không -> mới hiện nút thu gọn/mở rộng. */
+  allDayOverflow(): boolean {
+    return this.dates().some((d) => this.allDayEvents(d).length > this.ALL_DAY_COLLAPSED);
+  }
+  /** Danh sách sự kiện cả ngày ĐANG hiện của 1 ngày (cắt bớt khi đang thu gọn). */
+  visibleAllDay(date: Date): CalendarEvent[] {
+    const list = this.allDayEvents(date);
+    if (this.allDayExpanded() || !this.allDayOverflow()) return list;
+    return list.slice(0, this.ALL_DAY_COLLAPSED);
+  }
+  /** Số sự kiện bị giấu của 1 ngày -> hiện "N mục khác". */
+  hiddenAllDayCount(date: Date): number {
+    return this.allDayEvents(date).length - this.visibleAllDay(date).length;
   }
   /** Sự kiện cả ngày có thể kéo dài nhiều ngày -> hiện ở MỌI ngày nó phủ qua. */
   private coversDay(e: CalendarEvent, date: Date): boolean {

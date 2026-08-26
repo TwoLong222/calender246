@@ -151,6 +151,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'notif.descCancelled': 'Khi sự kiện bạn được mời bị hủy', 'notif.descFile': 'Khi tài liệu đính kèm sự kiện tới giờ mở',
     'notif.descChat': 'Khi có tin nhắn mới trong nhóm', 'notif.descShared': 'Khi có người chia sẻ lịch cho bạn',
     'common.untitled': '(Không có tiêu đề)', 'common.allDay': 'Cả ngày', 'common.close': 'Đóng',
+    'allday.more': 'mục khác', 'allday.expand': 'Xem tất cả sự kiện cả ngày', 'allday.collapse': 'Thu gọn',
     // Hộp thoại xác nhận xóa (dùng chung)
     'confirm.delChat': 'Xóa cuộc trò chuyện này?', 'confirm.delFile': 'Xóa tài liệu này?',
     'confirm.delShare': 'Bỏ chia sẻ lịch với người này?', 'confirm.delGroup': 'Giải tán nhóm',
@@ -321,6 +322,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'notif.descCancelled': 'When an event you were invited to is cancelled', 'notif.descFile': 'When an event attachment reaches its open time',
     'notif.descChat': 'When there is a new message in a group', 'notif.descShared': 'When someone shares a calendar with you',
     'common.untitled': '(Untitled)', 'common.allDay': 'All day', 'common.close': 'Close',
+    'allday.more': 'more', 'allday.expand': 'Show all all-day events', 'allday.collapse': 'Collapse',
     'confirm.delChat': 'Delete this conversation?', 'confirm.delFile': 'Delete this file?',
     'confirm.delShare': 'Stop sharing your calendar with this person?', 'confirm.delGroup': 'Disband group',
     'confirm.delGroupDetail': 'All group events will be deleted. This cannot be undone.',
