@@ -12,6 +12,10 @@ import { GroupMessage } from './groups.types';
 const PAGE_SIZE = 30;
 const TYPING_TTL = 4000; // ms — "đang gõ" tự ẩn nếu không có tín hiệu mới
 const TYPING_THROTTLE = 1500; // ms — giãn cách tối thiểu giữa 2 lần báo "đang gõ"
+// Dự phòng khi socket không real-time được (vd dev 2 máy dùng 2 backend riêng):
+// âm thầm tải lại tin mới nhất / số chưa đọc theo chu kỳ, không cần F5.
+const POLL_INTERVAL = 4000; // ms — nhóm đang mở chat
+const UNREAD_POLL_INTERVAL = 15000; // ms — badge chưa đọc của mọi nhóm
 
 @Injectable({ providedIn: 'root' })
 export class GroupChatService {
@@ -40,10 +44,12 @@ export class GroupChatService {
 
   private readonly typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private lastTypingSent = 0;
+  private pollTimer?: ReturnType<typeof setInterval>;
 
   constructor() {
     this.realtime.chat$.subscribe((m) => this.applyRealtime(m));
     this.realtime.typing$.subscribe(({ groupId, email }) => this.addTyping(groupId, email));
+    setInterval(() => this.loadUnread(), UNREAD_POLL_INTERVAL);
   }
 
   private get myId(): string | null {
@@ -67,7 +73,7 @@ export class GroupChatService {
   }
 
   // ---------- Tải dữ liệu ----------
-  /** Nạp số tin chưa đọc mọi nhóm — gọi 1 lần khi mở trang lịch. */
+  /** Nạp số tin chưa đọc mọi nhóm — gọi khi mở trang lịch, sau đó tự lặp lại theo poll ngầm. */
   loadUnread(): void {
     this.api.unread().subscribe({
       next: (map) => this.unread.set(map ?? {}),
@@ -80,10 +86,33 @@ export class GroupChatService {
     this.openGroupId.set(groupId);
     if (this.messages()[groupId] === undefined) this.loadHistory(groupId);
     this.markRead(groupId);
+    this.startPolling(groupId);
   }
 
   close(): void {
     this.openGroupId.set(null);
+    this.stopPolling();
+  }
+
+  /** Âm thầm tải lại tin mới nhất mỗi vài giây — không hiện loading, không hiện lỗi. */
+  private startPolling(groupId: string): void {
+    this.stopPolling();
+    this.pollTimer = setInterval(() => this.refreshSilently(groupId), POLL_INTERVAL);
+  }
+
+  private stopPolling(): void {
+    clearInterval(this.pollTimer);
+    this.pollTimer = undefined;
+  }
+
+  private refreshSilently(groupId: string): void {
+    this.api.listMessages(groupId, undefined, PAGE_SIZE).subscribe({
+      next: (list) => {
+        for (const msg of list) this.upsert(groupId, msg);
+        if (this.openGroupId() === groupId) this.markRead(groupId);
+      },
+      error: () => {}, // im lặng — thử lại ở lần poll sau
+    });
   }
 
   private loadHistory(groupId: string): void {
