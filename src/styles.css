@@ -677,9 +677,20 @@ body { background-color: var(--app-bg); }
   }
 }
 
-/* Trang đăng nhập (.login-scene) tự vẽ 1 scene tối CỐ ĐỊNH, không đổi theo theme
-   sáng/tối của app — vài class dùng token trung tính (bg-white, text-gray-800,
-   border-gray-300: nút Google) cần giữ nguyên màu gốc dù <html> đang có .dark. */
+/* Trang đăng nhập (.login-scene) tự vẽ theme CỐ ĐỊNH (nửa trái tối, nửa phải sáng),
+   không đổi theo theme sáng/tối của app — mọi class Tailwind trung tính dùng ở nửa
+   phải (thẻ form + nút Google) cần giữ nguyên màu gốc dù <html> đang có .dark, nếu
+   không toàn bộ app-wide dark remap (xem khối .dark .bg-gray-50/.text-gray-* phía
+   trên) sẽ biến nửa phải thành tối theo, mất hết chủ đích "khớp theme sáng của app". */
 .dark .login-scene .bg-white { background-color: #ffffff; }
+.dark .login-scene .bg-gray-50 { background-color: #f9fafb; }
+.dark .login-scene .text-gray-900 { color: #111827; }
 .dark .login-scene .text-gray-800 { color: #1f2937; }
+.dark .login-scene .text-gray-700 { color: #374151; }
+.dark .login-scene .text-gray-500 { color: #6b7280; }
+.dark .login-scene .text-gray-400 { color: #9ca3af; }
 .dark .login-scene .border-gray-300 { border-color: #d1d5db; }
+.dark .login-scene .border-gray-200 { border-color: #e5e7eb; }
+.dark .login-scene .bg-red-50 { background-color: #fef2f2; }
+.dark .login-scene .text-red-700 { color: #b91c1c; }
+.dark .login-scene .border-red-200 { border-color: #fecaca; }
