@@ -121,12 +121,12 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
           <button
             type="button"
             (click)="dateSelected.emit(date)"
-            class="flex flex-1 flex-col items-center py-2 hover:bg-gray-50"
+            class="flex flex-1 flex-col items-center gap-1 py-2.5 hover:bg-gray-50"
             title="Xem ngày này"
           >
-            <span class="text-xs font-medium uppercase text-gray-500">{{ weekdayLabel(date) }}</span>
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{{ weekdayLabel(date) }}</span>
             <span
-              class="mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg hover:bg-blue-100"
+              class="flex h-9 w-9 items-center justify-center rounded-full text-lg font-medium transition-colors hover:bg-blue-100"
               [class.bg-blue-700]="isToday(date)"
               [class.text-white]="isToday(date)"
               [class.text-gray-800]="!isToday(date)"
@@ -163,7 +163,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                 <button
                   type="button"
                   (click)="onEventClick(e, $event)"
-                  class="block w-full truncate rounded px-2 py-0.5 text-left text-xs text-white"
+                  class="block w-full truncate rounded px-2 py-0.5 text-left text-xs font-medium text-white shadow-sm"
                   [class]="colorClass(e.color)"
                 >
                   @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
@@ -190,9 +190,10 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
             @for (hour of hours; track hour) {
               <div class="relative" [style.height.px]="HOUR_HEIGHT">
                 <!-- Nhãn giờ nhô lên -8px để canh đúng vạch kẻ. Riêng giờ ĐẦU TIÊN (0h) thì
-                     không nhô, nếu không nó tràn lên trên và bị dải "Cả ngày" che mất. -->
+                     không nhô, nếu không nó tràn lên trên và bị dải "Cả ngày" che mất
+                     (đúng lỗi "giờ 0h bị cắt/chồng chữ" đã gặp). -->
                 <span
-                  class="absolute right-2 text-[11px] font-semibold text-gray-600"
+                  class="mono absolute right-2 text-[11px] font-medium text-gray-500"
                   [class.-top-2]="hour > 0"
                   [class.top-0]="hour === 0"
                 >{{ formatHourLabel(hour, settings.is24h()) }}</span>
@@ -202,13 +203,30 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
 
           <!-- Các cột ngày -->
           @for (date of dates(); track date.getTime()) {
-            <div class="relative flex-1 border-l border-gray-100">
+            <div
+              class="relative flex-1 border-l border-gray-100"
+              (pointerdown)="createDown($event, date)"
+              (pointermove)="createMove($event)"
+              (pointerup)="createUp($event)"
+              (pointercancel)="createCancel()"
+            >
               @for (hour of hours; track hour) {
                 <div
-                  class="cursor-pointer border-b border-gray-100 hover:bg-blue-50/40"
+                  class="cursor-pointer border-b border-gray-100 transition-colors hover:bg-blue-50/40"
                   [style.height.px]="HOUR_HEIGHT"
                   (click)="onSlotClick(date, hour)"
                 ></div>
+              }
+
+              <!-- Ô "ghost" khi ĐANG KÉO để tạo sự kiện mới -->
+              @if (createGhost(date); as g) {
+                <div
+                  class="pointer-events-none absolute inset-x-0.5 z-[15] overflow-hidden rounded-md border border-blue-500 bg-blue-500/25 px-1.5 py-0.5"
+                  [style.top.px]="g.top"
+                  [style.height.px]="g.height"
+                >
+                  <span class="text-[11px] font-semibold text-blue-700">{{ g.label }}</span>
+                </div>
               }
 
               <!-- Vạch đỏ: giờ hiện tại (có thể tắt trong Cài đặt) -->
@@ -231,7 +249,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   (pointermove)="onMove($event)"
                   (pointerup)="endMove($event)"
                   (pointercancel)="endMove($event)"
-                  class="group absolute z-10 cursor-grab touch-none overflow-hidden rounded-md border border-white px-2 py-1 text-left text-xs text-white shadow-sm active:cursor-grabbing"
+                  class="group absolute z-10 cursor-grab touch-none overflow-hidden rounded px-2 py-1 text-left text-xs text-white shadow-sm ring-1 ring-white/70 transition-shadow hover:shadow-md active:cursor-grabbing"
                   [style.top.px]="item.top"
                   [style.height.px]="item.height"
                   [style.left.%]="item.left"
@@ -240,7 +258,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                 >
                   <!-- Tay cầm kéo mép TRÊN: đổi giờ bắt đầu -->
                   <div
-                    class="absolute inset-x-0 top-0 z-20 h-1.5 cursor-ns-resize opacity-0 group-hover:opacity-100"
+                    class="absolute inset-x-0 top-0 z-20 flex h-2.5 items-start justify-center cursor-ns-resize opacity-0 group-hover:opacity-100"
                     title="Kéo để đổi giờ bắt đầu"
                     (pointerdown)="startResize($event, item.event, 'top')"
                     (pointermove)="onResizeMove($event)"
@@ -248,22 +266,22 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                     (pointercancel)="endResize($event)"
                     (click)="$event.stopPropagation()"
                   >
-                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
+                    <span class="mt-0.5 block h-0.5 w-6 rounded-full bg-white/80"></span>
                   </div>
 
                   @if (item.height < 40) {
                     <!-- Block quá ngắn: gộp giờ bắt đầu + tiêu đề trên 1 dòng để vẫn thấy được giờ -->
                     <span class="block truncate font-medium">
-                      @if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ formatStart(item.event) }} {{ item.event.title || tr.t('common.untitled') }}
+                      @if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }<span class="mono">{{ formatStart(item.event) }}</span> {{ item.event.title || tr.t('common.untitled') }}
                     </span>
                   } @else {
-                    <span class="block truncate font-medium">@if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ item.event.title || tr.t('common.untitled') }}</span>
-                    <span class="block truncate opacity-90">{{ formatRange(item.event) }}</span>
+                    <span class="block truncate font-semibold">@if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ item.event.title || tr.t('common.untitled') }}</span>
+                    <span class="mono block truncate text-[11px] opacity-90">{{ formatRange(item.event) }}</span>
                   }
 
                   <!-- Tay cầm kéo mép DƯỚI: đổi giờ kết thúc (thời lượng) -->
                   <div
-                    class="absolute inset-x-0 bottom-0 z-20 flex h-1.5 items-center cursor-ns-resize opacity-0 group-hover:opacity-100"
+                    class="absolute inset-x-0 bottom-0 z-20 flex h-2.5 items-end justify-center cursor-ns-resize opacity-0 group-hover:opacity-100"
                     title="Kéo để đổi thời lượng"
                     (pointerdown)="startResize($event, item.event, 'bottom')"
                     (pointermove)="onResizeMove($event)"
@@ -271,7 +289,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                     (pointercancel)="endResize($event)"
                     (click)="$event.stopPropagation()"
                   >
-                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
+                    <span class="mb-0.5 block h-0.5 w-6 rounded-full bg-white/80"></span>
                   </div>
                 </button>
               }
@@ -288,6 +306,8 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   events = input.required<CalendarEvent[]>();
 
   slotClicked = output<Date>();
+  /** Kéo chọn 1 khoảng giờ trên lưới -> tạo sự kiện mới với đúng giờ bắt đầu + kết thúc. */
+  rangeSelected = output<{ start: Date; end: Date }>();
   eventClicked = output<CalendarEvent>();
   /** Bấm vào 1 ngày ở header -> xem view Ngày của ngày đó */
   dateSelected = output<Date>();
@@ -355,6 +375,13 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   } | null = null;
 
   nowOffset = computed(() => (minutesSinceMidnight(this.nowSignal()) / 60) * HOUR_HEIGHT);
+
+  // ---------- Kéo để TẠO sự kiện mới (drag-to-create) ----------
+  /** Khoảng giờ đang kéo chọn (theo phút từ 0h). null = không kéo. */
+  readonly createPreview = signal<{ date: Date; startMin: number; endMin: number } | null>(null);
+  private createCtx: { date: Date; colTop: number; startMin: number; startY: number; moved: boolean; el: HTMLElement; pointerId: number } | null = null;
+  /** Vừa kéo-tạo xong -> nuốt click kế tiếp để không mở thêm form ở ô giờ. */
+  private suppressNextClick = false;
 
   ngAfterViewInit(): void {
     const el = this.scrollAreaRef()?.nativeElement;
@@ -589,9 +616,88 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   onSlotClick(date: Date, hour: number): void {
+    // Vừa kéo-tạo xong -> bỏ qua click này (tránh mở thêm form).
+    if (this.suppressNextClick) {
+      this.suppressNextClick = false;
+      return;
+    }
     const start = new Date(date);
     start.setHours(hour, 0, 0, 0);
     this.slotClicked.emit(start);
+  }
+
+  // ----- Kéo tạo sự kiện -----
+  private yToMin(y: number): number {
+    return Math.max(0, Math.min(1440, (y / HOUR_HEIGHT) * 60));
+  }
+  private snap15(min: number): number {
+    return Math.round(min / 15) * 15;
+  }
+  private minToDate(date: Date, min: number): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return new Date(d.getTime() + min * 60000);
+  }
+
+  /** Bắt đầu bấm-giữ trên vùng trống của cột ngày (chuột/bút — bỏ qua chạm để không phá cuộn). */
+  createDown(ev: PointerEvent, date: Date): void {
+    if (ev.pointerType === 'touch') return; // trên điện thoại: giữ cử chỉ cuộn + chạm (dùng click ô giờ)
+    if (ev.button !== 0) return; // chỉ chuột trái
+    if ((ev.target as HTMLElement).closest('button')) return; // bấm trúng 1 sự kiện -> để nó tự xử lý
+    this.suppressNextClick = false; // bắt đầu tương tác mới -> xóa cờ cũ (phòng lần kéo trước không sinh click)
+    const el = ev.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    const startMin = this.snap15(this.yToMin(ev.clientY - rect.top));
+    this.createCtx = { date, colTop: rect.top, startMin, startY: ev.clientY, moved: false, el, pointerId: ev.pointerId };
+  }
+
+  createMove(ev: PointerEvent): void {
+    const ctx = this.createCtx;
+    if (!ctx) return;
+    // Chưa vượt ngưỡng 5px thì coi là click (không kéo) -> để (click) ô giờ xử lý.
+    if (!ctx.moved && Math.abs(ev.clientY - ctx.startY) < 5) return;
+    if (!ctx.moved) {
+      ctx.moved = true;
+      ctx.el.setPointerCapture?.(ctx.pointerId); // chỉ giữ con trỏ KHI đã thật sự kéo
+    }
+    const curMin = this.snap15(this.yToMin(ev.clientY - ctx.colTop));
+    const s = Math.min(ctx.startMin, curMin);
+    const e = Math.max(ctx.startMin, curMin);
+    this.createPreview.set({ date: ctx.date, startMin: s, endMin: Math.max(e, s + 15) });
+  }
+
+  createUp(ev: PointerEvent): void {
+    const ctx = this.createCtx;
+    const cp = this.createPreview();
+    this.createCtx = null;
+    this.createPreview.set(null);
+    if (!ctx) return;
+    if (ctx.moved) {
+      try { ctx.el.releasePointerCapture?.(ev.pointerId); } catch { /* chưa giữ -> bỏ qua */ }
+    }
+    if (!ctx.moved || !cp) return; // click đơn -> để onSlotClick tạo như cũ
+    this.suppressNextClick = true; // đã kéo -> nuốt click theo sau
+    const start = this.minToDate(ctx.date, cp.startMin);
+    const end = this.minToDate(ctx.date, Math.max(cp.endMin, cp.startMin + 15));
+    this.rangeSelected.emit({ start, end });
+  }
+
+  createCancel(): void {
+    this.createCtx = null;
+    this.createPreview.set(null);
+  }
+
+  /** Geometry + nhãn của ô ghost cho đúng cột ngày đang kéo (null nếu không phải cột này). */
+  createGhost(date: Date): { top: number; height: number; label: string } | null {
+    const cp = this.createPreview();
+    if (!cp || !isSameDay(cp.date, date)) return null;
+    const top = (cp.startMin / 60) * HOUR_HEIGHT;
+    const height = Math.max(3, ((cp.endMin - cp.startMin) / 60) * HOUR_HEIGHT);
+    const fmt = (m: number) => {
+      const d = this.minToDate(date, m);
+      return this.settings.formatTime(d);
+    };
+    return { top, height, label: `${fmt(cp.startMin)} – ${fmt(cp.endMin)}` };
   }
 
   onEventClick(event: CalendarEvent, domEvent: Event): void {

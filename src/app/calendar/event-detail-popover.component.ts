@@ -23,37 +23,37 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
     @if (event(); as e) {
       <div class="fixed inset-0 z-30" (click)="state.closeDetail()">
         <div
-          class="popup-in absolute max-h-[calc(100vh-8rem)] w-80 overflow-y-auto overflow-x-hidden rounded-xl bg-white p-4 shadow-2xl"
+          class="popup-in surface-panel absolute max-h-[calc(100vh-8rem)] w-80 overflow-y-auto overflow-x-hidden !rounded-[var(--radius-lg)] p-4 !shadow-[var(--shadow-lg)]"
           [style.left.px]="panelPos().left"
           [style.top.px]="panelPos().top"
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <span class="h-3 w-3 rounded-full" [class]="dotClass(e.color)"></span>
-              <h3 class="font-medium text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
+            <div class="flex min-w-0 items-center gap-2">
+              <span class="h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)"></span>
+              <h3 class="truncate font-semibold text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
             </div>
-            <div class="flex shrink-0 gap-1">
+            <div class="flex shrink-0 gap-0.5">
               <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
               @if (canManage()) {
-                <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.edit')"><app-icon name="pencil" class="h-4 w-4" /></button>
-                <button type="button" (click)="askDelete()" class="rounded-full p-2 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
+                <button type="button" (click)="edit()" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('detail.edit')"><app-icon name="pencil" class="h-4 w-4" /></button>
+                <button type="button" (click)="askDelete()" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
               }
-              <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+              <button type="button" (click)="state.closeDetail()" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
             </div>
           </div>
 
-          <p class="mb-2 text-sm text-gray-600">{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</p>
+          <p class="mono mb-2 text-sm text-gray-600">{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</p>
 
           <!-- Google Meet -->
           <div class="mb-2 flex items-center gap-2">
             @if (e.meetLink) {
-              <a [href]="e.meetLink" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded bg-emerald-600 px-2 py-1 text-sm text-white hover:bg-emerald-700">📹 Tham gia Google Meet</a>
+              <a [href]="e.meetLink" target="_blank" rel="noopener" class="btn btn-primary !bg-emerald-600 hover:!bg-emerald-700">📹 Tham gia Google Meet</a>
               @if (canManage()) {
-                <button type="button" (click)="state.removeMeetForEvent(e.id)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet"><app-icon name="x" class="h-4 w-4" /></button>
+                <button type="button" (click)="state.removeMeetForEvent(e.id)" class="btn-icon !p-1.5 hover:!text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet"><app-icon name="x" class="h-4 w-4" /></button>
               }
             } @else if (canManage()) {
-              <button type="button" (click)="state.createMeetForEvent(e.id)" class="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-100" title="Tạo phòng họp Google Meet">📹 Tạo Google Meet</button>
+              <button type="button" (click)="state.createMeetForEvent(e.id)" class="btn btn-secondary">📹 Tạo Google Meet</button>
             }
           </div>
 
@@ -92,7 +92,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             <button
               type="button"
               (click)="rsvp('accepted')"
-              class="rounded-full border px-3 py-1"
+              class="tap rounded-full border px-3 py-1 text-xs font-medium transition-colors"
               [class]="myStatus() === 'accepted' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
               {{ tr.t('rsvp.yes') }}
@@ -100,7 +100,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             <button
               type="button"
               (click)="rsvp('declined')"
-              class="rounded-full border px-3 py-1"
+              class="tap rounded-full border px-3 py-1 text-xs font-medium transition-colors"
               [class]="myStatus() === 'declined' ? 'border-red-600 bg-red-600 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
               {{ tr.t('rsvp.no') }}
@@ -108,7 +108,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             <button
               type="button"
               (click)="rsvp('tentative')"
-              class="rounded-full border px-3 py-1"
+              class="tap rounded-full border px-3 py-1 text-xs font-medium transition-colors"
               [class]="myStatus() === 'tentative' ? 'border-amber-500 bg-amber-500 text-white' : 'border-gray-300 hover:bg-gray-50'"
             >
               {{ tr.t('rsvp.maybe') }}
@@ -122,30 +122,32 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 <app-icon name="notes" class="h-4 w-4" /> {{ tr.t('attach.title') }}
               </p>
               @if (canManage()) {
-                <label class="tap cursor-pointer rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-50">
+                <label class="btn btn-secondary !py-1 !text-xs cursor-pointer">
                   {{ uploading() ? tr.t('attach.uploading') : tr.t('attach.add') }}
                   <input type="file" class="hidden" (change)="onFileSelected($event)" [disabled]="uploading()" />
                 </label>
               }
             </div>
             @if (canManage()) {
-              <p class="mb-1 text-[11px] text-gray-400">{{ tr.t('attach.limit') }}</p>
+              <p class="mb-1 text-[11px] text-gray-500">{{ tr.t('attach.limit') }}</p>
             }
             @if (uploadError()) {
               <p class="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ uploadError() }}</p>
             }
             @if (canManage()) {
-              <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp) -->
-              <div class="mb-2 grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
-                <label class="flex flex-col gap-0.5 text-gray-500">
+              <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp). Xếp DỌC (không phải
+                   grid-cols-2): popover chỉ rộng w-80, 2 cột không đủ chỗ cho ô ngày + 2 ô
+                   giờ cạnh nhau -> chữ bị cắt/chồng lên nhau. -->
+              <div class="mb-2 flex flex-col gap-3 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex flex-col gap-1 text-gray-500">
                   {{ tr.t('attach.from') }}
                   <app-datetime-picker [(ngModel)]="newFrom" />
                 </label>
-                <label class="flex flex-col gap-0.5 text-gray-500">
+                <label class="flex flex-col gap-1 text-gray-500">
                   {{ tr.t('attach.until') }}
                   <app-datetime-picker [(ngModel)]="newUntil" />
                 </label>
-                <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('attach.scheduleHint') }}</p>
+                <p class="text-[11px] text-gray-500">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
             }
             @if (attachments().length === 0) {
@@ -194,7 +196,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                     <span class="shrink-0 text-[10px] text-gray-400">{{ commentTime(c.createdAt) }}</span>
                   </div>
                   @if (editingId() === c.id) {
-                    <textarea [(ngModel)]="editText" rows="2" class="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"></textarea>
+                    <textarea [(ngModel)]="editText" rows="2" class="field mt-1 w-full text-sm"></textarea>
                     <div class="mt-1 flex gap-3">
                       <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700">{{ tr.t('form.save') }}</button>
                       <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
@@ -229,13 +231,15 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 [(ngModel)]="newComment"
                 rows="1"
                 [placeholder]="tr.t('detail.writeComment')"
-                class="flex-1 resize-none rounded border border-gray-300 px-2 py-1 text-sm"
+                class="field flex-1 resize-none text-sm"
               ></textarea>
+              <!-- Bỏ [disabled]="!newComment().trim()" — trước đây nút bị khóa/mờ đi trong
+                   lúc đang gõ khiến người dùng tưởng bị "lock". sendComment() tự kiểm tra
+                   rỗng bên trong (xem bên dưới), bấm khi chưa gõ gì chỉ no-op, không lỗi. -->
               <button
                 type="button"
                 (click)="sendComment()"
-                [disabled]="!newComment().trim()"
-                class="shrink-0 self-start rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-40"
+                class="tap btn btn-primary shrink-0 self-start !py-1.5"
               >{{ tr.t('detail.send') }}
               </button>
             </div>

@@ -25,6 +25,7 @@ import { SharingApiService, CalendarMember } from '../sharing/sharing-api.servic
 import { AttachmentsApiService, EventFileGroup } from '../calendar/attachments-api.service';
 import { COMMON_TIMEZONES } from './settings.types';
 import { TimePickerComponent } from '../shared/time-picker.component';
+import { SelectComponent, SelectOption } from '../shared/select.component';
 import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
 import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { Toast } from '../notifications/notification.service';
@@ -48,7 +49,7 @@ type Section =
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [FormsModule, IconComponent, RouterLink, TimePickerComponent],
+  imports: [FormsModule, IconComponent, RouterLink, TimePickerComponent, SelectComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="min-h-screen bg-gray-50 text-gray-800">
@@ -128,40 +129,25 @@ type Section =
                 <h2 class="text-base font-semibold">{{ tr.t('sec.general') }}</h2>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.language') }}</label>
-                  <select [ngModel]="s().language" (ngModelChange)="set({ language: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                  </select>
+                  <app-select [options]="languageOptions" [ngModel]="s().language" (ngModelChange)="set({ language: $any($event) })" class="w-full" />
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.timezone') }}</label>
-                  <select [ngModel]="s().timezone" (ngModelChange)="set({ timezone: $event })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    @for (tz of timezones; track tz) { <option [value]="tz">{{ tz }}</option> }
-                  </select>
+                  <app-select [options]="timezoneOptions" [ngModel]="s().timezone" (ngModelChange)="set({ timezone: $event })" class="w-full" />
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.dateFormat') }}</label>
-                  <select [ngModel]="s().date_format" (ngModelChange)="set({ date_format: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                  </select>
+                  <app-select [options]="dateFormatOptions" [ngModel]="s().date_format" (ngModelChange)="set({ date_format: $any($event) })" class="w-full" />
                   <p class="mt-1 text-xs text-gray-400">{{ tr.t('common.preview') }}: {{ settings.formatDate(now) }}</p>
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.timeFormat') }}</label>
-                  <select [ngModel]="s().time_format" (ngModelChange)="set({ time_format: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="24h">{{ tr.t('gen.time24') }}</option>
-                    <option value="12h">{{ tr.t('gen.time12') }}</option>
-                  </select>
+                  <app-select [options]="timeFormatOptions()" [ngModel]="s().time_format" (ngModelChange)="set({ time_format: $any($event) })" class="w-full" />
                   <p class="mt-1 text-xs text-gray-400">{{ tr.t('common.preview') }}: {{ settings.formatTime(now) }}</p>
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('gen.startWeek') }}</label>
-                  <select [ngModel]="s().start_of_week" (ngModelChange)="set({ start_of_week: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option [ngValue]="1">{{ tr.t('gen.monday') }}</option>
-                    <option [ngValue]="0">{{ tr.t('gen.sunday') }}</option>
-                  </select>
+                  <app-select [options]="startWeekOptions()" [ngModel]="str(s().start_of_week)" (ngModelChange)="set({ start_of_week: $any(+$event) })" class="w-full" />
                 </div>
               </section>
             }
@@ -171,12 +157,7 @@ type Section =
                 <h2 class="text-base font-semibold">{{ tr.t('sec.calendar') }}</h2>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.defaultView') }}</label>
-                  <select [ngModel]="s().default_calendar_view" (ngModelChange)="set({ default_calendar_view: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="day">{{ tr.t('view.day') }}</option>
-                    <option value="week">{{ tr.t('view.week') }}</option>
-                    <option value="month">{{ tr.t('view.month') }}</option>
-                    <option value="year">{{ tr.t('view.year') }}</option>
-                  </select>
+                  <app-select [options]="defaultViewOptions()" [ngModel]="s().default_calendar_view" (ngModelChange)="set({ default_calendar_view: $any($event) })" class="w-full" />
                 </div>
                 <div>
                   <label class="mb-2 block text-sm text-gray-600">{{ tr.t('cal.workingDays') }}</label>
@@ -200,11 +181,7 @@ type Section =
                 </div>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('cal.slot') }}</label>
-                  <select [ngModel]="s().time_slot_duration" (ngModelChange)="set({ time_slot_duration: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option [ngValue]="15">15 {{ tr.t('cal.min') }}</option>
-                    <option [ngValue]="30">30 {{ tr.t('cal.min') }}</option>
-                    <option [ngValue]="60">60 {{ tr.t('cal.min') }}</option>
-                  </select>
+                  <app-select [options]="slotDurationOptions()" [ngModel]="str(s().time_slot_duration)" (ngModelChange)="set({ time_slot_duration: $any(+$event) })" class="w-full" />
                 </div>
                 <div class="space-y-2 border-t border-gray-200 pt-3">
                   <p class="text-sm font-medium text-gray-600">{{ tr.t('cal.display') }}</p>
@@ -379,10 +356,7 @@ type Section =
                 <h2 class="text-base font-semibold">{{ tr.t('sec.privacy') }}</h2>
                 <div>
                   <label class="mb-1 block text-sm text-gray-600">{{ tr.t('priv.eventDefault') }}</label>
-                  <select [ngModel]="s().event_default_privacy" (ngModelChange)="set({ event_default_privacy: $any($event) })" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <option value="private">{{ tr.t('priv.private') }}</option>
-                    <option value="public">{{ tr.t('priv.public') }}</option>
-                  </select>
+                  <app-select [options]="privacyOptions()" [ngModel]="s().event_default_privacy" (ngModelChange)="set({ event_default_privacy: $any($event) })" class="w-full" />
                 </div>
                 <div class="space-y-3 border-t border-gray-200 pt-3 text-sm">
                   <label class="flex items-center justify-between">
@@ -425,10 +399,7 @@ type Section =
                   <p class="mb-3 text-xs text-gray-400">{{ tr.t('share.desc') }}</p>
                   <div class="flex flex-wrap gap-2">
                     <input type="email" [ngModel]="shareEmail()" (ngModelChange)="shareEmail.set($event)" [placeholder]="tr.t('share.email')" class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2" />
-                    <select [ngModel]="shareRole()" (ngModelChange)="shareRole.set($event)" class="rounded-md border border-gray-300 px-2 py-2">
-                      <option value="viewer">{{ tr.t('share.viewer') }}</option>
-                      <option value="editor">{{ tr.t('share.editor') }}</option>
-                    </select>
+                    <app-select [options]="guestRoleOptions()" [ngModel]="shareRole()" (ngModelChange)="shareRole.set($any($event))" class="w-32" />
                     <button type="button" (click)="addMember()" class="tap rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">{{ tr.t('share.add') }}</button>
                   </div>
                   <!-- Giới hạn khoảng ngày (tuỳ chọn): chỉ chia sẻ sự kiện trong khoảng này -->
@@ -768,6 +739,51 @@ export class SettingsPageComponent {
   protected readonly timezones = COMMON_TIMEZONES;
 
   protected readonly s = this.settings.settings;
+
+  /** Angular template không gọi được hàm global (String, +...) trực tiếp -> lộ ra 1 helper
+   *  để app-select (chỉ nhận value kiểu string) khớp với các field number trong settings. */
+  protected str(v: unknown): string {
+    return String(v);
+  }
+
+  // ----- Options cho app-select (thay <select> gốc — xem select.component.ts) -----
+  protected readonly languageOptions: SelectOption[] = [
+    { value: 'vi', label: 'Tiếng Việt' },
+    { value: 'en', label: 'English' },
+  ];
+  protected readonly timezoneOptions: SelectOption[] = COMMON_TIMEZONES.map((tz) => ({ value: tz, label: tz }));
+  protected readonly dateFormatOptions: SelectOption[] = [
+    { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+    { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+    { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+  ];
+  protected readonly timeFormatOptions = computed<SelectOption[]>(() => [
+    { value: '24h', label: this.tr.t('gen.time24') },
+    { value: '12h', label: this.tr.t('gen.time12') },
+  ]);
+  protected readonly startWeekOptions = computed<SelectOption[]>(() => [
+    { value: '1', label: this.tr.t('gen.monday') },
+    { value: '0', label: this.tr.t('gen.sunday') },
+  ]);
+  protected readonly defaultViewOptions = computed<SelectOption[]>(() => [
+    { value: 'day', label: this.tr.t('view.day') },
+    { value: 'week', label: this.tr.t('view.week') },
+    { value: 'month', label: this.tr.t('view.month') },
+    { value: 'year', label: this.tr.t('view.year') },
+  ]);
+  protected readonly slotDurationOptions = computed<SelectOption[]>(() => [
+    { value: '15', label: `15 ${this.tr.t('cal.min')}` },
+    { value: '30', label: `30 ${this.tr.t('cal.min')}` },
+    { value: '60', label: `60 ${this.tr.t('cal.min')}` },
+  ]);
+  protected readonly privacyOptions = computed<SelectOption[]>(() => [
+    { value: 'private', label: this.tr.t('priv.private') },
+    { value: 'public', label: this.tr.t('priv.public') },
+  ]);
+  protected readonly guestRoleOptions = computed<SelectOption[]>(() => [
+    { value: 'viewer', label: this.tr.t('share.viewer') },
+    { value: 'editor', label: this.tr.t('share.editor') },
+  ]);
 
   protected readonly sections: { id: Section; icon: IconName }[] = [
     { id: 'account', icon: 'user' },

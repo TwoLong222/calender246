@@ -43,11 +43,13 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
         <div class="mx-auto mb-6 max-w-xl rounded-xl border border-gray-200 bg-white p-3 shadow-sm" [style.background-color]="bg(newColor())">
           <input
             [(ngModel)]="newTitle"
+            maxlength="1000"
             [placeholder]="tr.t('notes.titlePlaceholder')"
             class="w-full bg-transparent text-sm font-medium outline-none placeholder:text-gray-500"
           />
           <textarea
             [(ngModel)]="newContent"
+            maxlength="1000"
             [placeholder]="tr.t('notes.contentPlaceholder')"
             rows="2"
             class="mt-1 w-full resize-none bg-transparent text-sm outline-none placeholder:text-gray-500"
@@ -66,11 +68,13 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
                 ></button>
               }
             </div>
+            <!-- Bỏ [disabled]="!canAdd()" — trước đây nút bị khóa (mờ đi) trong lúc gõ khiến
+                 người dùng tưởng bị "lock". Vẫn an toàn: add() tự kiểm tra canAdd() bên trong,
+                 bấm khi rỗng chỉ no-op chứ không tạo ghi chú trống. -->
             <button
               type="button"
               (click)="add()"
-              [disabled]="!canAdd()"
-              class="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-40"
+              class="tap rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
             >{{ tr.t('notes.add') }}</button>
           </div>
         </div>
@@ -102,6 +106,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
                     [ngModel]="n.title"
                     (ngModelChange)="n.title = $event"
                     (blur)="save(n)"
+                    maxlength="1000"
                     [placeholder]="tr.t('notes.titlePlaceholder')"
                     class="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-gray-500"
                   />
@@ -113,6 +118,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
                   [ngModel]="n.content"
                   (ngModelChange)="n.content = $event"
                   (blur)="save(n)"
+                  maxlength="1000"
                   [placeholder]="tr.t('notes.contentPlaceholder')"
                   rows="3"
                   class="mt-1 w-full resize-none bg-transparent text-sm outline-none placeholder:text-gray-500"

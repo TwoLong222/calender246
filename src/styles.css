@@ -117,21 +117,54 @@ input[type='radio'] {
 }
 
 /* ============================================================
-   HIỆU ỨNG CHUYỂN TRANG — khi đổi view (Ngày/Tuần/Tháng/Năm)
-   hoặc bấm qua ngày/tháng khác, khu vực lịch mờ dần + trượt nhẹ lên.
+   HIỆU ỨNG CHUYỂN TRANG — khi đổi view (Ngày/Tuần/Tháng/Năm) hoặc bấm qua
+   ngày/tháng khác: trượt NGANG có hướng thay vì trượt dọc trước đây — đúng
+   trực giác điều hướng lịch (Tiếp -> nội dung mới trượt vào từ phải sang
+   trái; Trước -> trượt vào từ trái sang phải), giống Google Calendar thật.
+   .view-fade-back do CalendarPageComponent.slideDir gắn khi bấm nút "Trước".
    ============================================================ */
 .view-fade {
-  animation: viewFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: center 30%;
+  /* KHÔNG dùng transform: scale() — scale cả khối lịch (nhiều chữ/đường kẻ mảnh) làm
+     trình duyệt phải làm mờ rồi nét lại đột ngột lúc animation kết thúc, nhìn giật/xấu dù
+     amplitude nhỏ. Dùng cùng đường cong "expo-out" (cubic-bezier 0.16,1,.3,1) như popup/modal
+     trong app để chuyển động nhất quán toàn hệ thống — mở đầu nhanh, kết thúc mượt tự nhiên.
+     will-change báo trước cho trình duyệt dựng layer riêng -> animate mượt, không giật khung. */
+  animation: viewSlideFwd 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
 }
-@keyframes viewFade {
+.view-fade-back {
+  animation-name: viewSlideBack;
+}
+@keyframes viewSlideFwd {
   from {
     opacity: 0;
-    transform: scale(0.92) translateY(6px);
+    transform: translateX(18px);
+  }
+  60% {
+    opacity: 1;
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateX(0);
+  }
+}
+@keyframes viewSlideBack {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-fade,
+  .view-fade-back {
+    animation: none;
   }
 }
 
@@ -364,6 +397,15 @@ input[type='radio'] {
 .dark .bg-gray-200 { background-color: #273244; }
 .dark .bg-gray-300 { background-color: #374151; }
 
+/* Các biến thể CÓ ĐỘ TRONG SUỐT (vd bg-gray-50/60, hover:bg-blue-50/40) là class CSS
+   RIÊNG với class gốc không opacity (Tailwind sinh selector khác nhau) -> không được vá tự
+   động bởi các rule .dark .bg-gray-50 / .dark .bg-blue-50 ở trên. Thiếu vá này khiến lưới
+   giờ (dải "Cả ngày", hover ô trống) và lưới tháng (hover ô ngày) hiện MẢNG SÁNG chói giữa
+   nền tối — đúng lỗi "vỡ giao diện" khi bật dark mode trên view Ngày/Tuần/Tháng. */
+.dark .bg-gray-50\/60 { background-color: rgba(15, 23, 41, 0.75); }
+.dark .hover\:bg-gray-50\/70:hover { background-color: rgba(30, 41, 59, 0.6); }
+.dark .hover\:bg-blue-50\/40:hover { background-color: rgba(22, 35, 63, 0.55); }
+
 /* Chữ */
 .dark .text-gray-900 { color: #f1f5f9; }
 .dark .text-gray-800 { color: #e2e8f0; }
@@ -395,6 +437,13 @@ input[type='radio'] {
 .dark input::placeholder,
 .dark textarea::placeholder { color: #64748b; }
 .dark select option { background-color: #111a2e; color: #e5e7eb; }
+/* "Lối thoát": vài nơi (vd ô tiêu đề/nội dung trong thẻ Ghi chú) CỐ Ý dùng bg-transparent để
+   hoà theo màu nền riêng của thẻ (thẻ note luôn nền sáng như giấy thật, không đổi theo theme
+   app — xem notes-page.component.ts) — nhưng rule ép nền tối phía trên áp dụng vô điều kiện
+   cho MỌI <input>/<textarea>, đè luôn bg-transparent, tạo ra ô đen lạc lõng giữa thẻ sáng.
+   Trả lại transparent khi tác giả đã chủ đích khai báo class đó. */
+.dark input.bg-transparent,
+.dark textarea.bg-transparent { background-color: transparent; }
 
 /* Banner/preview nền màu nhạt -> tối lại + chữ sáng hơn cho dễ đọc */
 .dark .bg-red-50 { background-color: #3a1518; }
@@ -495,6 +544,146 @@ body { background-color: var(--app-bg); }
 .shadow-md,
 .shadow-lg,
 .shadow-xl { box-shadow: var(--surface-shadow); }
+
+/* ============================================================
+   DESIGN SYSTEM — token & component class dùng chung toàn app.
+   Mục tiêu: 1 chỗ định nghĩa radius/shadow/button/input, tránh lặp
+   lại Tailwind utility rời rạc ở từng component -> giao diện đồng
+   nhất hơn (spacing, bo góc, trạng thái hover/focus/active/disabled).
+   KHÔNG đổi hành vi/logic — chỉ thêm class trình bày để các
+   component .ts áp dụng lại (@apply). Dark mode kế thừa qua các
+   token .dark đã có ở trên (bg-white, border-gray-*, text-gray-*...).
+   ============================================================ */
+:root {
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --shadow-xs: 0 1px 2px rgba(20, 18, 16, 0.05);
+  --shadow-sm: 0 1px 3px rgba(20, 18, 16, 0.07), 0 1px 2px rgba(20, 18, 16, 0.05);
+  --shadow-md: 0 8px 24px -8px rgba(20, 18, 16, 0.18), 0 2px 6px -2px rgba(20, 18, 16, 0.08);
+  --shadow-lg: 0 20px 48px -16px rgba(20, 18, 16, 0.28), 0 4px 12px -4px rgba(20, 18, 16, 0.1);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent-600) 28%, transparent);
+}
+.dark {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.45), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 20px 48px -16px rgba(0, 0, 0, 0.55), 0 4px 12px -4px rgba(0, 0, 0, 0.35);
+}
+
+/* Toàn bộ class component bên dưới đặt trong @layer components: Tailwind v4 xếp layer
+   này DƯỚI layer utilities -> mọi Tailwind utility (pl-8, disabled:bg-gray-100, w-40...)
+   ghép chung với các class .btn/.field/.surface-panel vẫn override đúng như mong đợi.
+   Nếu để CSS "không lớp" (ngoài @layer) như trước, nó sẽ LUÔN thắng utility bất kể thứ tự
+   class -> bug thực tế đã gặp: input tìm kiếm "field pl-8" bị icon đè lên chữ vì .field
+   (không lớp) thắng pl-8 (có lớp), padding-left không bao giờ áp dụng được. */
+@layer components {
+
+/* ---- Button hệ thống: primary / secondary / ghost / danger ----
+   Dùng chung 1 base (.btn) + biến thể, tất cả có hover/active/focus/disabled. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  padding: 0.5rem 0.9rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background-color: var(--accent-600);
+  color: #fff;
+  box-shadow: var(--shadow-xs);
+}
+.btn-primary:hover:not(:disabled) { background-color: var(--accent-700); }
+.btn-primary:active:not(:disabled) { background-color: var(--accent-800); }
+
+.btn-secondary {
+  /* LƯU Ý: trước đây dùng var(--text-primary, #374151) nhưng --text-primary CHƯA BAO GIỜ
+     được định nghĩa ở đâu trong file này -> luôn rơi về fallback #374151 (xám đậm) CỐ ĐỊNH
+     bất kể sáng/tối, khiến chữ mờ gần như vô hình trên nền tối (đúng lỗi "chữ đọc không
+     được" ở dark mode). Đổi sang #374151 cho light, override riêng cho .dark bên dưới. */
+  background-color: var(--surface-card);
+  color: #374151;
+  border: 1px solid var(--surface-line);
+  box-shadow: var(--shadow-xs);
+}
+.btn-secondary:hover:not(:disabled) { background-color: var(--app-bg); border-color: var(--surface-line-strong); }
+/* Cùng lỗi như .field/.surface-panel: chỉ vá chữ+viền, QUÊN vá nền -> "Hôm nay" vẫn nền
+   kem sáng var(--surface-card) cố định giữa theme tối (đúng ảnh bạn chụp). Vá nốt ở đây. */
+.dark .btn-secondary { background-color: #111a2e; color: #e2e8f0; border-color: #273244; }
+.dark .btn-secondary:hover:not(:disabled) { background-color: #1e293b; }
+
+.btn-ghost {
+  background-color: transparent;
+  color: inherit;
+}
+.btn-ghost:hover:not(:disabled) { background-color: rgba(100, 116, 139, 0.1); }
+.dark .btn-ghost:hover:not(:disabled) { background-color: rgba(148, 163, 184, 0.12); }
+
+.btn-danger {
+  background-color: #fff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.btn-danger:hover:not(:disabled) { background-color: #fef2f2; border-color: #fca5a5; }
+.dark .btn-danger { background-color: transparent; color: #fca5a5; border-color: #4a1d20; }
+.dark .btn-danger:hover:not(:disabled) { background-color: #3a1518; }
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.5rem;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.btn-icon:hover:not(:disabled) { background-color: rgba(100, 116, 139, 0.1); }
+.btn-icon:active:not(:disabled) { transform: scale(0.94); }
+.btn-icon:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.dark .btn-icon:hover:not(:disabled) { background-color: rgba(148, 163, 184, 0.12); }
+
+/* ---- Input hệ thống ---- */
+.field {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-line);
+  background-color: var(--surface-card);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.field:focus { outline: none; border-color: var(--accent-600); box-shadow: var(--focus-ring); }
+.field::placeholder { color: #9ca3af; }
+/* Trước đây chỉ vá border-color cho .dark .field — <input>/<select>/<textarea> "may mắn"
+   vẫn tối đúng nhờ 1 rule KHÔNG LỚP khác ở trên (.dark input, .dark select, .dark textarea)
+   ghi đè hộ, nhưng .field cũng được dùng trên <button> (vd app-select) — thẻ button không
+   nằm trong rule đó nên vẫn giữ nguyên nền kem sáng var(--surface-card) giữa theme tối. Vá
+   trực tiếp ở đây để MỌI phần tử dùng .field đều tối đúng, không phụ thuộc loại thẻ. */
+.dark .field { background-color: #0f1729; color: #e5e7eb; border-color: #273244; }
+.dark .field::placeholder { color: #64748b; }
+
+/* ---- Surface card dùng chung cho panel nổi/dropdown/popover ---- */
+.surface-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-line);
+  background-color: var(--surface-card);
+  box-shadow: var(--shadow-md);
+}
+/* Cùng lỗi như .field ở trên: panel là <div>, không phải input/select/textarea nên không
+   được rule không-lớp phía trên "cứu" -> vẫn nền kem sáng giữa theme tối (đúng lỗi menu ⋮
+   trong ảnh: chữ xám nhạt gần như vô hình trên nền kem sáng). Vá thêm nền + chữ mặc định. */
+.dark .surface-panel { background-color: #111a2e; color: #e5e7eb; border-color: #273244; }
+
+} /* /@layer components */
 
 /* ============================================================
    TRANG TRÍ LỄ HỘI — emoji rơi nhẹ (Tết, Halloween, Noel...).

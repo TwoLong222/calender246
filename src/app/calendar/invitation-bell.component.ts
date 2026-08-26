@@ -4,7 +4,8 @@
 // - Bị hủy: sự kiện người tạo đã hủy.
 // Tất cả cập nhật real-time qua WebSocket (Supabase Realtime) — không cần F5.
 
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
 import { Invitation } from './events-api.service';
@@ -17,30 +18,30 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
 @Component({
   selector: 'app-invitation-bell',
   standalone: true,
-  imports: [IconComponent],
+  imports: [IconComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="drop-anchor relative">
       <button
         type="button"
-        (click)="open.set(!open())"
-        class="tap relative rounded-full p-2 hover:bg-gray-100"
+        (click)="toggleOpen()"
+        class="btn-icon relative"
         [title]="tr.t('nav.invitations')"
         [attr.aria-label]="tr.t('nav.invitations')"
       >
         <app-icon name="bell" class="h-5 w-5 text-gray-600" />
-        @if (total() > 0) {
+        @if (unread() > 0) {
           <span
             class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white"
-          >{{ total() > 9 ? '9+' : total() }}</span>
+          >{{ unread() > 9 ? '9+' : unread() }}</span>
         }
       </button>
 
       @if (open()) {
         <div class="fixed inset-0 z-20" (click)="open.set(false)"></div>
-        <div class="drop-panel popup-in absolute right-0 top-full z-30 mt-1 max-h-[80vh] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+        <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-30 mt-1.5 max-h-[80vh] w-80 overflow-y-auto py-1">
 
-          @if (total() === 0 && notify.recentHistory().length === 0) {
+          @if (total() === 0) {
             <p class="px-3 py-6 text-center text-sm text-gray-400">{{ tr.t('notif.empty') }}</p>
           }
 
@@ -76,6 +77,11 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
                 </button>
               </div>
             }
+            <!-- Mục "gần đây" chỉ hiện tối đa 5 (RECENT_MAX_ITEMS) — muốn xem cũ hơn thì qua
+                 trang Lịch sử thông báo (lưu vĩnh viễn, không giới hạn số lượng/3 ngày). -->
+            <a routerLink="/notification-history" (click)="open.set(false)" class="tap block border-b border-gray-100 px-3 py-2 text-center text-xs font-medium text-blue-600 hover:bg-gray-50">
+              {{ tr.t('notif.viewAllHistory') }}
+            </a>
           }
 
           <!-- MỤC 0: NHẮC LỊCH (tới giờ) -->
@@ -85,7 +91,7 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
               <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.secReminders') }}</span>
               <span class="ml-auto text-xs text-gray-400">{{ reminders().length }}</span>
             </div>
-            @for (n of reminders(); track n.id) {
+            @for (n of remindersVisible(); track n.id) {
               <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
                 <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400"></span>
                 <!-- Bấm -> mở sự kiện được nhắc VÀ đánh dấu đã đọc (chấm đỏ tự mất, không cần bấm X) -->
@@ -101,14 +107,14 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
             }
           }
 
-          <!-- MỤC 1: LỜI MỜI -->
+          <!-- MỤC 1: LỜI MỜI — chỉ hiện tối đa 5, còn lại xem ở trang Lời mời riêng. -->
           @if (invites().length > 0) {
             <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
               <app-icon name="mail" class="h-4 w-4 text-amber-500" />
               <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.secInvites') }}</span>
               <span class="ml-auto text-xs text-gray-400">{{ invites().length }}</span>
             </div>
-            @for (iv of invites(); track iv.eventId) {
+            @for (iv of invitesVisible(); track iv.eventId) {
               <div class="border-b border-gray-50 px-3 py-2.5">
                 <div class="flex items-center gap-2">
                   <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="dotClass(iv.color)"></span>
@@ -126,55 +132,21 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
                 </div>
               </div>
             }
-          }
-
-          <!-- MỤC 2: SỰ KIỆN BỊ SỬA -->
-          @if (changed().length > 0) {
-            <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
-              <app-icon name="alert" class="h-4 w-4 text-amber-500" />
-              <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.secChanged') }}</span>
-              <span class="ml-auto text-xs text-gray-400">{{ changed().length }}</span>
-            </div>
-            @for (n of changed(); track n.id) {
-              <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
-                <!-- Bấm -> mở đúng sự kiện vừa bị sửa -->
-                <button type="button" (click)="goToEvent(n.eventId)" class="min-w-0 flex-1 text-left">
-                  <p class="truncate text-sm font-medium text-gray-800">{{ n.title }}</p>
-                  <ul class="mt-1 space-y-0.5">
-                    @for (c of n.changes; track c) {
-                      <li class="break-words text-xs text-gray-600">• {{ c }}</li>
-                    }
-                  </ul>
-                </button>
-                <button type="button" (click)="notify.dismissChange(n.id)"
-                  class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
-                  <app-icon name="x" class="h-3.5 w-3.5" />
-                </button>
-              </div>
+            @if (invites().length > 5) {
+              <a routerLink="/invitations" (click)="open.set(false)" class="tap block border-b border-gray-100 px-3 py-2 text-center text-xs font-medium text-blue-600 hover:bg-gray-50">
+                {{ tr.t('notif.viewAllInvites') }}
+              </a>
             }
           }
 
-          <!-- MỤC 3: SỰ KIỆN BỊ HỦY -->
-          @if (cancelled().length > 0) {
-            <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
-              <app-icon name="trash" class="h-4 w-4 text-red-500" />
-              <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.secCancelled') }}</span>
-              <span class="ml-auto text-xs text-gray-400">{{ cancelled().length }}</span>
-            </div>
-            @for (n of cancelled(); track n.id) {
-              <div class="flex items-center gap-2 border-b border-gray-50 px-3 py-2.5">
-                <span class="h-2 w-2 shrink-0 rounded-full bg-red-400"></span>
-                <p class="min-w-0 flex-1 truncate text-sm text-gray-700 line-through">{{ n.title }}</p>
-                <button type="button" (click)="notify.dismissCancel(n.id)"
-                  class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
-                  <app-icon name="x" class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            }
-          }
+          <!-- Bỏ 2 mục riêng "Sự kiện bị sửa" / "Sự kiện bị hủy" — trùng nội dung với mục
+               "Sự kiện gần đây" ở trên (notify.recentHistory() đã tự gộp sẵn invite/sửa/hủy,
+               tối đa 5, sắp theo thời gian). Theo yêu cầu: chuông chỉ còn 3 khối — Nhắc lịch,
+               Lời mời (2 mục còn giữ vì có nút thao tác riêng: dismiss / Đồng ý-Từ chối), và
+               Sự kiện gần đây (thông tin thuần, không thao tác). -->
 
-          <!-- Xóa hết thông báo nhắc/hủy/sửa -->
-          @if (reminders().length > 0 || changed().length > 0 || cancelled().length > 0) {
+          <!-- Xóa hết thông báo nhắc (mục sửa/hủy không còn hiện riêng nên bỏ khỏi điều kiện) -->
+          @if (reminders().length > 0) {
             <div class="px-3 py-2 text-right">
               <button type="button" (click)="clearAll()" class="text-xs text-gray-500 hover:text-gray-700">
                 {{ tr.t('notif.clearAll') }}
@@ -194,13 +166,85 @@ export class InvitationBellComponent {
   protected readonly tr = inject(TranslateService);
 
   protected readonly invites = this.state.invitations;
-  protected readonly changed = this.notify.changeNotices;
-  protected readonly cancelled = this.notify.cancelNotices;
+  /** Chỉ hiện tối đa 5 mục trong dropdown — xem hết ở trang Lời mời riêng khi nhiều hơn 5. */
+  protected readonly invitesVisible = computed(() => this.invites().slice(0, 5));
   protected readonly reminders = this.notify.reminderNotices;
+  protected readonly remindersVisible = computed(() => this.reminders().slice(0, 5));
+  /** Badge trên chuông: nhắc lịch + lời mời + TOÀN BỘ lịch sử (notify.history — không giới
+   *  hạn 5 như recentHistory hiển thị trong dropdown). Bắt buộc phải dùng history() thay vì
+   *  recentHistory(): recentHistory bị chặn ở tối đa 5 phần tử để HIỂN THỊ, nên một khi đã
+   *  đủ 5, có thêm sự kiện mới nó vẫn giữ nguyên độ dài 5 (chỉ đẩy phần tử cũ nhất ra) —
+   *  dùng số đó để tính "có gì mới" sẽ bị đứng yên mãi, chuông không bao giờ hiện số nữa dù
+   *  liên tục có thông báo mới (đúng lỗi vừa gặp). history() thì tăng đơn điệu (chỉ reset khi
+   *  người dùng tự bấm "Xóa hết" ở trang Lịch sử), nên hiệu số với seenTotal luôn phản ánh
+   *  đúng số thông báo THẬT SỰ mới kể từ lần mở chuông gần nhất. */
   protected readonly total = computed(
-    () => this.reminders().length + this.invites().length + this.changed().length + this.cancelled().length,
+    () => this.reminders().length + this.invites().length + this.notify.history().length,
   );
   protected readonly open = signal(false);
+
+  /** Số badge đỏ trên chuông — CHỈ đếm phần "mới kể từ lần mở gần nhất" (kiểu unread thật),
+   *  không phải tổng số đang có. Mở chuông ra xem -> badge biến mất (markSeen ghi lại mốc
+   *  total() hiện tại); sau đó có thêm N thông báo mới -> badge hiện đúng N, không hơn không
+   *  kém. seenTotal lưu localStorage để F5 lại không bị "hiện lại từ đầu" những cái đã xem rồi. */
+  // v2: đổi nguồn đếm từ recentHistory() (bị chặn tối đa 5 -> đứng yên mãi khi đã đầy, xem
+  // ghi chú ở `total`) sang history() không giới hạn. Đổi tên key để KHÔNG đọc nhầm mốc cũ
+  // (vốn hiệu chỉnh theo công thức cũ, nhỏ hơn nhiều) — nếu không, ngay sau khi cập nhật
+  // code, hiệu số total()-seenTotal() sẽ nhảy vọt thành cả trăm (toàn bộ lịch sử cũ bị tính
+  // là "mới") dù người dùng đã biết hết những thông báo đó từ trước rồi.
+  private readonly SEEN_KEY = 'notif_seen_total_v2';
+  private loadSeen(): number | null {
+    try {
+      const raw = localStorage.getItem(this.SEEN_KEY);
+      if (raw == null) return null; // chưa từng lưu theo key v2 -> lần đầu chạy công thức mới
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : null;
+    } catch {
+      return null;
+    }
+  }
+  protected readonly seenTotal = signal<number>(0);
+  protected readonly unread = computed(() => Math.max(0, this.total() - this.seenTotal()));
+
+  constructor() {
+    // Lần đầu chạy công thức v2 (chưa có key trong localStorage): coi như đã xem hết mọi thứ
+    // đang có tại thời điểm này -> chuông không hiện số "giả" ngay sau khi cập nhật. Các thông
+    // báo THẬT SỰ mới phát sinh sau mốc này mới được tính vào unread.
+    const saved = this.loadSeen();
+    this.seenTotal.set(saved ?? this.total());
+
+    // Nếu total() TỤT xuống dưới mốc đã xem (vd đã Đồng ý/Từ chối 1 lời mời, hoặc bỏ qua 1
+    // nhắc lịch) mà không hạ seenTotal theo -> sau đó có thông báo MỚI thật sự thì unread bị
+    // tính thiếu (total tăng lại chạm mốc cũ, hiệu số = 0 dù có tin mới). Hạ seenTotal theo để
+    // luôn phản ánh đúng "còn bao nhiêu cái CHƯA từng thấy" kể cả khi có xen kẽ dismiss/respond.
+    effect(() => {
+      const t = this.total();
+      if (t < this.seenTotal()) {
+        this.seenTotal.set(t);
+        try {
+          localStorage.setItem(this.SEEN_KEY, String(t));
+        } catch {
+          /* bỏ qua */
+        }
+      }
+    });
+  }
+
+  protected toggleOpen(): void {
+    const next = !this.open();
+    this.open.set(next);
+    if (next) this.markSeen();
+  }
+
+  private markSeen(): void {
+    const t = this.total();
+    this.seenTotal.set(t);
+    try {
+      localStorage.setItem(this.SEEN_KEY, String(t));
+    } catch {
+      /* bỏ qua (localStorage đầy / bị chặn) */
+    }
+  }
 
   protected readonly notifBadgeClass = notifBadgeClass;
   protected readonly notifIconName = notifIconName;
