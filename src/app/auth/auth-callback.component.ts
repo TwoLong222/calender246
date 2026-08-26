@@ -22,7 +22,9 @@ export class AuthCallbackComponent implements OnInit {
   protected readonly tr = inject(TranslateService);
 
   async ngOnInit(): Promise<void> {
-    await this.supabase.client.auth.getSession();
+    // Đợi đổi mã OAuth -> session xong rồi mới về trang chính, nếu không homeGuard sẽ
+    // thấy "chưa đăng nhập" và đá ra landing ngay sau khi vừa đăng nhập thành công.
+    await this.supabase.getSessionAfterOAuth();
     this.router.navigateByUrl('/');
   }
 }

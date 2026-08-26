@@ -67,6 +67,35 @@ export class SupabaseService {
   }
 
   /**
+   * Lấy session, nhưng nếu URL đang mang tham số OAuth (?code=… hoặc #access_token=…)
+   * thì ĐỢI supabase-js đổi xong mã đó thành session rồi mới trả lời.
+   *
+   * Vì sao cần: sau khi bấm "Continue" ở màn hình cấp quyền Google (đăng nhập, hoặc xin
+   * quyền tạo Meet), trình duyệt quay lại app kèm mã trong URL. Việc đổi mã -> session là
+   * BẤT ĐỒNG BỘ; nếu guard hỏi ngay lập tức sẽ thấy "chưa đăng nhập" và đá người dùng ra
+   * trang landing — đúng lúc họ vừa cấp quyền xong.
+   */
+  async getSessionAfterOAuth(timeoutMs = 6000) {
+    const url = new URL(window.location.href);
+    const pending =
+      url.searchParams.has('code') ||
+      window.location.hash.includes('access_token') ||
+      window.location.hash.includes('error');
+
+    const { data } = await this.client.auth.getSession();
+    if (data.session || !pending) return data.session;
+
+    // Có mã OAuth trong URL nhưng session chưa sẵn sàng -> chờ ngắn, hỏi lại theo nhịp.
+    const step = 150;
+    for (let waited = 0; waited < timeoutMs; waited += step) {
+      await new Promise((r) => setTimeout(r, step));
+      const { data: again } = await this.client.auth.getSession();
+      if (again.session) return again.session;
+    }
+    return null;
+  }
+
+  /**
    * Đăng xuất rồi đưa về TRANG LANDING (public/landing/index.html).
    * Dùng window.location (điều hướng cả trang) chứ không phải Router: landing là file
    * tĩnh nằm NGOÀI ứng dụng Angular, router không tới được. Đi cả trang cũng xoá sạch
