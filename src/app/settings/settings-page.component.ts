@@ -954,23 +954,22 @@ export class SettingsPageComponent {
     this.deleting.set(true);
     try {
       await firstValueFrom(this.http.delete(`${environment.apiUrl}/account`));
-      await this.supabase.signOut();
       this.settings.reset();
-      await this.router.navigate(['/login']);
+      // Tài khoản đã bị xoá -> ra landing (không còn gì để đăng nhập lại).
+      await this.supabase.signOutToLanding();
     } catch {
       this.deleting.set(false);
     }
   }
 
   protected async logout(): Promise<void> {
-    await this.supabase.signOut();
     this.settings.reset();
-    await this.router.navigate(['/login']);
+    // Đăng xuất -> ra thẳng trang landing (không phải trang đăng nhập).
+    await this.supabase.signOutToLanding();
   }
 
   protected async logoutAll(): Promise<void> {
-    await this.supabase.client.auth.signOut({ scope: 'global' });
     this.settings.reset();
-    await this.router.navigate(['/login']);
+    await this.supabase.signOutToLanding('global');
   }
 }

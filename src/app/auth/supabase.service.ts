@@ -66,6 +66,23 @@ export class SupabaseService {
     return this.client.auth.signOut();
   }
 
+  /**
+   * Đăng xuất rồi đưa về TRANG LANDING (public/landing/index.html).
+   * Dùng window.location (điều hướng cả trang) chứ không phải Router: landing là file
+   * tĩnh nằm NGOÀI ứng dụng Angular, router không tới được. Đi cả trang cũng xoá sạch
+   * state trong bộ nhớ — không sót dữ liệu của phiên vừa đăng xuất.
+   */
+  async signOutToLanding(scope: 'local' | 'global' = 'local'): Promise<void> {
+    try {
+      await (scope === 'global'
+        ? this.client.auth.signOut({ scope: 'global' })
+        : this.client.auth.signOut());
+    } catch {
+      /* mất mạng vẫn cho thoát ra landing */
+    }
+    window.location.href = '/landing/index.html';
+  }
+
   /** Gửi email chứa link đặt lại mật khẩu — link trỏ về trang /reset-password của app */
   resetPasswordForEmail(email: string) {
     return this.client.auth.resetPasswordForEmail(email, {

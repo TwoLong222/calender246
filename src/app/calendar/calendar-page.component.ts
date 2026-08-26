@@ -4,7 +4,7 @@
 // và cảnh báo trùng lịch do SERVER xác nhận sau khi lưu (lastSavedConflicts).
 
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
 import { GroupChatService } from '../groups/chat.service';
@@ -418,7 +418,6 @@ export class CalendarPageComponent implements OnInit {
   protected readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);
-  private readonly router = inject(Router);
   protected readonly createMenuOpen = signal(false);
   // Mặc định: MỞ trên desktop, ĐÓNG trên mobile (<768px) để lịch có full bề rộng khi mở app.
   protected readonly sidebarOpen = signal(typeof window === 'undefined' || window.innerWidth >= 768);
@@ -654,7 +653,7 @@ export class CalendarPageComponent implements OnInit {
   }
 
   async logout(): Promise<void> {
-    await this.supabase.signOut();
-    this.router.navigateByUrl('/login');
+    // Đăng xuất -> ra thẳng trang landing (không phải trang đăng nhập).
+    await this.supabase.signOutToLanding();
   }
 }
