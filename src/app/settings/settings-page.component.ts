@@ -469,6 +469,16 @@ type Section =
                         <button type="button" (click)="copyFeedLink()" class="tap rounded-md border border-gray-300 px-3 text-sm hover:bg-gray-50">{{ feedCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
                       </div>
                       <p class="mt-1 text-xs text-gray-400">{{ tr.t('feed.hint') }}</p>
+                      <!-- Giới hạn khoảng ngày chia sẻ qua link (để trống = tất cả) -->
+                      <div class="mt-3 grid grid-cols-2 gap-2">
+                        <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.from') }}
+                          <input type="date" [ngModel]="feedFromInput()" (ngModelChange)="setFeedRange($event, feedUntilInput())" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                        </label>
+                        <label class="flex flex-col gap-0.5 text-xs text-gray-500">{{ tr.t('share.until') }}
+                          <input type="date" [ngModel]="feedUntilInput()" (ngModelChange)="setFeedRange(feedFromInput(), $event)" class="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+                        </label>
+                        <p class="col-span-2 text-[11px] text-gray-400">{{ tr.t('feed.rangeHint') }}</p>
+                      </div>
                       <button type="button" (click)="setFeed({ rotate: true })" class="tap mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50">{{ tr.t('feed.rotate') }}</button>
                     </div>
                   }
@@ -633,7 +643,24 @@ export class SettingsPageComponent {
     const f = this.calendarFeed();
     return f ? this.feedApi.feedUrl(f.token) : '';
   }
-  protected setFeed(patch: { enabled?: boolean; rotate?: boolean }): void {
+  /** Giá trị cho 2 ô ngày của feed (yyyy-MM-dd; rỗng nếu không giới hạn). */
+  protected feedFromInput(): string {
+    const v = this.calendarFeed()?.feed_from;
+    return v ? new Date(v).toISOString().slice(0, 10) : '';
+  }
+  protected feedUntilInput(): string {
+    const v = this.calendarFeed()?.feed_until;
+    return v ? new Date(v).toISOString().slice(0, 10) : '';
+  }
+  /** Lưu khoảng ngày chia sẻ: from = 00:00 ngày đầu, until = 23:59:59 ngày cuối. */
+  protected setFeedRange(from: string, until: string): void {
+    this.setFeed({
+      feedFrom: from ? new Date(`${from}T00:00:00`).toISOString() : null,
+      feedUntil: until ? new Date(`${until}T23:59:59`).toISOString() : null,
+    });
+  }
+
+  protected setFeed(patch: { enabled?: boolean; rotate?: boolean; feedFrom?: string | null; feedUntil?: string | null }): void {
     const prev = this.calendarFeed();
     if (prev && patch.enabled !== undefined) this.calendarFeed.set({ ...prev, enabled: patch.enabled });
     this.feedApi.updateMyFeed(patch).subscribe({

@@ -8,6 +8,9 @@ import { environment } from '../../environments/environment';
 export interface CalendarFeed {
   token: string;
   enabled: boolean;
+  /** Khoảng ngày được chia sẻ qua link (ISO). null = không giới hạn. */
+  feed_from?: string | null;
+  feed_until?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -18,7 +21,12 @@ export class FeedApiService {
   getMyFeed(): Observable<CalendarFeed> {
     return this.http.get<CalendarFeed>(`${this.base}/feed/me`);
   }
-  updateMyFeed(patch: { enabled?: boolean; rotate?: boolean }): Observable<CalendarFeed> {
+  updateMyFeed(patch: {
+    enabled?: boolean;
+    rotate?: boolean;
+    feedFrom?: string | null;
+    feedUntil?: string | null;
+  }): Observable<CalendarFeed> {
     return this.http.patch<CalendarFeed>(`${this.base}/feed/me`, patch);
   }
 
