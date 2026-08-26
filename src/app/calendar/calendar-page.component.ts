@@ -25,6 +25,8 @@ import { InvitationBellComponent } from './invitation-bell.component';
 import { ThemeService } from '../theme.service';
 import { SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { IcsService } from './ics.service';
+import { PdfService } from './pdf.service';
+import { AiApiService } from '../ai/ai-api.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
@@ -201,6 +203,12 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
                 <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="upload" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.import') }}
                 </button>
+                <button type="button" (click)="onExportPdf(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="download" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.exportPdf') }}
+                </button>
+                <button type="button" [disabled]="pdfBusy()" (click)="fileInputPdf.click()" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50">
+                  <app-icon name="upload" class="h-4 w-4 text-gray-500" /> {{ pdfBusy() ? tr.t('nav.importPdfBusy') : tr.t('nav.importPdf') }}
+                </button>
                 <div class="my-1 border-t border-gray-200"></div>
                 <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="trash" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.trash') }}
@@ -226,6 +234,7 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
               </div>
             }
             <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
+            <input #fileInputPdf type="file" accept=".pdf,application/pdf" class="hidden" (change)="onImportPdfFile($event); settingsMenuOpen.set(false)" />
           </div>
 
           <!-- Bộ chọn view dạng segmented (thay <select> gốc) — vẫn gọi đúng state.setViewMode(),
@@ -470,6 +479,8 @@ export class CalendarPageComponent implements OnInit {
   protected readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);
+  private readonly pdf = inject(PdfService);
+  private readonly aiApi = inject(AiApiService);
   /** Danh sách view cho bộ chọn dạng segmented ở header (desktop). */
   protected readonly viewOptions: { value: ViewMode; key: string }[] = [
     { value: 'day', key: 'view.day' },
@@ -499,6 +510,8 @@ export class CalendarPageComponent implements OnInit {
     this.state.goNext();
   }
   protected readonly importMsg = signal('');
+  /** true khi đang trích chữ từ PDF + chờ AI nhận diện sự kiện (Nhập PDF) — thao tác này chậm hơn .ics nhiều. */
+  protected readonly pdfBusy = signal(false);
 
   /** Sự kiện hiển thị trên lịch = sự kiện cá nhân (đã lọc) + sự kiện của các nhóm đang hiện */
   protected readonly mergedEvents = computed<CalendarEvent[]>(() => [
@@ -539,6 +552,14 @@ export class CalendarPageComponent implements OnInit {
     this.ics.exportToFile(this.state.events());
   }
 
+  async onExportPdf(): Promise<void> {
+    try {
+      await this.pdf.exportToFile(this.state.events());
+    } catch {
+      this.importMsg.set('Xuất PDF thất bại.');
+    }
+  }
+
   onImportFile(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -547,44 +568,89 @@ export class CalendarPageComponent implements OnInit {
     reader.onload = () => {
       try {
         const imported = this.ics.parse(String(reader.result));
-        if (imported.length === 0) {
-          this.importMsg.set('Không tìm thấy sự kiện nào trong file.');
-          return;
-        }
-        // Thu thập id các sự kiện MỚI tạo để tô nổi bật sau khi lưu xong.
-        const newIds: string[] = [];
-        for (const ev of imported) {
-          this.state.saveEvent(
-            {
-              kind: 'event',
-              title: ev.title,
-              description: ev.description,
-              location: ev.location,
-              start: ev.start,
-              end: ev.end,
-              isAllDay: ev.isAllDay,
-              guests: [],
-              color: 'sky',
-            },
-            undefined,
-            // afterSave: gom id; khi gom đủ -> nhảy tới ngày sớm nhất + highlight.
-            (saved) => {
-              newIds.push(saved.id);
-              if (newIds.length === imported.length) {
-                const earliest = imported.reduce((a, b) => (a.start < b.start ? a : b)).start;
-                this.state.viewedDate.set(earliest);
-                this.state.highlightEvents(newIds);
-              }
-            },
-          );
-        }
-        this.importMsg.set(`Đã nhập ${imported.length} sự kiện.`);
+        this.applyImportedEvents(imported, 'File .ics không hợp lệ.');
       } catch {
         this.importMsg.set('File .ics không hợp lệ.');
       }
       input.value = ''; // cho phép chọn lại cùng file
     };
     reader.readAsText(file);
+  }
+
+  /** Nhập từ file PDF bất kỳ: trích chữ (pdfjs) -> AI nhận diện sự kiện -> lưu như luồng nhập .ics. */
+  async onImportPdfFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.pdfBusy.set(true);
+    this.importMsg.set('Đang đọc PDF và nhờ AI nhận diện sự kiện...');
+    try {
+      const text = await this.pdf.extractText(file);
+      if (!text.trim()) {
+        this.importMsg.set('Không đọc được chữ nào từ file PDF này.');
+        return;
+      }
+      const result = await new Promise<{ events: { title: string; startTime: string; endTime: string; isAllDay?: boolean; location?: string; description?: string }[]; reply: string }>(
+        (resolve, reject) => this.aiApi.extractEvents(text).subscribe({ next: resolve, error: reject }),
+      );
+      const imported = result.events.map((e) => ({
+        title: e.title,
+        start: new Date(e.startTime),
+        end: new Date(e.endTime),
+        isAllDay: !!e.isAllDay,
+        description: e.description,
+        location: e.location,
+      }));
+      if (imported.length === 0) {
+        this.importMsg.set(result.reply || 'Không tìm thấy sự kiện nào trong file.');
+        return;
+      }
+      this.applyImportedEvents(imported, 'Nhập PDF thất bại.');
+    } catch {
+      this.importMsg.set('Xử lý file PDF thất bại. Thử lại nhé.');
+    } finally {
+      this.pdfBusy.set(false);
+      input.value = '';
+    }
+  }
+
+  /** Dùng chung cho luồng Nhập .ics và Nhập PDF: tạo từng event, tô nổi bật sau khi lưu xong. */
+  private applyImportedEvents(
+    imported: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string }[],
+    emptyMsg: string,
+  ): void {
+    if (imported.length === 0) {
+      this.importMsg.set(emptyMsg);
+      return;
+    }
+    // Thu thập id các sự kiện MỚI tạo để tô nổi bật sau khi lưu xong.
+    const newIds: string[] = [];
+    for (const ev of imported) {
+      this.state.saveEvent(
+        {
+          kind: 'event',
+          title: ev.title,
+          description: ev.description,
+          location: ev.location,
+          start: ev.start,
+          end: ev.end,
+          isAllDay: ev.isAllDay,
+          guests: [],
+          color: 'sky',
+        },
+        undefined,
+        // afterSave: gom id; khi gom đủ -> nhảy tới ngày sớm nhất + highlight.
+        (saved) => {
+          newIds.push(saved.id);
+          if (newIds.length === imported.length) {
+            const earliest = imported.reduce((a, b) => (a.start < b.start ? a : b)).start;
+            this.state.viewedDate.set(earliest);
+            this.state.highlightEvents(newIds);
+          }
+        },
+      );
+    }
+    this.importMsg.set(`Đã nhập ${imported.length} sự kiện.`);
   }
 
   // ----- Tìm kiếm sự kiện -----
