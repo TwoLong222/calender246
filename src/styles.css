@@ -80,6 +80,26 @@ input[type='radio'] {
   opacity: 0;
   border-right-width: 0;
 }
+/* MOBILE (<768px): sidebar ĐÈ LÊN lịch (overlay) thay vì ép co lịch lại.
+   Cần cha ".flex flex-1" có position:relative (đã thêm class "relative"). */
+@media (max-width: 767px) {
+  .sidebar-panel {
+    position: absolute;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    z-index: 30;
+    background: var(--app-bg);
+    border-radius: 1rem;
+    border-right-width: 0 !important;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+    padding: 1.25rem 1rem;
+  }
+  /* Sidebar mở rộng thành "popup bự" trên mobile (không còn cột hẹp 16rem). */
+  .sidebar-panel:not(.sidebar-collapsed) {
+    width: min(86vw, 340px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .sidebar-panel {
     transition: none;
@@ -101,17 +121,156 @@ input[type='radio'] {
    hoặc bấm qua ngày/tháng khác, khu vực lịch mờ dần + trượt nhẹ lên.
    ============================================================ */
 .view-fade {
-  animation: viewFade 0.28s ease;
+  animation: viewFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center 30%;
 }
 @keyframes viewFade {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: scale(0.92) translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1) translateY(0);
   }
+}
+
+/* ============================================================
+   MOBILE — PHÓNG TO CÁC MỤC BẤM ĐƯỢC.
+   Trên điện thoại chữ/ô chọn cỡ desktop quá nhỏ, khó nhìn và khó chạm.
+   Áp cho: bảng "Nhóm" nổi (.groups-lg) và sidebar trượt (.sidebar-panel).
+   ============================================================ */
+@media (max-width: 767px) {
+  .groups-lg,
+  .sidebar-panel {
+    font-size: 1rem;
+  }
+  .groups-lg .text-sm,
+  .sidebar-panel .text-sm {
+    font-size: 0.975rem;
+  }
+  .groups-lg .text-xs,
+  .sidebar-panel .text-xs {
+    font-size: 0.85rem;
+  }
+  /* Ô tick to hơn cho dễ chạm */
+  .groups-lg input[type='checkbox'],
+  .sidebar-panel input[type='checkbox'] {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+  /* Mỗi dòng trong danh sách rộng rãi hơn */
+  .groups-lg li,
+  .sidebar-panel li {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+  }
+  /* Ô nhập + nút bấm cao hơn */
+  .groups-lg input[type='text'],
+  .sidebar-panel input[type='text'] {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    font-size: 1rem;
+  }
+  .groups-lg button,
+  .sidebar-panel button {
+    font-size: 0.975rem;
+  }
+}
+
+/* ============================================================
+   DROPDOWN TRÊN MOBILE — không bị cắt mất mép.
+   Trên màn nhỏ, panel rộng ~320px neo theo nút ở GIỮA header sẽ tràn ra
+   ngoài viewport và bị cắt. Cách xử lý: bỏ neo ở wrapper (.drop-anchor ->
+   position:static) để panel neo theo <header class="relative">, rồi cho
+   panel trải từ mép trái tới mép phải màn hình.
+   ============================================================ */
+@media (max-width: 767px) {
+  .drop-anchor {
+    position: static;
+  }
+  .drop-panel {
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* ============================================================
+   CHỪA CHỖ THANH CUỘN — cho các hàng nằm NGOÀI vùng cuộn (header ngày,
+   dải "Cả ngày") thẳng cột với lưới giờ bên trong (vốn bị thanh cuộn ăn bớt
+   ~10px bên phải). Giữ khớp với ::-webkit-scrollbar { width: 10px } bên dưới.
+   ============================================================ */
+.gutter-pr {
+  padding-right: 10px;
+}
+/* Máy dùng thanh cuộn kiểu overlay (macOS, mobile) không ăn bớt chỗ -> bỏ chừa. */
+@media (pointer: coarse) {
+  .gutter-pr {
+    padding-right: 0;
+  }
+}
+
+/* ============================================================
+   THANH CUỘN — mảnh, bo tròn, KHÔNG có 2 nút mũi tên ở hai đầu.
+   Áp cho MỌI vùng cuộn được trong app (lưới giờ, popup, danh sách…).
+   Firefox dùng scrollbar-width/color; Chrome/Edge/Safari dùng ::-webkit-*.
+   ============================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  /* Viền trong suốt + background-clip -> tay kéo trông mảnh và tách khỏi mép */
+  background-color: rgba(100, 116, 139, 0.4);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(71, 85, 105, 0.65);
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(51, 65, 85, 0.8);
+}
+/* Bỏ 2 nút mũi tên lên/xuống ở hai đầu thanh cuộn.
+   Chrome/Edge có nhiều biến thể nút (single/double, start/end, increment/decrement)
+   nên phải tắt hết, không chỉ ::-webkit-scrollbar-button chung. */
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:double-button,
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment,
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement,
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:end:increment,
+::-webkit-scrollbar-button:horizontal:start:decrement,
+::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.dark * {
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.35);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(203, 213, 225, 0.6);
 }
 
 /* ============================================================
@@ -200,6 +359,10 @@ input[type='radio'] {
 .dark .bg-white { background-color: #111a2e; }
 .dark .bg-gray-50 { background-color: #0f1729; }
 .dark .bg-gray-100 { background-color: #1e293b; }
+/* bg-gray-200/300 (nút "Copy mã/link", chip...) trước đây chưa vá -> nền sáng + chữ sáng
+   = chữ tàng hình ở chế độ tối. Vá cho tối lại để đọc được. */
+.dark .bg-gray-200 { background-color: #273244; }
+.dark .bg-gray-300 { background-color: #374151; }
 
 /* Chữ */
 .dark .text-gray-900 { color: #f1f5f9; }
@@ -208,6 +371,10 @@ input[type='radio'] {
 .dark .text-gray-600 { color: #b4c0d3; }
 .dark .text-gray-500 { color: #94a3b8; }
 .dark .text-gray-400 { color: #6b7a90; }
+/* Chữ/link màu nhấn (accent): navy gốc quá tối trên nền tối -> làm sáng để đọc được
+   (vd tên tài liệu đính kèm, các link text-blue-700 trong popover chi tiết sự kiện). */
+.dark .text-blue-600, .dark .text-blue-700 { color: #8ab0f0; }
+.dark .text-blue-800 { color: #a9c5f5; }
 
 /* Viền */
 .dark .border-white { border-color: #111a2e; }
@@ -218,6 +385,8 @@ input[type='radio'] {
 /* Hover nền xám */
 .dark .hover\:bg-gray-50:hover { background-color: #1e293b; }
 .dark .hover\:bg-gray-100:hover { background-color: #273244; }
+.dark .hover\:bg-gray-200:hover { background-color: #334155; }
+.dark .hover\:bg-gray-300:hover { background-color: #3f4c60; }
 
 /* Ô nhập liệu */
 .dark input,
@@ -238,6 +407,26 @@ input[type='radio'] {
 .dark .border-amber-200 { border-color: #4a3a12; }
 .dark .border-blue-200 { border-color: #1e3a5f; }
 .dark .border-red-200 { border-color: #4a1d20; }
+
+/* NHÃN PHÂN LOẠI THÔNG BÁO (badge nền nhạt + chữ đậm 700).
+   Ở chế độ tối nền bị làm tối đi mà chữ vẫn màu đậm -> tối trên tối, chữ "chìm".
+   Đổi chữ sang tông SÁNG của cùng màu để đọc rõ. */
+.dark .bg-sky-50 { background-color: #10243a; }
+.dark .text-sky-700 { color: #7dd3fc; }
+.dark .bg-emerald-50 { background-color: #0e2a20; }
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .bg-violet-50 { background-color: #241a3d; }
+.dark .text-violet-700 { color: #c4b5fd; }
+.dark .bg-indigo-50 { background-color: #1b2148; }
+.dark .text-indigo-700 { color: #a5b4fc; }
+.dark .bg-teal-50 { background-color: #0d2a2b; }
+.dark .text-teal-700 { color: #5eead4; }
+.dark .border-emerald-200 { border-color: #14452f; }
+.dark .border-violet-200 { border-color: #3b2c63; }
+.dark .border-indigo-200 { border-color: #2b3170; }
+.dark .border-teal-200 { border-color: #124a48; }
+.dark .border-sky-200 { border-color: #1b3a5c; }
 
 /* ============================================================
    MÀU NHẤN TÙY CHỈNH (Theme builder)
@@ -278,6 +467,36 @@ body { background-color: var(--app-bg); }
 .hover\:border-blue-600:hover { border-color: var(--accent-600); }
 
 /* ============================================================
+   BỀ MẶT ẤM — ĐỒNG BỘ "CHẤT" VỚI LANDING PAGE
+   Landing dùng thẻ màu kem trên nền giấy, viền be ấm và bóng mềm.
+   App vốn dùng thẻ trắng + viền xám (Tailwind mặc định) nên nhìn
+   "lạnh" và khác landing. Ở đây remap các class bề mặt trung tính
+   sang đúng token của landing — chỉ áp cho LIGHT mode, vì dark mode
+   đã có rule riêng (.dark .bg-white ...) với độ ưu tiên cao hơn nên
+   không bị ảnh hưởng.
+   ============================================================ */
+:root {
+  --surface-card: #fbfaf7;        /* = --card của landing */
+  --surface-line: #dad5ca;        /* = --line */
+  --surface-line-strong: #c7c0b2; /* = --line-strong */
+  --surface-shadow: 0 1px 2px rgba(20, 18, 16, 0.04), 0 12px 34px -18px rgba(20, 18, 16, 0.22);
+}
+
+/* Thẻ trắng -> kem ấm (nổi nhẹ trên nền giấy nhờ viền + bóng) */
+.bg-white { background-color: var(--surface-card); }
+
+/* Viền xám trung tính -> viền be ấm như landing */
+.border-gray-100,
+.border-gray-200 { border-color: var(--surface-line); }
+.border-gray-300 { border-color: var(--surface-line-strong); }
+
+/* Bóng mềm, ấm hơn thay cho bóng xám mặc định */
+.shadow-sm { box-shadow: 0 1px 2px rgba(20, 18, 16, 0.05); }
+.shadow-md,
+.shadow-lg,
+.shadow-xl { box-shadow: var(--surface-shadow); }
+
+/* ============================================================
    TRANG TRÍ LỄ HỘI — emoji rơi nhẹ (Tết, Halloween, Noel...).
    Lớp phủ toàn màn hình, không chặn thao tác (pointer-events:none).
    ============================================================ */
@@ -306,3 +525,176 @@ body { background-color: var(--app-bg); }
 @media (prefers-reduced-motion: reduce) {
   .seasonal-flake { animation: none; display: none; }
 }
+
+/* ============================================================
+   TRANG ĐĂNG NHẬP (login-page.component.ts) — hiệu ứng scene minh họa
+   (sao lấp lánh, mây trôi, linh vật lịch nổi, thẻ sự kiện bay vào, đèn
+   đom đóm...). Tôn trọng prefers-reduced-motion.
+   ============================================================ */
+/* ============================================================
+   TRANG ĐĂNG NHẬP (Syncora) — dark premium SaaS style: fade/rise nhẹ
+   lúc vào trang, quầng gradient phía sau trôi rất chậm, không nhân vật/
+   không hiệu ứng phô trương. Tất cả tôn trọng prefers-reduced-motion.
+   ============================================================ */
+.auth-fade-in {
+  animation: authFadeIn 0.5s ease-out both;
+}
+@keyframes authFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.auth-rise-in {
+  animation: authRiseIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes authRiseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-blob {
+  animation: authBlobFloat 16s ease-in-out infinite;
+}
+@keyframes authBlobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(16px, -12px) scale(1.05); }
+}
+
+.auth-error-in {
+  animation: authErrorIn 0.2s ease-out both;
+}
+@keyframes authErrorIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sao lấp lánh trên nền trời */
+.auth-star {
+  animation: authTwinkle 3.4s ease-in-out infinite;
+}
+@keyframes authTwinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.9; }
+}
+
+/* Sao băng — lặp rất chậm, hiếm khi thấy 2 lần liên tiếp cùng lúc */
+.auth-shooting-star {
+  animation: authShootingStar 7s ease-in infinite;
+  animation-delay: 2s;
+}
+@keyframes authShootingStar {
+  0% { opacity: 0; transform: translate(0, 0); }
+  4% { opacity: 1; }
+  16% { opacity: 0; transform: translate(120px, 70px); }
+  100% { opacity: 0; transform: translate(120px, 70px); }
+}
+
+/* Mây trôi ngang rất chậm, gần như không nhận ra đang chuyển động */
+.auth-cloud {
+  animation: authCloudDrift 50s ease-in-out infinite;
+}
+@keyframes authCloudDrift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(26px); }
+}
+
+/* Đèn đom đóm nhỏ trên đồi */
+.auth-firefly {
+  width: 3px;
+  height: 3px;
+  animation: authFirefly 3.2s ease-in-out infinite;
+}
+@keyframes authFirefly {
+  0%, 100% { opacity: 0.2; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* Thẻ sự kiện nổi lơ lửng nhẹ quanh login panel.
+   LƯU Ý: stagger delay truyền vào qua custom property --card-delay (không phải
+   animation-delay trực tiếp) — vì animation-delay đặt qua [style] sẽ áp dụng
+   đồng loạt cho CẢ HAI animation liệt kê dưới, làm chúng chạy đè lên nhau
+   (bay-vào + lơ lửng cùng lúc) thay vì nối tiếp nhau mượt mà. */
+.auth-card-float {
+  animation:
+    authCardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--card-delay, 0s) both,
+    authCardFloat 5s ease-in-out calc(var(--card-delay, 0s) + 0.6s) infinite;
+}
+
+/* Dây nét đứt nối thẻ sự kiện <-> login card <-> cờ/ghim: PHẢI đợi thẻ trễ nhất
+   (Design Review, --card-delay 1.5s) bay vào xong (+0.6s = 2.1s) rồi mới hiện ra.
+   Nếu không, dây sẽ hiện ra ngay từ đầu trong khi thẻ nó nối tới vẫn chưa bay vào
+   tới nơi — nhìn như dây nối "lơ lửng" vào khoảng không, rất rối mắt. */
+.auth-wire-in {
+  opacity: 0;
+  animation: authWireIn 0.5s ease-out 2.1s both;
+}
+@keyframes authWireIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes authCardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes authCardFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Chấm "hôm nay" trên timeline nhấp nháy sáng nhẹ */
+.auth-node-glow {
+  animation: authNodeGlow 2.4s ease-in-out infinite;
+}
+@keyframes authNodeGlow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+/* Linh vật lơ lửng nhẹ nhàng */
+.auth-mascot-float {
+  animation: authMascotFloat 4s ease-in-out infinite;
+}
+@keyframes authMascotFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.spin {
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-fade-in,
+  .auth-rise-in,
+  .auth-blob,
+  .auth-error-in,
+  .auth-star,
+  .auth-shooting-star,
+  .auth-cloud,
+  .auth-firefly,
+  .auth-card-float,
+  .auth-node-glow,
+  .auth-mascot-float,
+  .auth-wire-in,
+  .spin {
+    animation: none;
+  }
+  .auth-fade-in,
+  .auth-rise-in,
+  .auth-error-in,
+  .auth-card-float,
+  .auth-wire-in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Trang đăng nhập (.login-scene) tự vẽ 1 scene tối CỐ ĐỊNH, không đổi theo theme
+   sáng/tối của app — vài class dùng token trung tính (bg-white, text-gray-800,
+   border-gray-300: nút Google) cần giữ nguyên màu gốc dù <html> đang có .dark. */
+.dark .login-scene .bg-white { background-color: #ffffff; }
+.dark .login-scene .text-gray-800 { color: #1f2937; }
+.dark .login-scene .border-gray-300 { border-color: #d1d5db; }

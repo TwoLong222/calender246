@@ -18,6 +18,11 @@ export interface PublicPage {
 export interface Slots {
   durationMinutes: number;
   slots: string[]; // ISO
+  /** Các thứ trong tuần chủ trang nhận hẹn (0=CN..6=T7) — để giải thích ngày bị bỏ. */
+  workingDays?: number[];
+  workingStart?: string; // "08:00"
+  workingEnd?: string; // "17:00"
+  daysAhead?: number;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -1,14 +1,15 @@
 // Popover chi tiết sự kiện — khớp bố cục hình 7: tiêu đề, thời gian, danh sách khách
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
-import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
-import { AttachmentsApiService, EventAttachment } from './attachments-api.service';
+import { AttachmentsApiService, EventAttachment, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { ConfirmService } from '../shared/confirm.service';
 import { AttendeeStatus } from './calendar.types';
 import { IconComponent } from '../shared/icon.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
@@ -22,7 +23,9 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
     @if (event(); as e) {
       <div class="fixed inset-0 z-30" (click)="state.closeDetail()">
         <div
-          class="popup-in absolute left-1/2 top-24 max-h-[calc(100vh-8rem)] w-80 -translate-x-1/2 overflow-y-auto overflow-x-hidden rounded-xl bg-white p-4 shadow-2xl"
+          class="popup-in absolute max-h-[calc(100vh-8rem)] w-80 overflow-y-auto overflow-x-hidden rounded-xl bg-white p-4 shadow-2xl"
+          [style.left.px]="panelPos().left"
+          [style.top.px]="panelPos().top"
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">
@@ -34,7 +37,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
               <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
               @if (canManage()) {
                 <button type="button" (click)="edit()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.edit')"><app-icon name="pencil" class="h-4 w-4" /></button>
-                <button type="button" (click)="confirmingDelete.set(true)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
+                <button type="button" (click)="askDelete()" class="rounded-full p-2 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-4 w-4" /></button>
               }
               <button type="button" (click)="state.closeDetail()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
             </div>
@@ -126,6 +129,12 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
               }
             </div>
             @if (canManage()) {
+              <p class="mb-1 text-[11px] text-gray-400">{{ tr.t('attach.limit') }}</p>
+            }
+            @if (uploadError()) {
+              <p class="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ uploadError() }}</p>
+            }
+            @if (canManage()) {
               <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp) -->
               <div class="mb-2 grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
                 <label class="flex flex-col gap-0.5 text-gray-500">
@@ -146,7 +155,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                 @for (a of attachments(); track a.id) {
                   <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-sm">
                     @if (a.status === 'available' && a.url) {
-                      <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700 hover:underline">{{ a.file_name }}</a>
+                      <a [href]="a.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-blue-700">{{ a.file_name }}</a>
                     } @else if (a.status === 'scheduled') {
                       <span class="min-w-0 flex-1 truncate text-gray-500" [title]="tr.t('attach.opensAt') + ' ' + fmt(a.available_from)">🔒 {{ a.file_name }}</span>
                     } @else if (a.status === 'expired') {
@@ -187,8 +196,8 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                   @if (editingId() === c.id) {
                     <textarea [(ngModel)]="editText" rows="2" class="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"></textarea>
                     <div class="mt-1 flex gap-3">
-                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700 hover:underline">{{ tr.t('form.save') }}</button>
-                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
+                      <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700">{{ tr.t('form.save') }}</button>
+                      <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
                     </div>
                   } @else {
                     <p class="mt-0.5 whitespace-pre-wrap break-words text-sm text-gray-800">{{ c.content }}</p>
@@ -196,13 +205,13 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                       @if (deletingId() === c.id) {
                         <div class="mt-1 flex items-center gap-3">
                           <span class="text-xs text-red-700">{{ tr.t('detail.delComment') }}</span>
-                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600 hover:underline">{{ tr.t('detail.delete') }}</button>
-                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500 hover:underline">{{ tr.t('del.cancel') }}</button>
+                          <button type="button" (click)="confirmDeleteComment(c.id)" class="text-xs font-medium text-red-600">{{ tr.t('detail.delete') }}</button>
+                          <button type="button" (click)="deletingId.set(null)" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
                         </div>
                       } @else {
                         <div class="mt-1 flex gap-3">
-                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500 hover:underline">{{ tr.t('detail.edit') }}</button>
-                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500 hover:underline">{{ tr.t('detail.delete') }}</button>
+                          <button type="button" (click)="startEdit(c.id, c.content)" class="text-xs text-gray-500">{{ tr.t('detail.edit') }}</button>
+                          <button type="button" (click)="deletingId.set(c.id)" class="text-xs text-red-500">{{ tr.t('detail.delete') }}</button>
                         </div>
                       }
                     }
@@ -232,24 +241,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             </div>
           </div>
 
-          <!-- Xác nhận xóa: nếu là sự kiện lặp thì cho chọn xóa riêng hoặc xóa cả chuỗi -->
-          @if (confirmingDelete()) {
-            <div class="mt-3 rounded-md bg-red-50 p-3 text-sm">
-              <p class="mb-2 text-red-800">{{ tr.t('detail.deleteEvent') }}</p>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" (click)="doDelete()" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">{{ tr.t('detail.deleteThis') }}
-                </button>
-                @if (e.seriesId) {
-                  <button type="button" (click)="doDelete('series')" class="rounded bg-red-700 px-3 py-1 text-white hover:bg-red-800">
-                    {{ tr.t('detail.deleteSeries') }}
-                  </button>
-                }
-                <button type="button" (click)="confirmingDelete.set(false)" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-100">
-                  {{ tr.t('del.cancel') }}
-                </button>
-              </div>
-            </div>
-          }
+          <!-- Xác nhận xóa đã chuyển sang popup dùng chung (ConfirmService) — xem askDelete(). -->
         </div>
       </div>
     }
@@ -262,10 +254,34 @@ export class EventDetailPopoverComponent implements OnDestroy {
   private readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
+  private readonly confirm = inject(ConfirmService);
+
+  /**
+   * Vị trí bảng chi tiết — CHỐT MỘT LẦN lúc mở sự kiện (xem effect trong constructor).
+   * KHÔNG được tính lại theo con trỏ: nếu tính lại, mỗi lần bấm trong bảng (nút X, nút
+   * xoá…) bảng sẽ nhích theo chuột, nút trượt khỏi ngón tay và cú bấm không ăn.
+   */
+  protected readonly panelPos = signal<{ left: number; top: number }>({ left: 0, top: 96 });
+
+  /** Tính chỗ đặt bảng từ vị trí vừa bấm, kẹp lại để không tràn khỏi màn hình. */
+  private computePanelPos(): { left: number; top: number } {
+    const W = 320; // = w-80
+    const M = 12; // chừa mép
+    const vw = typeof window === 'undefined' ? 1280 : window.innerWidth;
+    const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+    const p = this.state.lastPointer();
+    if (!p || vw < 768) return { left: Math.max(M, (vw - W) / 2), top: 96 };
+    return {
+      left: Math.min(Math.max(p.x - W / 2, M), Math.max(M, vw - W - M)),
+      top: Math.min(Math.max(p.y - 24, M), Math.max(M, vh - 360)),
+    };
+  }
 
   // ----- Tài liệu đính kèm -----
   protected readonly attachments = signal<EventAttachment[]>([]);
   protected readonly uploading = signal(false);
+  /** Thông báo lỗi khi chọn tệp không hợp lệ (vd quá dung lượng). */
+  protected readonly uploadError = signal('');
   /** Giờ hẹn cho file sẽ tải lên (datetime-local: "YYYY-MM-DDTHH:mm"). */
   protected readonly newFrom = signal('');
   protected readonly newUntil = signal('');
@@ -321,6 +337,13 @@ export class EventDetailPopoverComponent implements OnDestroy {
     const file = input.files?.[0];
     const e = this.event();
     if (!file || !e) return;
+    // Chặn ngay ở client nếu file vượt giới hạn -> khỏi tải lên vô ích rồi mới lỗi.
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      this.uploadError.set(this.tr.t('attach.tooLarge'));
+      input.value = '';
+      return;
+    }
+    this.uploadError.set('');
     this.uploading.set(true);
     const schedule = {
       availableFrom: this.newFrom() ? new Date(this.newFrom()).toISOString() : null,
@@ -337,9 +360,12 @@ export class EventDetailPopoverComponent implements OnDestroy {
       error: () => { this.uploading.set(false); input.value = ''; },
     });
   }
-  protected removeAttachment(attId: string): void {
+  protected async removeAttachment(attId: string): Promise<void> {
     const e = this.event();
     if (!e) return;
+    const name = this.attachments().find((a) => a.id === attId)?.file_name;
+    const ok = await this.confirm.ask({ message: this.tr.t('confirm.delFile'), detail: name });
+    if (!ok) return;
     this.attachmentsApi.remove(e.id, attId).subscribe({ next: () => this.loadAttachments(e.id), error: () => {} });
   }
   protected fileSize(bytes: number | null): string {
@@ -470,14 +496,13 @@ export class EventDetailPopoverComponent implements OnDestroy {
     if (e) this.state.openEditForm(e);
   }
 
-  /** Đang hiện menu xác nhận xóa (riêng cái này / cả chuỗi) hay không */
-  readonly confirmingDelete = signal(false);
-
   constructor() {
-    // Đổi sang event khác thì tắt menu xác nhận xóa (tránh bấm nhầm sang event mới)
+    // CHỐT vị trí bảng ngay khi mở (hoặc đổi sang sự kiện khác). untracked() để hàm
+    // tính vị trí đọc lastPointer mà KHÔNG bị chạy lại mỗi lần con trỏ bấm chỗ mới.
     effect(() => {
-      this.state.selectedEventId();
-      this.confirmingDelete.set(false);
+      const id = this.state.selectedEventId();
+      if (!id) return;
+      untracked(() => this.panelPos.set(this.computePanelPos()));
     });
 
     // Mở/đổi event -> tải bình luận của event đó; đóng popover -> dọn
@@ -497,9 +522,17 @@ export class EventDetailPopoverComponent implements OnDestroy {
     });
   }
 
-  doDelete(scope?: 'series'): void {
+  /** Hỏi xác nhận bằng popup dùng chung; sự kiện lặp có thêm lựa chọn "Xóa cả chuỗi". */
+  async askDelete(): Promise<void> {
     const e = this.event();
-    if (e) this.state.deleteEvent(e.id, scope);
-    this.confirmingDelete.set(false);
+    if (!e) return;
+    const r = await this.confirm.askEx({
+      message: this.tr.t('detail.deleteEvent'),
+      detail: e.title || this.tr.t('common.untitled'),
+      confirmText: e.seriesId ? this.tr.t('detail.deleteThis') : this.tr.t('detail.delete'),
+      secondaryText: e.seriesId ? this.tr.t('detail.deleteSeries') : undefined,
+    });
+    if (r === 'no') return;
+    this.state.deleteEvent(e.id, r === 'secondary' ? 'series' : undefined);
   }
 }

@@ -200,7 +200,7 @@ export class GroupChatService {
   private notifyNewMessage(groupId: string, msg: GroupMessage): void {
     const groupName = this.groupsState.groups().find((g) => g.id === groupId)?.name ?? 'Nhóm';
     const sender = (msg.sender_email ?? '').split('@')[0] || 'Ai đó';
-    this.notifications.notifyMessage(`💬 ${groupName}`, `${sender}: ${msg.content}`);
+    this.notifications.notifyMessage(`💬 ${groupName}`, `${sender}: ${msg.content}`, groupId);
   }
 
   /** Thêm hoặc thay tin theo id, giữ thứ tự cũ -> mới. */

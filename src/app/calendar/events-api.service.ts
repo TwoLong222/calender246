@@ -13,6 +13,7 @@ interface ApiAttendee {
   id: string;
   email: string;
   status: AttendeeStatus;
+  can_edit?: boolean;
 }
 
 export interface ApiEvent {
@@ -64,6 +65,7 @@ export function toApiPayload(e: Omit<CalendarEvent, 'id'>) {
     reminders: e.reminders ?? [],
     reminderMessage: e.reminderMessage ?? undefined,
     guestEmails: e.guests.map((g) => g.email),
+    guestEditors: e.guests.filter((g) => g.canEdit).map((g) => g.email),
   };
 }
 
@@ -81,7 +83,7 @@ export function fromApiEvent(row: ApiEvent): CalendarEvent {
     // Không hiển thị chính mình như một "khách mời" -> lọc bỏ theo creator_email.
     guests: (row.attendees ?? [])
       .filter((a) => a.email.toLowerCase() !== (row.creator_email ?? '').toLowerCase())
-      .map((a) => ({ email: a.email, status: a.status })),
+      .map((a) => ({ email: a.email, status: a.status, canEdit: a.can_edit ?? false })),
     color: row.color ?? 'sky',
     seriesId: row.series_id ?? null,
     creatorEmail: row.creator_email ?? undefined,
@@ -153,8 +155,29 @@ export class EventsApiService {
     );
   }
 
-  update(id: string, draft: Omit<CalendarEvent, 'id'>): Observable<SaveResult> {
-    return this.http.patch<MutationResponse>(`${this.base}/${id}`, toApiPayload(draft)).pipe(
+  update(
+    id: string,
+    draft: Omit<CalendarEvent, 'id'>,
+    recurrence?: RecurrenceOptions,
+    editScope?: 'single' | 'series',
+  ): Observable<SaveResult> {
+    const payload = {
+      ...toApiPayload(draft),
+      // Sửa 1 sự kiện ĐƠN thành lặp -> gửi kèm luật lặp (backend sinh chuỗi).
+      ...(recurrence
+        ? {
+            repeatFreq: recurrence.freq,
+            repeatInterval: recurrence.interval,
+            ...(recurrence.weekdays?.length ? { repeatWeekdays: recurrence.weekdays } : {}),
+            ...(recurrence.monthlyMode ? { repeatMonthlyMode: recurrence.monthlyMode } : {}),
+            ...(recurrence.count ? { repeatCount: recurrence.count } : {}),
+            ...(recurrence.until ? { repeatUntil: recurrence.until } : {}),
+          }
+        : {}),
+      // Sửa 1 mắt trong chuỗi -> áp cho riêng mắt này hay cả chuỗi.
+      ...(editScope ? { editScope } : {}),
+    };
+    return this.http.patch<MutationResponse>(`${this.base}/${id}`, payload).pipe(
       map((res) => ({
         event: fromApiEvent(res.event),
         conflictTitles: res.conflicts.map((c) => c.title),

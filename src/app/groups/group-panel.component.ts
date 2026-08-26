@@ -17,6 +17,9 @@ import { GroupsStateService } from './groups-state.service';
 import { GroupChatService } from './chat.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { GroupMessage } from './groups.types';
+import { ConfirmService } from '../shared/confirm.service';
+import { TranslateService } from '../i18n/translate.service';
+import { SupabaseService } from '../auth/supabase.service';
 
 @Component({
   selector: 'app-group-panel',
@@ -101,7 +104,8 @@ import { GroupMessage } from './groups.types';
                     ></span>
                     {{ m.email }}
                     @if (m.role === 'owner') { <span class="text-xs text-blue-600">(chủ nhóm)</span> }
-                    @if (!m.joined_at) { <span class="text-xs text-gray-400">(đã mời)</span> }
+                    @if (m.status === 'declined') { <span class="text-xs text-red-500">(đã từ chối)</span> }
+                    @else if (!m.joined_at) { <span class="text-xs text-amber-600">(đang chờ)</span> }
                   </span>
                   @if (isOwner() && m.role !== 'owner') {
                     <button type="button" (click)="state.removeMember(g.id, m.email)" class="text-gray-400 hover:text-red-600" aria-label="Xóa">✕</button>
@@ -136,20 +140,59 @@ import { GroupMessage } from './groups.types';
             } @else {
               <ul class="space-y-1">
                 @for (e of events(); track e.id) {
-                  <li class="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-gray-50">
-                    <span class="min-w-0">
-                      <span class="block truncate font-medium text-gray-800">{{ e.title || '(Không có tiêu đề)' }}</span>
-                      <span class="block text-xs text-gray-500">{{ rangeLabel(e) }}</span>
-                    </span>
-                    <span class="flex shrink-0 items-center gap-2">
-                      @if (e.meetLink) {
-                        <a [href]="e.meetLink" target="_blank" rel="noopener" class="rounded bg-emerald-600 px-2 py-0.5 text-xs text-white hover:bg-emerald-700">📹 Tham gia Meet</a>
-                        <button type="button" (click)="state.removeMeetForEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet">✕</button>
-                      } @else {
-                        <button type="button" (click)="state.createMeetForEvent(g.id, e.id)" class="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100" title="Tạo phòng họp Google Meet">📹 Tạo Meet</button>
-                      }
-                      <button type="button" (click)="state.deleteGroupEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" aria-label="Xóa">🗑️</button>
-                    </span>
+                  <li class="rounded px-2 py-1 text-sm hover:bg-gray-50">
+                    @if (editEventId() === e.id) {
+                      <!-- FORM SỬA sự kiện nhóm (đầy đủ như sự kiện thường) -->
+                      <div class="space-y-2 rounded-lg bg-blue-50 p-2">
+                        <input type="text" [(ngModel)]="eTitle" placeholder="Tiêu đề sự kiện" class="w-full rounded border border-gray-300 px-2 py-1" />
+                        <div class="flex flex-wrap items-center gap-2">
+                          <input type="date" [(ngModel)]="eDate" class="rounded border border-gray-300 px-2 py-1" />
+                          <input type="time" [(ngModel)]="eStart" [disabled]="eAllDay()" class="rounded border border-gray-300 px-2 py-1 disabled:bg-gray-100 disabled:text-gray-400" />
+                          <span>–</span>
+                          <input type="time" [(ngModel)]="eEnd" [disabled]="eAllDay()" class="rounded border border-gray-300 px-2 py-1 disabled:bg-gray-100 disabled:text-gray-400" />
+                        </div>
+                        <label class="flex items-center gap-2 text-gray-600">
+                          <input type="checkbox" [(ngModel)]="eAllDay" /> Cả ngày
+                        </label>
+                        <input type="text" [(ngModel)]="eLocation" placeholder="📍 Địa điểm" class="w-full rounded border border-gray-300 px-2 py-1" />
+                        <textarea [(ngModel)]="eDescription" rows="2" placeholder="Mô tả" class="w-full resize-none rounded border border-gray-300 px-2 py-1"></textarea>
+                        <div class="flex items-center gap-1.5">
+                          @for (c of eventColors; track c) {
+                            <button type="button" (click)="eColor.set(c)"
+                              class="h-5 w-5 rounded-full ring-offset-1"
+                              [class]="colorDot(c) + (eColor() === c ? ' ring-2 ring-gray-500' : '')"
+                              [attr.aria-label]="c"></button>
+                          }
+                        </div>
+                        <div class="flex justify-end gap-2 pt-1">
+                          <button type="button" (click)="cancelEventEdit()" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-200">Hủy</button>
+                          <button type="button" (click)="saveEventEdit(g.id)" class="rounded bg-blue-700 px-3 py-1 text-white hover:bg-blue-800">Lưu</button>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="min-w-0">
+                          <span class="block truncate font-medium text-gray-800">{{ e.title || '(Không có tiêu đề)' }}</span>
+                          <span class="block text-xs text-gray-500">{{ rangeLabel(e) }}</span>
+                        </span>
+                        <span class="flex shrink-0 items-center gap-2">
+                          @if (e.meetLink) {
+                            <a [href]="e.meetLink" target="_blank" rel="noopener" class="rounded bg-emerald-600 px-2 py-0.5 text-xs text-white hover:bg-emerald-700">📹 Tham gia Meet</a>
+                            @if (canModifyEvent(e)) {
+                              <button type="button" (click)="state.removeMeetForEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet">✕</button>
+                            }
+                          } @else if (canModifyEvent(e)) {
+                            <button type="button" (click)="state.createMeetForEvent(g.id, e.id)" class="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100" title="Tạo phòng họp Google Meet">📹 Tạo Meet</button>
+                          }
+                          @if (canModifyEvent(e)) {
+                            <button type="button" (click)="startEventEdit(e)" class="text-gray-400 hover:text-blue-600" title="Sửa sự kiện" aria-label="Sửa">✏️</button>
+                            <button type="button" (click)="state.deleteGroupEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" aria-label="Xóa">🗑️</button>
+                          } @else {
+                            <span class="text-xs text-gray-400" title="Chỉ người tạo mới sửa/xóa được">🔒</span>
+                          }
+                        </span>
+                      </div>
+                    }
                   </li>
                 }
               </ul>
@@ -177,7 +220,7 @@ import { GroupMessage } from './groups.types';
             <!-- Nút xem tin cũ hơn -->
             @if (chat.hasMore()[g.id]) {
               <div class="mb-2 text-center">
-                <button type="button" (click)="chat.loadOlder(g.id)" class="text-xs text-blue-600 hover:underline">Xem tin cũ hơn</button>
+                <button type="button" (click)="chat.loadOlder(g.id)" class="text-xs text-blue-600">Xem tin cũ hơn</button>
               </div>
             }
 
@@ -254,7 +297,7 @@ import { GroupMessage } from './groups.types';
 
           @if (isOwner()) {
             <div class="mt-2 shrink-0 border-t border-gray-100 pt-3 text-right">
-              <button type="button" (click)="confirmDelete(g.id, g.name)" class="text-sm text-red-600 hover:underline">Giải tán nhóm</button>
+              <button type="button" (click)="confirmDelete(g.id, g.name)" class="text-sm text-red-600">Giải tán nhóm</button>
             </div>
           }
         </div>
@@ -265,6 +308,17 @@ import { GroupMessage } from './groups.types';
 export class GroupPanelComponent implements OnDestroy {
   protected readonly state = inject(GroupsStateService);
   protected readonly chat = inject(GroupChatService);
+  private readonly confirm = inject(ConfirmService);
+  protected readonly tr = inject(TranslateService);
+  private readonly supabase = inject(SupabaseService);
+
+  /** true nếu user hiện tại được phép sửa/xóa sự kiện nhóm này: người tạo, hoặc chủ nhóm,
+   *  hoặc sự kiện cũ chưa có creatorEmail (giữ tương thích). Backend cũng chặn lại lần nữa. */
+  protected canModifyEvent(e: CalendarEvent): boolean {
+    if (this.isOwner()) return true;
+    const me = this.supabase.user()?.email?.toLowerCase();
+    return !e.creatorEmail || e.creatorEmail.toLowerCase() === me;
+  }
 
   @ViewChild('msgList') private msgList?: ElementRef<HTMLDivElement>;
 
@@ -333,6 +387,81 @@ export class GroupPanelComponent implements OnDestroy {
   date = signal(this.todayStr());
   startTime = signal('09:00');
   endTime = signal('10:00');
+
+  // ---------- Form SỬA sự kiện nhóm (đầy đủ như sự kiện thường) ----------
+  readonly eventColors = ['sky', 'violet', 'emerald', 'rose', 'amber'] as const;
+  readonly editEventId = signal<string | null>(null);
+  eTitle = signal('');
+  eDate = signal(this.todayStr());
+  eStart = signal('09:00');
+  eEnd = signal('10:00');
+  eAllDay = signal(false);
+  eLocation = signal('');
+  eDescription = signal('');
+  eColor = signal<string>('violet');
+
+  /** Class chấm màu cho nút chọn màu. */
+  protected colorDot(c: string): string {
+    const map: Record<string, string> = {
+      sky: 'bg-sky-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500',
+      rose: 'bg-rose-500', amber: 'bg-amber-500',
+    };
+    return map[c] ?? 'bg-sky-500';
+  }
+
+  /** Mở form sửa, nạp dữ liệu sự kiện hiện tại. */
+  protected startEventEdit(e: CalendarEvent): void {
+    this.editEventId.set(e.id);
+    this.eTitle.set(e.title ?? '');
+    this.eDate.set(this.dateStr(e.start));
+    this.eStart.set(this.timeStr(e.start));
+    this.eEnd.set(this.timeStr(e.end));
+    this.eAllDay.set(e.isAllDay);
+    this.eLocation.set(e.location ?? '');
+    this.eDescription.set(e.description ?? '');
+    this.eColor.set(e.color ?? 'violet');
+  }
+
+  protected cancelEventEdit(): void {
+    this.editEventId.set(null);
+  }
+
+  /** Lưu thay đổi sự kiện nhóm qua updateGroupEvent (backend đã chặn quyền lần nữa). */
+  protected saveEventEdit(groupId: string): void {
+    const id = this.editEventId();
+    if (!id) return;
+    const start = this.eAllDay()
+      ? new Date(`${this.eDate()}T00:00`)
+      : new Date(`${this.eDate()}T${this.eStart() || '00:00'}`);
+    const end = this.eAllDay()
+      ? new Date(`${this.eDate()}T23:59`)
+      : new Date(`${this.eDate()}T${this.eEnd() || '00:00'}`);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+    if (!this.eAllDay() && end.getTime() < start.getTime()) {
+      this.state.error.set('Giờ kết thúc phải sau giờ bắt đầu.');
+      return;
+    }
+    this.state.error.set(null);
+    this.state.updateGroupEvent(groupId, id, {
+      kind: 'event',
+      title: this.eTitle().trim(),
+      description: this.eDescription().trim() || undefined,
+      location: this.eLocation().trim() || undefined,
+      start,
+      end,
+      isAllDay: this.eAllDay(),
+      guests: [],
+      color: this.eColor(),
+    });
+    this.editEventId.set(null);
+  }
+
+  private dateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  private timeStr(d: Date): string {
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
 
   dotClass(): string {
     const g = this.group();
@@ -433,10 +562,13 @@ export class GroupPanelComponent implements OnDestroy {
     this.title.set('');
   }
 
-  confirmDelete(groupId: string, name: string): void {
-    if (confirm(`Giải tán nhóm "${name}"? Mọi sự kiện nhóm sẽ bị xóa.`)) {
-      this.state.deleteGroup(groupId);
-    }
+  async confirmDelete(groupId: string, name: string): Promise<void> {
+    const ok = await this.confirm.ask({
+      message: `${this.tr.t('confirm.delGroup')} "${name}"?`,
+      detail: this.tr.t('confirm.delGroupDetail'),
+      confirmText: this.tr.t('confirm.disband'),
+    });
+    if (ok) this.state.deleteGroup(groupId);
   }
 
   async copyCode(code: string): Promise<void> {

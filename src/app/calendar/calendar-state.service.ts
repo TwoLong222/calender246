@@ -14,6 +14,11 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SharingApiService } from '../sharing/sharing-api.service';
 import { GoogleMeetService } from '../groups/google-meet.service';
 
+/** Sự kiện đang chờ tạo Google Meet, ghi lại trước khi rời app đi xin quyền. */
+const PENDING_MEET_KEY = 'pending-meet-event';
+/** Đã đi xin quyền Meet trong phiên này chưa — chặn vòng lặp xin quyền vô tận. */
+const MEET_CONSENT_TRIED_KEY = 'meet-consent-tried';
+
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
@@ -35,6 +40,8 @@ export class CalendarStateService {
     const me = this.supabase.user()?.email?.toLowerCase();
     if (!e.creatorEmail) return true; // event cũ chưa có creatorEmail -> thường của mình
     if (e.creatorEmail.toLowerCase() === me) return true;
+    // Khách mời được cấp quyền "chỉnh sửa" trong chính sự kiện này.
+    if (e.guests.some((g) => g.email.toLowerCase() === me && g.canEdit)) return true;
     return !!e.calendarId && this.editorCalendarIds().has(e.calendarId);
   }
 
@@ -43,14 +50,31 @@ export class CalendarStateService {
     return !!e.calendarId && this.sharedCalendarIds().has(e.calendarId);
   }
 
+  /** Lịch VỪA được chia sẻ cho mình (phát hiện khi poll) — NotificationService lắng nghe để báo toast. */
+  readonly newlyShared = signal<{ id: string; name: string }[]>([]);
+  /** Tập id lịch chia sẻ đã biết; null = lần tải đầu (chỉ ghi nhận, không báo). */
+  private knownSharedIds: Set<string> | null = null;
+
   private loadSharedCalendars(): void {
     this.sharingApi.sharedWithMe().subscribe({
-      next: (rows) =>
-        this.sharedCalendars.set(
-          (rows ?? [])
-            .filter((r) => r.calendar)
-            .map((r) => ({ id: r.calendar!.id, role: r.role })),
-        ),
+      next: (rows) => {
+        const list = (rows ?? [])
+          .filter((r) => r.calendar)
+          .map((r) => ({ id: r.calendar!.id, role: r.role, name: r.calendar!.name }));
+        this.sharedCalendars.set(list.map((c) => ({ id: c.id, role: c.role })));
+
+        const ids = new Set(list.map((c) => c.id));
+        if (this.knownSharedIds === null) {
+          this.knownSharedIds = ids; // lần đầu mở app: chỉ ghi nhận, không báo lịch cũ
+        } else {
+          const fresh = list.filter((c) => !this.knownSharedIds!.has(c.id));
+          if (fresh.length > 0) {
+            this.newlyShared.set(fresh.map((c) => ({ id: c.id, name: c.name })));
+            this.reload(); // tải lại sự kiện -> lịch mới TỰ hiện, không cần refresh tay
+          }
+          this.knownSharedIds = ids;
+        }
+      },
       error: () => {},
     });
   }
@@ -58,6 +82,20 @@ export class CalendarStateService {
   readonly events = signal<CalendarEvent[]>([]);
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
+
+  /** Id các sự kiện vừa nhập/tạo hàng loạt -> tô nổi bật TẠM THỜI trên lịch để dễ thấy. */
+  readonly highlightedEventIds = signal<Set<string>>(new Set());
+  private highlightTimer?: ReturnType<typeof setTimeout>;
+  /** Bật highlight cho danh sách id trong ~5s rồi tự tắt. */
+  highlightEvents(ids: string[]): void {
+    if (ids.length === 0) return;
+    clearTimeout(this.highlightTimer);
+    this.highlightedEventIds.set(new Set(ids));
+    this.highlightTimer = setTimeout(() => this.highlightedEventIds.set(new Set()), 5000);
+  }
+  isHighlighted(id: string): boolean {
+    return this.highlightedEventIds().has(id);
+  }
 
   /** Thùng rác: các sự kiện đã xóa (xóa mềm) — chỉ tải khi mở modal thùng rác */
   readonly trashedEvents = signal<CalendarEvent[]>([]);
@@ -110,9 +148,19 @@ export class CalendarStateService {
   readonly invitations = signal<Invitation[]>([]);
 
   constructor() {
+    // Ghi lại chỗ bấm gần nhất để bảng chi tiết sự kiện bung ra ngay tại đó.
+    if (typeof document !== 'undefined') {
+      document.addEventListener(
+        'pointerdown',
+        (e) => this.lastPointer.set({ x: e.clientX, y: e.clientY }),
+        true,
+      );
+    }
     this.reload();
     this.reloadInvitations();
     this.loadSharedCalendars();
+    // Poll lịch được chia sẻ mỗi 30s -> phát hiện lịch mới được chia sẻ mà không cần refresh.
+    setInterval(() => this.loadSharedCalendars(), 30_000);
     // QUAN TRỌNG: chỉ đăng ký Realtime SAU khi đã có token đăng nhập, và gắn token cho kênh
     // (setAuth). Nếu đăng ký lúc chưa đăng nhập, kênh chạy quyền ẩn danh -> RLS chặn -> KHÔNG
     // nhận được thay đổi của người khác (vd khách vừa Đồng ý) nên phải F5 mới thấy.
@@ -122,6 +170,12 @@ export class CalendarStateService {
       if (!token) return;
       this.supabase.client.realtime.setAuth(token);
       this.subscribeRealtime();
+    });
+
+    // Vừa cấp quyền Google Meet xong -> tạo tiếp phòng cho sự kiện đang chờ.
+    effect(() => {
+      this.supabase.session(); // chạy lại mỗi khi phiên đổi (sau khi quay về từ Google)
+      this.resumePendingMeet();
     });
   }
 
@@ -153,6 +207,14 @@ export class CalendarStateService {
       if (Date.now() - this.lastLocalChangeAt < 1500) return;
       this.reload();
     }, 400);
+  }
+
+  /**
+   * CHÍNH MÌNH vừa thay đổi gì đó trong `ms` mili-giây gần đây hay không.
+   * NotificationService dùng để KHÔNG tự báo cho mình về thay đổi do mình thực hiện.
+   */
+  isRecentLocalChange(ms = 8000): boolean {
+    return Date.now() - this.lastLocalChangeAt < ms;
   }
 
   /** Đánh dấu mốc user vừa tự thay đổi -> để scheduleReload bỏ qua reload realtime của chính mình */
@@ -214,6 +276,12 @@ export class CalendarStateService {
     this.loadError.set(null);
     try {
       const link = await this.meet.createSpace(); // gọi Google Meet API (cần token Google + quyền Meet)
+      // Thành công -> xoá cờ, lần sau token hết hạn vẫn xin quyền lại được.
+      try {
+        sessionStorage.removeItem(MEET_CONSENT_TRIED_KEY);
+      } catch {
+        /* bỏ qua */
+      }
       this.api.setMeetLink(eventId, link).subscribe({
         next: (saved) => {
           this.markLocalChange();
@@ -222,13 +290,56 @@ export class CalendarStateService {
         error: () => this.loadError.set('Lưu link Meet thất bại.'),
       });
     } catch (e: any) {
-      // Chưa cấp quyền Meet -> chuyển sang Google xin quyền, xong quay lại bấm "Tạo Meet" lần nữa.
+      // Chưa cấp quyền Meet -> sang Google xin quyền. GHI NHỚ sự kiện đang chờ để khi quay
+      // về app TỰ TẠO tiếp, người dùng không phải bấm "Tạo Meet" lần thứ hai (trước đây
+      // quay về là im lặng, nhìn như bấm xong không có gì xảy ra).
       if (e?.code === 'NEED_CONSENT') {
+        // CHỐNG VÒNG LẶP: chỉ đi xin quyền MỘT lần cho mỗi lần người dùng bấm. Nếu đã xin
+        // rồi mà Google vẫn từ chối thì xin nữa cũng vô ích (thường do Meet API chưa bật)
+        // -> báo lỗi rõ ràng thay vì đá qua lại màn hình chọn tài khoản mãi.
+        let already = false;
+        try {
+          already = sessionStorage.getItem(MEET_CONSENT_TRIED_KEY) === '1';
+          if (!already) {
+            sessionStorage.setItem(MEET_CONSENT_TRIED_KEY, '1');
+            sessionStorage.setItem(PENDING_MEET_KEY, eventId);
+          }
+        } catch {
+          /* chặn cookie/storage -> vẫn thử xin quyền, chỉ là phải bấm lại */
+        }
+        if (already) {
+          this.loadError.set(
+            'Đã cấp quyền Google nhưng vẫn không tạo được phòng Meet. ' +
+              'Kiểm tra xem Google Meet API đã được BẬT trong Google Cloud của dự án chưa.',
+          );
+          return;
+        }
         await this.meet.requestAccess();
         return;
       }
       this.loadError.set(e?.message || 'Tạo Google Meet thất bại.');
     }
+  }
+
+  /**
+   * Vừa quay về từ màn hình cấp quyền Google Meet -> tạo tiếp phòng cho sự kiện đang chờ.
+   * Chỉ chạy khi phiên đã có provider_token (token Google), tức quyền đã được cấp.
+   */
+  private resumePendingMeet(): void {
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem(PENDING_MEET_KEY);
+    } catch {
+      return;
+    }
+    if (!pending) return;
+    if (!this.supabase.session()?.provider_token) return; // chưa có quyền -> chờ tiếp
+    try {
+      sessionStorage.removeItem(PENDING_MEET_KEY);
+    } catch {
+      /* bỏ qua */
+    }
+    void this.createMeetForEvent(pending);
   }
 
   /** Gỡ link Google Meet khỏi 1 sự kiện. */
@@ -287,8 +398,44 @@ export class CalendarStateService {
     if (switchToDayView) this.viewMode.set('day');
   }
 
+  /**
+   * Vị trí con trỏ lúc bấm gần nhất — bảng chi tiết sự kiện dùng để hiện NGAY CHỖ BẤM
+   * (thay vì luôn dính một góc màn hình). null = mở không qua click (vd từ thông báo)
+   * -> khi đó bảng hiện ở giữa phía trên như cũ.
+   */
+  readonly lastPointer = signal<{ x: number; y: number } | null>(null);
+
   selectEvent(id: string): void {
     this.selectedEventId.set(id);
+  }
+
+  /**
+   * "Nhảy tới" 1 sự kiện từ thông báo: chuyển lịch về đúng NGÀY của sự kiện rồi mở
+   * popover chi tiết. Nếu chưa có trong danh sách đã tải (vd vừa được mời) thì tải
+   * lại rồi thử lần nữa — nhờ vậy bấm thông báo luôn tới đúng chỗ.
+   */
+  focusEvent(eventId: string): void {
+    const go = (e: CalendarEvent) => {
+      this.viewedDate.set(startOfDay(e.start));
+      // Đang ở Tháng/Năm thì ô ngày quá nhỏ, không thấy sự kiện -> chuyển sang view Ngày.
+      // Đang ở Ngày/Tuần thì giữ nguyên (đổi viewedDate là đã tới đúng chỗ).
+      const mode = this.viewMode();
+      if (mode === 'month' || mode === 'year') this.viewMode.set('day');
+      this.selectedEventId.set(e.id);
+    };
+    const found = this.events().find((e) => e.id === eventId);
+    if (found) {
+      go(found);
+      return;
+    }
+    this.api.list().subscribe({
+      next: (list) => {
+        this.events.set(list);
+        const e = list.find((x) => x.id === eventId);
+        if (e) go(e);
+      },
+      error: () => {},
+    });
   }
 
   closeDetail(): void {
@@ -329,15 +476,21 @@ export class CalendarStateService {
     draft: Omit<CalendarEvent, 'id'> & { id?: string },
     recurrence?: RecurrenceOptions,
     afterSave?: (event: CalendarEvent) => void,
+    // Lỗi lưu (vd mất mạng, server 500...) — form vẫn đang mở nên KHÔNG dùng loadError
+    // (banner đó nằm dưới modal, người dùng không thấy được). Truyền callback để modal
+    // tự hiện lỗi ngay trong form, không đóng form (giữ lại dữ liệu vừa nhập, kể cả khách mời).
+    onError?: () => void,
+    // Sửa 1 mắt trong chuỗi lặp: 'single' chỉ mắt này, 'series' cả chuỗi.
+    editScope?: 'single' | 'series',
   ): void {
     this.markLocalChange();
     const { id, ...rest } = draft;
-    const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
+    const request$ = id ? this.api.update(id, rest, recurrence, editScope) : this.api.create(rest, recurrence);
 
     request$.subscribe({
       next: ({ event, conflictTitles }) => {
-        if (recurrence) {
-          // Sự kiện lặp tạo nhiều event cùng lúc -> tải lại danh sách để thấy hết các lần lặp
+        if (recurrence || editScope === 'series') {
+          // Tạo/đổi nhiều occurrence cùng lúc -> tải lại danh sách để thấy hết các lần lặp
           this.reload();
         } else {
           this.events.update((list) => {
@@ -352,6 +505,7 @@ export class CalendarStateService {
       },
       error: () => {
         this.loadError.set('Lưu sự kiện thất bại. Thử lại sau.');
+        onError?.();
       },
     });
   }

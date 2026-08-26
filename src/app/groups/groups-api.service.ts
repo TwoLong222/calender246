@@ -7,7 +7,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { ApiEvent, fromApiEvent, toApiPayload } from '../calendar/events-api.service';
-import { Group, GroupMessage } from './groups.types';
+import { Group, GroupMessage, PendingGroupInvite } from './groups.types';
 
 interface MutationResponse {
   event: ApiEvent;
@@ -45,9 +45,24 @@ export class GroupsApiService {
     return this.http.post<Group>(`${this.base}/join`, { code });
   }
 
-  /** Kích hoạt lời mời gửi theo email của user hiện tại (gọi khi mở app) */
-  syncInvites(): Observable<{ joined: number }> {
-    return this.http.post<{ joined: number }>(`${this.base}/sync-invites`, {});
+  /** Gắn tài khoản vào các lời mời gửi theo email của user (gọi khi mở app). Không tự vào nhóm. */
+  syncInvites(): Observable<{ pending: number }> {
+    return this.http.post<{ pending: number }>(`${this.base}/sync-invites`, {});
+  }
+
+  /** Danh sách lời mời nhóm đang chờ mình đồng ý. */
+  listPendingInvites(): Observable<PendingGroupInvite[]> {
+    return this.http.get<PendingGroupInvite[]>(`${this.base}/invites/pending`);
+  }
+
+  /** Đồng ý vào nhóm. */
+  acceptInvite(groupId: string): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`${this.base}/${groupId}/accept`, {});
+  }
+
+  /** Từ chối lời mời nhóm. */
+  declineInvite(groupId: string): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`${this.base}/${groupId}/decline`, {});
   }
 
   removeMember(id: string, email: string): Observable<{ ok: boolean }> {

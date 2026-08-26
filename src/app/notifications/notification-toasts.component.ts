@@ -1,9 +1,11 @@
 // Hiển thị các toast nhắc lịch ở góc trên phải màn hình.
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { NotificationService } from './notification.service';
+import { NotificationService, Toast } from './notification.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
+import { GroupsStateService } from '../groups/groups-state.service';
+import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from './notif-kind.util';
 
 @Component({
   selector: 'app-notification-toasts',
@@ -13,61 +15,55 @@ import { CalendarStateService } from '../calendar/calendar-state.service';
   template: `
     <div class="fixed right-4 top-4 z-50 flex flex-col gap-2">
       @for (t of notify.toasts(); track t.id) {
+        <!-- Có eventId (nhắc lịch / sự kiện bị sửa...) -> bấm vào toast nhảy tới đúng sự kiện -->
         <div
-          class="toast-in flex w-72 items-start gap-3 rounded-lg border bg-white px-4 py-3 shadow-lg"
-          [class.border-amber-200]="t.kind === 'event' || t.kind === 'file' || t.kind === 'changed'"
-          [class.border-blue-200]="t.kind === 'chat'"
-          [class.border-emerald-200]="t.kind === 'invite'"
-          [class.border-red-200]="t.kind === 'cancelled'"
+          class="toast-in w-72 rounded-lg border bg-white px-4 py-3 shadow-lg"
+          [class]="borderClass(t.kind) + ((t.eventId || t.groupId) && t.kind !== 'invite' ? ' cursor-pointer hover:shadow-xl' : '')"
+          (click)="onToastClick(t)"
         >
+          <!-- Nhãn phân loại: cho biết ngay đây là loại thông báo gì, tách biệt với nội dung -->
+          <div class="mb-1.5 flex items-center justify-between gap-2">
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              [class]="badgeClass(t.kind)"
+            >
+              <app-icon [name]="iconName(t.kind)" class="h-3 w-3" />
+              {{ catLabel(t.kind) }}
+            </span>
+            <button type="button" (click)="notify.dismiss(t.id)" class="rounded-full p-0.5 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+              <app-icon name="x" class="h-3.5 w-3.5" />
+            </button>
+          </div>
+
           @if (t.kind === 'cancelled') {
-            <app-icon name="trash" class="h-6 w-6 shrink-0 text-red-500" />
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
-              <p class="break-words text-xs text-gray-500">{{ t.detail }}</p>
-            </div>
+            <p class="text-sm font-medium text-gray-800">{{ t.detail }}</p>
           } @else if (t.kind === 'changed') {
-            <app-icon name="alert" class="h-6 w-6 shrink-0 text-amber-500" />
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-800">{{ tr.t('notif.changed') }}: {{ t.title }}</p>
-              <p class="break-words text-xs text-gray-500">{{ t.body }}</p>
-            </div>
+            <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
+            <p class="break-words text-xs text-gray-500">{{ t.body }}</p>
           } @else if (t.kind === 'invite') {
-            <app-icon name="bell" class="h-6 w-6 shrink-0 text-emerald-500" />
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-800">{{ tr.t('invite.new') }}: {{ t.title }}</p>
-              @if (t.detail) {
-                <p class="truncate text-xs text-gray-500">{{ tr.t('invite.from') }} {{ t.detail }}</p>
-              }
-              <div class="mt-2 flex gap-2">
-                <button type="button" (click)="respondInvite(t, 'accepted')"
-                  class="tap rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700">{{ tr.t('rsvp.accepted') }}</button>
-                <button type="button" (click)="respondInvite(t, 'declined')"
-                  class="tap rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50">{{ tr.t('rsvp.declined') }}</button>
-              </div>
+            <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
+            @if (t.detail) {
+              <p class="truncate text-xs text-gray-500">{{ tr.t('invite.from') }} {{ t.detail }}</p>
+            }
+            <div class="mt-2 flex gap-2">
+              <button type="button" (click)="respondInvite(t, 'accepted')"
+                class="tap rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700">{{ tr.t('rsvp.accepted') }}</button>
+              <button type="button" (click)="respondInvite(t, 'declined')"
+                class="tap rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50">{{ tr.t('rsvp.declined') }}</button>
             </div>
           } @else if (t.kind === 'chat') {
-            <span class="text-xl leading-6">💬</span>
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
-              <p class="truncate text-xs text-gray-500">{{ t.body }}</p>
-            </div>
+            <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
+            <p class="truncate text-xs text-gray-500">{{ t.body }}</p>
           } @else if (t.kind === 'file') {
-            <app-icon name="notes" class="h-6 w-6 shrink-0 text-amber-500" />
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-800">{{ tr.t('toast.fileOpen') }}: {{ t.title }}</p>
-              <p class="text-xs text-gray-500">{{ tr.t('toast.ofEvent') }} {{ t.detail }}</p>
-            </div>
+            <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
+            <p class="text-xs text-gray-500">{{ tr.t('toast.ofEvent') }} {{ t.detail }}</p>
+          } @else if (t.kind === 'shared') {
+            <p class="text-sm font-medium text-gray-800">{{ t.detail }}</p>
+            <p class="text-xs text-gray-500">{{ tr.t('toast.sharedBody') }}</p>
           } @else {
-            <app-icon name="alarm" class="h-6 w-6 shrink-0 text-amber-500" />
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-800">{{ tr.t('toast.upcoming') }}: {{ t.title }}</p>
-              <p class="text-xs text-gray-500">{{ tr.t('toast.startsAt') }} {{ t.detail }}</p>
-            </div>
+            <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
+            <p class="text-xs text-gray-500">{{ tr.t('toast.startsAt') }} {{ t.detail }}</p>
           }
-          <button type="button" (click)="notify.dismiss(t.id)" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
-            <app-icon name="x" class="h-4 w-4" />
-          </button>
         </div>
       }
     </div>
@@ -77,10 +73,37 @@ export class NotificationToastsComponent {
   protected readonly notify = inject(NotificationService);
   protected readonly tr = inject(TranslateService);
   private readonly state = inject(CalendarStateService);
+  private readonly groupsState = inject(GroupsStateService);
+
+  /** Nhãn phân loại ngắn gọn — hiện trong badge màu ở đầu mỗi toast. */
+  protected catLabel(kind: Toast['kind']): string {
+    return this.tr.t(notifCatKey(kind));
+  }
+  protected iconName = notifIconName;
+  protected badgeClass = notifBadgeClass;
+  protected borderClass = notifBorderClass;
 
   /** Đồng ý/Từ chối lời mời ngay trên toast rồi ẩn toast. */
   protected respondInvite(t: { id: string; eventId?: string }, status: 'accepted' | 'declined'): void {
     if (t.eventId) this.state.respondInvitation(t.eventId, status);
+    this.notify.dismiss(t.id);
+  }
+
+  /**
+   * Bấm vào toast -> mở đúng thứ liên quan:
+   *  - Tin nhắn nhóm: mở cuộc trò chuyện của nhóm đó.
+   *  - Sự kiện: nhảy tới sự kiện trên lịch.
+   *  - Lời mời: bỏ qua (đã có nút Đồng ý/Từ chối riêng trên toast).
+   */
+  protected onToastClick(t: Toast): void {
+    if (t.kind === 'invite') return;
+    if (t.groupId) {
+      this.groupsState.openPanel(t.groupId, 'chat');
+      this.notify.dismiss(t.id);
+      return;
+    }
+    if (!t.eventId) return;
+    this.state.focusEvent(t.eventId);
     this.notify.dismiss(t.id);
   }
 }

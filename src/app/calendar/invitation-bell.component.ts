@@ -6,11 +6,13 @@
 
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CalendarStateService } from './calendar-state.service';
+import { GroupsStateService } from '../groups/groups-state.service';
 import { Invitation } from './events-api.service';
 import { NotificationService } from '../notifications/notification.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { IconComponent } from '../shared/icon.component';
+import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/notif-kind.util';
 
 @Component({
   selector: 'app-invitation-bell',
@@ -18,11 +20,11 @@ import { IconComponent } from '../shared/icon.component';
   imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="relative">
+    <div class="drop-anchor relative">
       <button
         type="button"
         (click)="open.set(!open())"
-        class="tap relative rounded-full p-1.5 hover:bg-gray-100"
+        class="tap relative rounded-full p-2 hover:bg-gray-100"
         [title]="tr.t('nav.invitations')"
         [attr.aria-label]="tr.t('nav.invitations')"
       >
@@ -36,10 +38,44 @@ import { IconComponent } from '../shared/icon.component';
 
       @if (open()) {
         <div class="fixed inset-0 z-20" (click)="open.set(false)"></div>
-        <div class="popup-in absolute right-0 top-full z-30 mt-1 max-h-[80vh] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+        <div class="drop-panel popup-in absolute right-0 top-full z-30 mt-1 max-h-[80vh] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
 
-          @if (total() === 0) {
+          @if (total() === 0 && notify.recentHistory().length === 0) {
             <p class="px-3 py-6 text-center text-sm text-gray-400">{{ tr.t('notif.empty') }}</p>
+          }
+
+          <!-- MỤC: SỰ KIỆN GẦN ĐÂY — 5 thông báo mới nhất (mọi loại) trong 3 ngày qua,
+               hiện ĐẦY ĐỦ thông tin (nhãn loại, tiêu đề, chi tiết, giờ nhận — không cắt bớt
+               chữ), chỉ để xem lại, không có nút thao tác (khác các mục actionable bên dưới). -->
+          @if (notify.recentHistory().length > 0) {
+            <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+              <span class="text-sm font-semibold text-gray-700">{{ tr.t('notif.recentTitle') }}</span>
+            </div>
+            @for (h of notify.recentHistory(); track h.id) {
+              <!-- Có sự kiện liên quan -> bấm cả dòng để nhảy tới sự kiện đó. Nút X ở góc để tự xóa dòng. -->
+              <div class="group relative w-full border-b border-gray-50 px-3 py-2.5 text-left"
+                [class]="canOpenHistory(h) ? 'cursor-pointer hover:bg-gray-50' : ''"
+                (click)="openHistoryEntry(h)">
+                <div class="flex items-center justify-between gap-2">
+                  <span
+                    class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                    [class]="notifBadgeClass(h.kind)"
+                  >
+                    <app-icon [name]="notifIconName(h.kind)" class="h-3 w-3" />
+                    {{ tr.t(notifCatKey(h.kind)) }}
+                  </span>
+                  <span class="shrink-0 text-xs text-gray-400">{{ recentTimeLabel(h.at) }}</span>
+                </div>
+                <p class="mt-1 break-words pr-6 text-sm font-medium text-gray-800">{{ h.title }}</p>
+                @if (h.detail) { <p class="break-words pr-6 text-xs text-gray-500">{{ h.detail }}</p> }
+                @if (h.body) { <p class="break-words pr-6 text-xs text-gray-500">{{ h.body }}</p> }
+                <button type="button" (click)="removeRecent($event, h.id)"
+                  class="absolute bottom-2 right-2 rounded-full p-1 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
+                  [attr.aria-label]="tr.t('detail.delete')">
+                  <app-icon name="trash" class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            }
           }
 
           <!-- MỤC 0: NHẮC LỊCH (tới giờ) -->
@@ -52,10 +88,11 @@ import { IconComponent } from '../shared/icon.component';
             @for (n of reminders(); track n.id) {
               <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
                 <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-400"></span>
-                <div class="min-w-0 flex-1">
+                <!-- Bấm -> mở sự kiện được nhắc VÀ đánh dấu đã đọc (chấm đỏ tự mất, không cần bấm X) -->
+                <button type="button" (click)="openReminder(n)" class="min-w-0 flex-1 text-left">
                   <p class="truncate text-sm font-medium text-gray-800">{{ n.title }}</p>
                   @if (n.body) { <p class="text-xs text-gray-500">{{ n.body }}</p> }
-                </div>
+                </button>
                 <button type="button" (click)="notify.dismissReminder(n.id)"
                   class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
                   <app-icon name="x" class="h-3.5 w-3.5" />
@@ -100,14 +137,15 @@ import { IconComponent } from '../shared/icon.component';
             </div>
             @for (n of changed(); track n.id) {
               <div class="flex items-start gap-2 border-b border-gray-50 px-3 py-2.5">
-                <div class="min-w-0 flex-1">
+                <!-- Bấm -> mở đúng sự kiện vừa bị sửa -->
+                <button type="button" (click)="goToEvent(n.eventId)" class="min-w-0 flex-1 text-left">
                   <p class="truncate text-sm font-medium text-gray-800">{{ n.title }}</p>
                   <ul class="mt-1 space-y-0.5">
                     @for (c of n.changes; track c) {
                       <li class="break-words text-xs text-gray-600">• {{ c }}</li>
                     }
                   </ul>
-                </div>
+                </button>
                 <button type="button" (click)="notify.dismissChange(n.id)"
                   class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
                   <app-icon name="x" class="h-3.5 w-3.5" />
@@ -138,7 +176,7 @@ import { IconComponent } from '../shared/icon.component';
           <!-- Xóa hết thông báo nhắc/hủy/sửa -->
           @if (reminders().length > 0 || changed().length > 0 || cancelled().length > 0) {
             <div class="px-3 py-2 text-right">
-              <button type="button" (click)="clearAll()" class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+              <button type="button" (click)="clearAll()" class="text-xs text-gray-500 hover:text-gray-700">
                 {{ tr.t('notif.clearAll') }}
               </button>
             </div>
@@ -150,6 +188,7 @@ import { IconComponent } from '../shared/icon.component';
 })
 export class InvitationBellComponent {
   private readonly state = inject(CalendarStateService);
+  private readonly groupsState = inject(GroupsStateService);
   protected readonly notify = inject(NotificationService);
   private readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
@@ -163,10 +202,73 @@ export class InvitationBellComponent {
   );
   protected readonly open = signal(false);
 
+  protected readonly notifBadgeClass = notifBadgeClass;
+  protected readonly notifIconName = notifIconName;
+  protected readonly notifCatKey = notifCatKey;
+
+  /** Nhãn thời gian ngắn gọn cho mục "Sự kiện gần đây": vd "5 phút", "3 giờ", "2 ngày". */
+  protected recentTimeLabel(at: number): string {
+    const diffMs = Date.now() - at;
+    const min = Math.floor(diffMs / 60_000);
+    if (min < 1) return this.tr.t('notif.justNow');
+    if (min < 60) return `${min} ${this.tr.t('notif.minAgo')}`;
+    const hour = Math.floor(min / 60);
+    if (hour < 24) return `${hour} ${this.tr.t('notif.hourAgo')}`;
+    const day = Math.floor(hour / 24);
+    return `${day} ${this.tr.t('notif.dayAgo')}`;
+  }
+
   /** Xóa hết thông báo đã lưu (nhắc lịch + sửa + hủy). */
   protected clearAll(): void {
     this.notify.clearReminders();
     this.notify.clearNotices();
+  }
+
+  /** Bấm 1 thông báo -> nhảy tới đúng sự kiện trên lịch rồi đóng chuông. */
+  protected goToEvent(eventId: string | null | undefined): void {
+    if (!eventId) return;
+    // Sự kiện của NHÓM -> mở panel nhóm (popover chi tiết chỉ dùng cho sự kiện cá nhân).
+    const ev = this.state.events().find((e) => e.id === eventId);
+    if (ev?.groupId) {
+      this.groupsState.openPanel(ev.groupId);
+    } else {
+      this.state.focusEvent(eventId);
+    }
+    this.open.set(false);
+  }
+
+  /** Bấm 1 nhắc lịch: mở sự kiện (nếu có) + đánh dấu ĐÃ ĐỌC -> tự rơi khỏi chuông, chấm đỏ giảm. */
+  protected openReminder(n: { id: string; eventId: string | null }): void {
+    if (n.eventId) this.goToEvent(n.eventId);
+    this.notify.dismissReminder(n.id);
+  }
+
+  /** Bấm 1 dòng trong "Sự kiện gần đây": tin nhắn -> mở chat nhóm; còn lại -> mở sự kiện. */
+  protected openHistoryEntry(h: { eventId?: string; groupId?: string; title?: string }): void {
+    if (h.groupId) {
+      this.groupsState.openPanel(h.groupId, 'chat');
+      this.open.set(false);
+      return;
+    }
+    if (h.eventId) {
+      this.goToEvent(h.eventId);
+      return;
+    }
+    // Thông báo CŨ (lưu trước khi có eventId) -> dò theo tiêu đề để vẫn bấm được.
+    const byTitle = this.state.events().find((e) => e.title && e.title === h.title);
+    if (byTitle) this.goToEvent(byTitle.id);
+  }
+
+  /** Xóa 1 dòng khỏi "Sự kiện gần đây" — chặn nổi bọt để không kích hoạt mở sự kiện của cả dòng. */
+  protected removeRecent(ev: Event, id: string): void {
+    ev.stopPropagation();
+    this.notify.removeHistory(id);
+  }
+
+  /** Dòng lịch sử có mở được gì không (dùng để bật con trỏ + hiệu ứng rê chuột). */
+  protected canOpenHistory(h: { eventId?: string; groupId?: string; title?: string }): boolean {
+    if (h.eventId || h.groupId) return true;
+    return this.state.events().some((e) => e.title && e.title === h.title);
   }
 
   protected respond(iv: Invitation, status: 'accepted' | 'declined'): void {

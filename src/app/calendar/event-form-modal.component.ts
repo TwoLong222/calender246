@@ -9,7 +9,7 @@
 // việc thêm khách theo email sẽ tạo record thật trong bảng event_attendees và trigger
 // gửi email mời (xem README-tich-hop-calendar.md).
 
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
@@ -18,9 +18,10 @@ import { TimePickerComponent } from '../shared/time-picker.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
-import { AttachmentsApiService } from './attachments-api.service';
+import { AttachmentsApiService, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { RecurrenceOptions } from './events-api.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -62,11 +63,12 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-10 sm:pt-20" (click)="close()">
-      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white p-4 shadow-xl sm:p-6" (click)="$event.stopPropagation()">
         <div class="mb-3 flex items-start justify-between gap-4">
           <input
             type="text"
             [(ngModel)]="title"
+            (keydown.enter)="onEnterSave()"
             maxlength="200"
             [placeholder]="tr.t('form.addTitle')"
             class="min-w-0 flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
@@ -120,8 +122,8 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
             </label>
 
-            <!-- Lặp lại: chỉ cho tạo mới (sửa 1 event trong chuỗi lặp phức tạp -> để sau) -->
-            @if (!editing()) {
+            <!-- Lặp lại: hiện khi TẠO MỚI, hoặc khi SỬA 1 sự kiện CHƯA thuộc chuỗi (chọn lặp -> tạo chuỗi). -->
+            @if (!editing() || !editingSeries()) {
               <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
                 <span>🔁</span>
                 <select [ngModel]="recurKey()" (ngModelChange)="onRecurChange($event)" class="rounded border border-gray-300 px-2 py-1">
@@ -133,9 +135,24 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               @if (recurKey() === 'custom') {
                 <p class="pl-7 text-xs text-gray-500">
                   {{ customSummary() }}
-                  <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600 hover:underline">{{ tr.t('detail.edit') }}</button>
+                  <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600">{{ tr.t('detail.edit') }}</button>
                 </p>
               }
+            }
+
+            <!-- #24: sửa 1 mắt trong CHUỖI lặp -> chọn phạm vi áp dụng. -->
+            @if (editing() && editingSeries()) {
+              <div class="rounded-md bg-blue-50 px-3 py-2 pl-7 text-sm">
+                <p class="mb-1 flex items-center gap-1 font-medium text-gray-700">🔁 {{ tr.t('form.recurEditScope') }}</p>
+                <label class="flex items-center gap-2 text-gray-700">
+                  <input type="radio" name="editScope" value="single" [checked]="editScope() === 'single'" (change)="editScope.set('single')" />
+                  {{ tr.t('form.recurThisOnly') }}
+                </label>
+                <label class="flex items-center gap-2 text-gray-700">
+                  <input type="radio" name="editScope" value="series" [checked]="editScope() === 'series'" (change)="editScope.set('series')" />
+                  {{ tr.t('form.recurAll') }}
+                </label>
+              </div>
             }
 
             @if (conflicts().length > 0) {
@@ -183,7 +200,16 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                   <ul class="mt-2 space-y-1">
                     @for (g of guests(); track g.email) {
                       <li class="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1">
-                        <span class="min-w-0 break-all">{{ g.email }}</span>
+                        <span class="min-w-0 flex-1 break-all">{{ g.email }}</span>
+                        <select
+                          [ngModel]="g.canEdit ? 'editor' : 'viewer'"
+                          (ngModelChange)="setGuestRole(g.email, $event === 'editor')"
+                          class="shrink-0 rounded border border-gray-300 px-1 py-0.5 text-xs"
+                          [title]="tr.t('form.guestRoleHint')"
+                        >
+                          <option value="viewer">{{ tr.t('share.viewer') }}</option>
+                          <option value="editor">{{ tr.t('share.editor') }}</option>
+                        </select>
                         <button type="button" (click)="removeGuest(g.email)" class="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
                       </li>
                     }
@@ -194,7 +220,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
             <div class="flex items-center gap-2 text-sm">
               <span class="w-5 text-center">📍</span>
-              <input type="text" [(ngModel)]="location" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1" />
+              <input type="text" [(ngModel)]="location" (keydown.enter)="onEnterSave()" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1" />
             </div>
 
             <div class="flex items-start gap-2 text-sm">
@@ -267,6 +293,10 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                   <input type="file" class="hidden" (change)="onStageFile($event)" />
                 </label>
               </div>
+              <p class="text-[11px] text-gray-400">{{ tr.t('attach.limit') }}</p>
+              @if (stageError()) {
+                <p class="rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ stageError() }}</p>
+              }
               <div class="grid grid-cols-2 gap-2 rounded bg-gray-50 p-2 text-xs">
                 <label class="flex flex-col gap-0.5 text-gray-500">{{ tr.t('attach.from') }}
                   <app-datetime-picker [(ngModel)]="stageFrom" />
@@ -293,8 +323,32 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
             <div class="flex items-center gap-2 text-sm">
               <app-icon name="target" class="h-4 w-4 text-gray-500" />
               <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <app-time-picker [(ngModel)]="startTime" />
+              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay()" />
             </div>
+
+            <!-- Cả ngày (việc cần làm không cần giờ cụ thể) -->
+            <label class="flex items-center gap-2 pl-6 text-sm text-gray-600">
+              <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
+            </label>
+
+            <!-- Lặp lại theo chu kỳ: chỉ cho tạo mới -->
+            @if (!editing()) {
+              <div class="flex flex-wrap items-center gap-2 pl-6 text-sm text-gray-600">
+                <span>🔁</span>
+                <select [ngModel]="recurKey()" (ngModelChange)="onRecurChange($event)" class="rounded border border-gray-300 px-2 py-1">
+                  @for (o of recurOptions(); track o.key) {
+                    <option [value]="o.key">{{ o.label }}</option>
+                  }
+                </select>
+              </div>
+              @if (recurKey() === 'custom') {
+                <p class="pl-6 text-xs text-gray-500">
+                  {{ customSummary() }}
+                  <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600">{{ tr.t('detail.edit') }}</button>
+                </p>
+              }
+            }
+
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
               <textarea [(ngModel)]="description" rows="3" maxlength="2000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded border border-gray-300 px-2 py-1 [field-sizing:content]"></textarea>
@@ -302,13 +356,47 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
           </div>
         }
 
-        <!-- Tab: Lên lịch hẹn (stub — cần trang đặt lịch công khai riêng, để Giai đoạn 2) -->
+        <!-- Tab: Lên lịch hẹn — bật/tắt trang đặt lịch công khai + lấy link chia sẻ (ngay tại đây) -->
         @if (tab() === 'appointment') {
-          <div class="rounded-md bg-gray-50 p-4 text-sm text-gray-600">
-            {{ tr.t('form.apptDesc') }}
-            <p class="mt-2 text-xs text-gray-400">
-              {{ tr.t('form.apptNote') }}
-            </p>
+          <div class="space-y-3 text-sm">
+            <p class="text-gray-600">{{ tr.t('form.apptDesc') }}</p>
+            <label class="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+              <span class="font-medium">{{ tr.t('booking.enable') }}</span>
+              <input type="checkbox" [checked]="bookingPage()?.enabled" (change)="setBooking({ enabled: !bookingPage()?.enabled })" class="accent-blue-600" />
+            </label>
+            @if (bookingPage()?.enabled) {
+              <div>
+                <label class="mb-1 block text-gray-600">{{ tr.t('booking.duration') }}</label>
+                <!-- Nhập TỰ DO 5..480 phút; kèm vài mốc nhanh cho tiện -->
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number" min="5" max="480" step="5" inputmode="numeric"
+                    [ngModel]="bookingPage()?.duration_minutes"
+                    (ngModelChange)="setDuration($event)"
+                    class="w-28 rounded-md border border-gray-300 px-3 py-2"
+                  />
+                  <span class="text-gray-500">{{ tr.t('booking.min') }}</span>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-1">
+                  @for (m of durationPresets; track m) {
+                    <button type="button" (click)="setDuration(m)"
+                      class="tap rounded-full border px-3 py-1 text-xs"
+                      [class]="bookingPage()?.duration_minutes === m ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'"
+                    >{{ m }}{{ tr.t('booking.minShort') }}</button>
+                  }
+                </div>
+              </div>
+              <div>
+                <label class="mb-1 block text-gray-600">{{ tr.t('booking.link') }}</label>
+                <input [value]="bookingLink()" readonly class="mb-2 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600" />
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" (click)="copyBookingLink()" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ bookingCopied() ? tr.t('booking.copied') : tr.t('booking.copy') }}</button>
+                  <a [href]="bookingLink()" target="_blank" class="tap rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">{{ tr.t('booking.open') }}</a>
+                </div>
+              </div>
+            } @else {
+              <p class="text-xs text-gray-400">{{ tr.t('form.apptHint') }}</p>
+            }
           </div>
         }
 
@@ -327,8 +415,9 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
             <button
               type="button"
               (click)="save()"
-              class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-            >{{ tr.t('form.save') }}</button>
+              [disabled]="saving()"
+              class="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >{{ saving() ? tr.t('form.saving') : tr.t('form.save') }}</button>
           }
         </div>
       </div>
@@ -406,15 +495,58 @@ export class EventFormModalComponent {
   private readonly settings = inject(SettingsService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
   private readonly supabase = inject(SupabaseService);
+  private readonly bookingApi = inject(BookingApiService);
+
+  // ----- Lịch hẹn công khai (booking) — cấu hình ngay trong tab "Lên lịch hẹn" -----
+  protected readonly bookingPage = signal<BookingPage | null>(null);
+  protected readonly bookingCopied = signal(false);
+  protected bookingLink(): string {
+    const p = this.bookingPage();
+    return p ? `${window.location.origin}/book/${p.slug}` : '';
+  }
+  protected setBooking(patch: Partial<BookingPage>): void {
+    const prev = this.bookingPage();
+    if (prev) this.bookingPage.set({ ...prev, ...patch });
+    this.bookingApi.updateMyPage(patch).subscribe({
+      next: (p) => this.bookingPage.set(p),
+      error: () => { if (prev) this.bookingPage.set(prev); },
+    });
+  }
+  protected copyBookingLink(): void {
+    navigator.clipboard?.writeText(this.bookingLink());
+    this.bookingCopied.set(true);
+    setTimeout(() => this.bookingCopied.set(false), 1500);
+  }
+  /** Mốc thời lượng bấm nhanh (vẫn nhập tự do được ở ô số). */
+  protected readonly durationPresets = [15, 30, 45, 60, 90, 120];
+  /** Đặt thời lượng, chặn trong khoảng hợp lệ 5..480 phút (khớp ràng buộc ở DB). */
+  protected setDuration(v: number | string): void {
+    const n = Math.min(Math.max(Math.round(Number(v) || 0), 5), 480);
+    this.setBooking({ duration_minutes: n });
+  }
+  /** Tải cấu hình trang đặt lịch (gọi khi mở tab Lịch hẹn lần đầu). */
+  private loadBookingOnce(): void {
+    if (this.bookingPage()) return;
+    this.bookingApi.getMyPage().subscribe({ next: (p) => this.bookingPage.set(p), error: () => {} });
+  }
 
   // ----- Tài liệu đính kèm ngay lúc tạo (xếp hàng, upload sau khi lưu) -----
   protected readonly stagedFiles = signal<{ file: File; from: string; until: string }[]>([]);
   protected readonly stageFrom = signal('');
   protected readonly stageUntil = signal('');
+  /** Lỗi khi chọn tệp không hợp lệ (vd quá dung lượng). */
+  protected readonly stageError = signal('');
   protected onStageFile(evt: Event): void {
     const input = evt.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+    // Chặn file vượt giới hạn ngay tại client.
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      this.stageError.set(this.tr.t('attach.tooLarge'));
+      input.value = '';
+      return;
+    }
+    this.stageError.set('');
     this.stagedFiles.update((l) => [...l, { file, from: this.stageFrom(), until: this.stageUntil() }]);
     this.stageFrom.set('');
     this.stageUntil.set('');
@@ -489,16 +621,22 @@ export class EventFormModalComponent {
   startTime = signal('');
   endDate = signal('');
   endTime = signal('');
-  /** Thông báo lỗi trong form (vd giờ kết thúc trước giờ bắt đầu). */
+  /** Thông báo lỗi trong form (vd giờ kết thúc trước giờ bắt đầu, hoặc lưu server thất bại). */
   protected readonly formError = signal('');
+  /** true trong lúc chờ server phản hồi — khóa nút Lưu để tránh bấm nhiều lần tạo trùng sự kiện. */
+  protected readonly saving = signal(false);
   isAllDay = signal(false);
   location = signal('');
   description = signal('');
   guests = signal<Guest[]>([]);
   guestEmailDraft = signal('');
   color = signal('sky');
-  /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
+  /** true khi đang SỬA event có sẵn. */
   editing = signal(false);
+  /** #24: true khi event đang sửa THUỘC một chuỗi lặp -> hiện lựa chọn "chỉ mục này / cả chuỗi". */
+  editingSeries = signal(false);
+  /** #24: phạm vi áp dụng khi sửa 1 mắt trong chuỗi. */
+  editScope = signal<'single' | 'series'>('single');
 
   // ----- Lặp lại (recurrence) -----
   readonly weekdayIdx = [0, 1, 2, 3, 4, 5, 6];
@@ -641,13 +779,32 @@ export class EventFormModalComponent {
   private editingId: string | null = null;
 
   constructor() {
+    // Mở tab "Lên lịch hẹn" -> nạp cấu hình trang đặt lịch công khai (booking) 1 lần.
+    effect(() => {
+      if (this.state.isFormOpen() && this.tab() === 'appointment') this.loadBookingOnce();
+    });
     // Mỗi khi modal được mở, nạp lại dữ liệu: nếu đang sửa -> điền dữ liệu event cũ,
     // nếu tạo mới -> điền giờ mặc định (giờ được click trên lưới, +1 tiếng cho giờ kết thúc)
+    // CHỈ nạp lại form khi MỞ form hoặc ĐỔI sang sự kiện khác.
+    // Trước đây effect này đọc thẳng editingEvent() — vốn phụ thuộc danh sách sự kiện —
+    // nên mỗi lần app tải lại dữ liệu (poll 30s / realtime) là form bị RESET ngầm giữa
+    // chừng: kiểu lặp về "Không lặp", tiêu đề/giờ vừa nhập cũng mất.
     effect(() => {
-      if (!this.state.isFormOpen()) return;
+      const open = this.state.isFormOpen();
+      this.state.editingEventId(); // signal thuần -> chỉ chạy lại khi đổi sự kiện đang sửa
+      if (!open) return;
+      untracked(() => this.loadFormFromState());
+    });
+  }
+
+  /** Đổ dữ liệu vào form: đang sửa -> điền sự kiện cũ; tạo mới -> giá trị mặc định. */
+  private loadFormFromState(): void {
+    {
       const editing = this.state.editingEvent();
       this.editingId = editing?.id ?? null;
       this.editing.set(!!editing);
+      this.saving.set(false);
+      this.formError.set('');
 
       if (editing) {
         this.tab.set(editing.kind);
@@ -670,6 +827,11 @@ export class EventFormModalComponent {
               : [];
         this.reminders.set(mins.map(minutesToItem));
         this.reminderMessage.set(editing.reminderMessage ?? '');
+        // #24: biết event có thuộc chuỗi lặp không -> quyết định hiện dropdown lặp hay lựa chọn phạm vi.
+        this.editingSeries.set(!!editing.seriesId);
+        this.editScope.set('single');
+        this.recurKey.set('none');
+        this.showCustomRecur.set(false);
       } else {
         const start = this.state.formInitialStart();
         let end = new Date(start.getTime() + 60 * 60_000);
@@ -690,13 +852,15 @@ export class EventFormModalComponent {
         this.color.set('sky');
         this.recurKey.set('none');
         this.showCustomRecur.set(false);
+        this.editingSeries.set(false);
+        this.editScope.set('single');
         // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới; null = không có mốc nào.
         const def = this.settings.settings().default_reminder;
         this.reminders.set(def != null ? [minutesToItem(def)] : []);
         this.reminderMessage.set('');
       }
       this.guestEmailDraft.set('');
-    });
+    }
   }
 
   private computedStart = computed(() => new Date(`${this.startDate()}T${this.startTime() || '00:00'}`));
@@ -745,7 +909,7 @@ export class EventFormModalComponent {
     const email = this.guestEmailDraft().trim();
     if (!email || !email.includes('@')) return;
     if (this.guests().some((g) => g.email.toLowerCase() === email.toLowerCase())) return;
-    this.guests.update((list) => [...list, { email, status: 'needsAction' }]);
+    this.guests.update((list) => [...list, { email, status: 'needsAction', canEdit: false }]);
     this.guestEmailDraft.set('');
   }
 
@@ -753,11 +917,27 @@ export class EventFormModalComponent {
     this.guests.update((list) => list.filter((g) => g.email !== email));
   }
 
+  /** Đổi quyền của 1 khách: editor (chỉnh sửa) hay viewer (chỉ xem). */
+  setGuestRole(email: string, canEdit: boolean): void {
+    this.guests.update((list) => list.map((g) => (g.email === email ? { ...g, canEdit } : g)));
+  }
+
   close(): void {
     this.state.closeForm();
   }
 
+  /** Bấm Enter trong ô tiêu đề/địa điểm -> lưu luôn (như bấm nút Lưu). Tab "Lên lịch hẹn" không có nút Lưu nên bỏ qua. */
+  protected onEnterSave(): void {
+    if (this.tab() === 'appointment' || this.saving()) return;
+    this.save();
+  }
+
   save(): void {
+    // Đang chờ lần lưu trước phản hồi -> bỏ qua, tránh bấm nhiều lần tạo trùng sự kiện
+    // (đây chính là nguyên nhân sinh ra nhiều bản ghi trùng khi lưu bị chậm/lỗi mà form
+    // không cho biết gì, khiến người dùng tưởng chưa bấm được nên bấm tiếp).
+    if (this.saving()) return;
+
     const start = this.isAllDay() ? new Date(`${this.startDate()}T00:00`) : this.computedStart();
     // Kết thúc cùng NGÀY với bắt đầu (không cho sự kiện kéo dài qua ngày).
     const end = this.isAllDay() ? new Date(`${this.startDate()}T23:59`) : this.computedEnd();
@@ -768,10 +948,37 @@ export class EventFormModalComponent {
       this.formError.set(this.tr.t('form.endBeforeStart'));
       return;
     }
-    this.formError.set('');
 
-    // Chỉ cho lặp khi TẠO MỚI (sửa 1 event trong chuỗi lặp phức tạp -> để sau).
-    const recurrence = !this.editingId ? this.buildRecurrence() : undefined;
+    // Chặn tràn qua ngày khác:
+    //  - Sự kiện có giờ cụ thể: bắt buộc kết thúc CÙNG ngày với bắt đầu (view Tuần/Ngày chỉ
+    //    vẽ trên cột ngày bắt đầu — tràn sang ngày sau sẽ bị cắt cụt, dễ hiểu nhầm).
+    //  - Sự kiện "Cả ngày": cho phép nhiều ngày nhưng giới hạn tối đa 30 ngày để tránh
+    //    tạo nhầm sự kiện kéo hàng năm chặn cả lịch.
+    if (!this.isAllDay()) {
+      const sameDay =
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth() &&
+        start.getDate() === end.getDate();
+      if (!sameDay) {
+        this.formError.set(this.tr.t('form.crossDayNotAllowed'));
+        return;
+      }
+    } else {
+      const MAX_ALL_DAY_SPAN_DAYS = 30;
+      const spanDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+      if (spanDays > MAX_ALL_DAY_SPAN_DAYS) {
+        this.formError.set(this.tr.t('form.spanTooLong'));
+        return;
+      }
+    }
+    this.formError.set('');
+    this.saving.set(true);
+
+    // #24: Lặp khi TẠO MỚI, hoặc khi SỬA sự kiện CHƯA thuộc chuỗi (chọn lặp -> backend sinh chuỗi).
+    // Sửa 1 mắt trong chuỗi -> không đổi luật lặp, chỉ chọn phạm vi (editScope).
+    const isEdit = !!this.editingId;
+    const recurrence = (!isEdit || !this.editingSeries()) ? this.buildRecurrence() : undefined;
+    const editScope = (isEdit && this.editingSeries()) ? this.editScope() : undefined;
 
     this.state.saveEvent(
       {
@@ -793,6 +1000,14 @@ export class EventFormModalComponent {
       (event) => {
         if (this.stagedFiles().length > 0) this.uploadStaged(event.id);
       },
+      // Lưu thất bại: KHÔNG đóng form (giữ nguyên tiêu đề/khách mời vừa nhập) + hiện lỗi
+      // ngay trong modal, vì banner loadError ở trang chính bị modal che mất, người dùng
+      // sẽ không thấy được.
+      () => {
+        this.saving.set(false);
+        this.formError.set(this.tr.t('form.saveFailed'));
+      },
+      editScope,
     );
   }
 }

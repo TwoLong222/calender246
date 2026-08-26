@@ -3,7 +3,7 @@
 // (đúng quyền), hiện PREVIEW, người dùng bấm Xác nhận thì mới thực thi qua các
 // service có sẵn (auth + RLS). AI không bao giờ chạm thẳng database.
 
-import { ChangeDetectionStrategy, Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
@@ -11,14 +11,27 @@ import { CalendarEvent } from '../calendar/calendar.types';
 import { SupabaseService } from '../auth/supabase.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
+import { ConfirmService } from '../shared/confirm.service';
 
 interface ChatMsg {
   role: 'user' | 'ai';
   text: string;
 }
 
-/** Key lưu lịch sử chat AI (giữ khi rời trang / mở lại). */
+/** 1 cuộc trò chuyện với AI (lưu nhiều cuộc trên trình duyệt). */
+interface Conversation {
+  id: string;
+  messages: ChatMsg[];
+  updatedAt: number;
+}
+
+/** Key cũ (1 cuộc) — chỉ dùng để migrate sang danh sách nhiều cuộc. */
 const AI_CHAT_KEY = 'ai-chat-history';
+/** Danh sách cuộc trò chuyện + cuộc đang mở. */
+const AI_CONVS_KEY = 'ai-conversations';
+const AI_CURRENT_KEY = 'ai-current-conv';
+/** Giữ tối đa 20 cuộc gần nhất để localStorage không phình. */
+const MAX_CONVERSATIONS = 20;
 interface PlannedSlot {
   start: Date;
   end: Date;
@@ -29,10 +42,11 @@ interface PlanPreferences {
   allowedWeekdays?: Set<number>;
 }
 type Pending =
-  | { kind: 'create'; title: string; start: Date; end: Date }
+  | { kind: 'create'; title: string; start: Date; end: Date; withMeet: boolean; emails: string[] }
   | { kind: 'plan'; title: string; slots: PlannedSlot[]; requestedCount: number }
   | { kind: 'reschedule'; event: CalendarEvent; start: Date; end: Date }
-  | { kind: 'delete'; event: CalendarEvent };
+  | { kind: 'delete'; event: CalendarEvent }
+  | { kind: 'invite'; event: CalendarEvent; emails: string[] };
 
 @Component({
   selector: 'app-ai-assistant',
@@ -43,11 +57,18 @@ type Pending =
     @if (!open()) {
       <button
         type="button"
-        (click)="open.set(true)"
+        (click)="openPanel()"
         class="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-700 text-white shadow-lg hover:bg-blue-800"
         [attr.aria-label]="tr.t('sec.ai')"
       >
         <app-icon name="robot" class="h-7 w-7" />
+        <!-- Chấm đỏ: AI vừa trả lời khi panel đang đóng -->
+        @if (unread()) {
+          <span class="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+            <span class="relative inline-flex h-3.5 w-3.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+          </span>
+        }
       </button>
     } @else {
       <div class="popup-in fixed bottom-6 right-6 z-40 flex h-[460px] w-80 flex-col rounded-xl border border-gray-200 bg-white shadow-2xl">
@@ -56,14 +77,38 @@ type Pending =
             <app-icon name="robot" class="h-5 w-5 text-blue-700" /> {{ tr.t('ai.title') }}
           </span>
           <div class="flex items-center gap-1">
-            <button type="button" (click)="clearChat()" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('ai.clear')" [title]="tr.t('ai.clear')">
-              <app-icon name="trash" class="h-4 w-4" />
+            <button type="button" (click)="newConversation()" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('ai.newChat')" [title]="tr.t('ai.newChat')">
+              <app-icon name="plus" class="h-4 w-4" />
             </button>
-            <button type="button" (click)="open.set(false)" class="rounded-full p-1 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+            <button type="button" (click)="showList.set(!showList())" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [class.bg-gray-100]="showList()" [attr.aria-label]="tr.t('ai.history')" [title]="tr.t('ai.history')">
+              <app-icon name="menu" class="h-4 w-4" />
+            </button>
+            <button type="button" (click)="open.set(false)" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
               <app-icon name="x" class="h-4 w-4" />
             </button>
           </div>
         </div>
+
+        <!-- Bảng LỊCH SỬ các cuộc trò chuyện (đè lên phần chat khi mở) -->
+        @if (showList()) {
+          <div class="absolute inset-0 z-10 flex flex-col rounded-xl bg-white">
+            <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <span class="font-medium text-gray-800">{{ tr.t('ai.history') }}</span>
+              <div class="flex items-center gap-1">
+                <button type="button" (click)="newConversation()" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [title]="tr.t('ai.newChat')"><app-icon name="plus" class="h-4 w-4" /></button>
+                <button type="button" (click)="showList.set(false)" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+              </div>
+            </div>
+            <div class="flex-1 overflow-y-auto py-1">
+              @for (c of conversations(); track c.id) {
+                <div class="flex items-center gap-1 px-2" [class.bg-blue-50]="c.id === currentId()">
+                  <button type="button" (click)="switchConversation(c.id)" class="min-w-0 flex-1 truncate rounded px-2 py-2 text-left text-sm text-gray-800 hover:bg-gray-50">{{ conversationTitle(c) }}</button>
+                  <button type="button" (click)="deleteConversation(c.id)" class="tap shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-red-600" [attr.aria-label]="tr.t('detail.delete')"><app-icon name="trash" class="h-3.5 w-3.5" /></button>
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         <div #scrollBox class="flex-1 space-y-2 overflow-y-auto px-3 py-3">
           @for (m of messages(); track $index) {
@@ -86,6 +131,12 @@ type Pending =
                   <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.createEvent') }}</p>
                   <p class="text-gray-700">📌 {{ p.title }}</p>
                   <p class="text-gray-700">🕐 {{ rangeLabel(p.start, p.end) }}</p>
+                  @if (p.withMeet) {
+                    <p class="text-gray-700">📹 {{ tr.t('ai.withMeet') }}</p>
+                  }
+                  @if (p.emails.length) {
+                    <p class="text-gray-700">👤 {{ p.emails.join(', ') }}</p>
+                  }
                 }
                 @case ('plan') {
                   <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.planSuggest') }} {{ p.title }}</p>
@@ -102,6 +153,11 @@ type Pending =
                 @case ('delete') {
                   <p class="mb-1 font-medium text-red-800">{{ tr.t('ai.deleteEvent') }}</p>
                   <p class="text-gray-700">📌 {{ p.event.title }} — {{ eventLabel(p.event) }}</p>
+                }
+                @case ('invite') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.inviteGuest') }}</p>
+                  <p class="text-gray-700">📌 {{ p.event.title }} — {{ eventLabel(p.event) }}</p>
+                  <p class="text-gray-700">👤 {{ p.emails.join(', ') }}</p>
                 }
               }
               <div class="mt-2 flex gap-2">
@@ -141,18 +197,50 @@ export class AiAssistantComponent {
   private readonly state = inject(CalendarStateService);
   private readonly supabase = inject(SupabaseService);
   protected readonly tr = inject(TranslateService);
+  private readonly confirmSvc = inject(ConfirmService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** Bấm ra ngoài panel -> tự đóng chatbox (nút nổi + panel đều nằm trong host nên bấm chúng không bị đóng). */
+  @HostListener('document:pointerdown', ['$event'])
+  onDocumentPointerDown(ev: Event): void {
+    if (!this.open()) return;
+    const target = ev.target as Node | null;
+    if (target && this.host.nativeElement.contains(target)) return;
+    this.open.set(false);
+  }
 
   open = signal(false);
   input = signal('');
   loading = signal(false);
   pending = signal<Pending | null>(null);
-  messages = signal<ChatMsg[]>(this.loadMessages());
+  /** Danh sách cuộc trò chuyện (mới nhất lên đầu) + cuộc đang mở. */
+  protected readonly conversations = signal<Conversation[]>(this.loadConversations());
+  protected readonly currentId = signal<string>(this.initialCurrentId());
+  /** Bật/tắt bảng lịch sử các cuộc trò chuyện. */
+  protected readonly showList = signal(false);
+  messages = signal<ChatMsg[]>(this.currentMessages());
+  /** true khi AI vừa trả lời trong lúc panel đóng -> hiện chấm đỏ trên nút nổi. */
+  unread = signal(false);
+
+  /** Mở panel + xoá chấm đỏ chưa đọc. */
+  openPanel(): void {
+    this.open.set(true);
+    this.unread.set(false);
+  }
 
   private readonly scrollBox = viewChild<ElementRef<HTMLElement>>('scrollBox');
 
   constructor() {
-    // Tự lưu lịch sử chat mỗi khi đổi -> rời trang/mở lại vẫn còn.
-    effect(() => this.saveMessages(this.messages()));
+    // Tự lưu tin nhắn vào cuộc đang mở mỗi khi đổi -> rời trang/mở lại vẫn còn.
+    effect(() => {
+      const msgs = this.messages();
+      const id = this.currentId();
+      this.conversations.update((list) => {
+        const rest = list.filter((c) => c.id !== id);
+        return [{ id, messages: msgs.slice(-50), updatedAt: Date.now() }, ...rest].slice(0, MAX_CONVERSATIONS);
+      });
+      this.persist();
+    });
     // Tự cuộn xuống tin mới nhất mỗi khi có tin/loading/mở panel.
     effect(() => {
       this.messages();
@@ -170,31 +258,91 @@ export class AiAssistantComponent {
     }, 0);
   }
 
-  private loadMessages(): ChatMsg[] {
+  // ---------- Nhiều cuộc trò chuyện (lưu localStorage) ----------
+  private uid(): string {
+    return `c${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
+  }
+  private greeting(): ChatMsg {
+    return { role: 'ai', text: this.tr.t('ai.greeting') };
+  }
+  private loadConversations(): Conversation[] {
     try {
-      const raw = localStorage.getItem(AI_CHAT_KEY);
+      const raw = localStorage.getItem(AI_CONVS_KEY);
       const arr = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(arr) && arr.length) return arr as ChatMsg[];
-    } catch {
-      /* bỏ qua */
-    }
-    return [{ role: 'ai', text: this.tr.t('ai.greeting') }];
-  }
-  private saveMessages(m: ChatMsg[]): void {
+      if (Array.isArray(arr) && arr.length) return arr as Conversation[];
+    } catch { /* bỏ qua */ }
+    // Migrate dữ liệu cũ (1 cuộc) nếu có.
     try {
-      localStorage.setItem(AI_CHAT_KEY, JSON.stringify(m.slice(-50)));
-    } catch {
-      /* bỏ qua */
-    }
+      const old = localStorage.getItem(AI_CHAT_KEY);
+      const msgs = old ? JSON.parse(old) : null;
+      if (Array.isArray(msgs) && msgs.length) {
+        return [{ id: this.uid(), messages: msgs as ChatMsg[], updatedAt: Date.now() }];
+      }
+    } catch { /* bỏ qua */ }
+    return [{ id: this.uid(), messages: [this.greeting()], updatedAt: Date.now() }];
   }
-  /** Xóa hội thoại, về lời chào ban đầu. */
-  clearChat(): void {
-    this.messages.set([{ role: 'ai', text: this.tr.t('ai.greeting') }]);
+  private initialCurrentId(): string {
+    const saved = (() => { try { return localStorage.getItem(AI_CURRENT_KEY); } catch { return null; } })();
+    const list = this.conversations();
+    return (saved && list.some((c) => c.id === saved)) ? saved : list[0].id;
+  }
+  private currentMessages(): ChatMsg[] {
+    return this.conversations().find((c) => c.id === this.currentId())?.messages ?? [this.greeting()];
+  }
+  private persist(): void {
+    try {
+      localStorage.setItem(AI_CONVS_KEY, JSON.stringify(this.conversations()));
+      localStorage.setItem(AI_CURRENT_KEY, this.currentId());
+    } catch { /* bỏ qua */ }
+  }
+
+  /** Tiêu đề cuộc trò chuyện = câu đầu tiên của người dùng (hoặc "Cuộc mới"). */
+  protected conversationTitle(c: Conversation): string {
+    const firstUser = c.messages.find((m) => m.role === 'user');
+    return firstUser?.text.trim().slice(0, 40) || this.tr.t('ai.newChat');
+  }
+  /** Bắt đầu 1 cuộc trò chuyện MỚI (giữ các cuộc cũ). */
+  newConversation(): void {
+    const id = this.uid();
+    this.conversations.update((list) => [{ id, messages: [this.greeting()], updatedAt: Date.now() }, ...list]);
     this.pending.set(null);
+    this.currentId.set(id);
+    this.messages.set([this.greeting()]);
+    this.showList.set(false);
+  }
+  /** Mở lại 1 cuộc trò chuyện cũ. */
+  switchConversation(id: string): void {
+    const c = this.conversations().find((x) => x.id === id);
+    if (!c) return;
+    this.pending.set(null);
+    this.currentId.set(id);
+    this.messages.set(c.messages);
+    this.showList.set(false);
+  }
+  /** Xoá 1 cuộc trò chuyện (hỏi xác nhận trước). */
+  async deleteConversation(id: string): Promise<void> {
+    const c = this.conversations().find((x) => x.id === id);
+    const ok = await this.confirmSvc.ask({
+      message: this.tr.t('confirm.delChat'),
+      detail: c ? this.conversationTitle(c) : undefined,
+    });
+    if (!ok) return;
+    this.conversations.update((list) => list.filter((c) => c.id !== id));
+    if (this.conversations().length === 0) {
+      this.newConversation();
+      return;
+    }
+    if (this.currentId() === id) {
+      this.switchConversation(this.conversations()[0].id);
+    } else {
+      this.persist();
+    }
   }
 
   private push(text: string): void {
     this.messages.update((m) => [...m, { role: 'ai', text }]);
+    // AI trả lời khi panel đóng -> báo chấm đỏ để người dùng biết.
+    if (!this.open()) this.unread.set(true);
   }
 
   /** Tìm event thật từ dữ liệu đã tải (đúng quyền), theo từ khóa + khoảng thời gian */
@@ -378,8 +526,9 @@ export class AiAssistantComponent {
         this.loading.set(false);
 
         if (res.intent === 'create_event' && res.title && res.startTime && res.endTime) {
+          const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
           this.push(res.reply);
-          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime) });
+          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime), withMeet: !!res.withMeet, emails });
           return;
         }
 
@@ -403,6 +552,39 @@ export class AiAssistantComponent {
         if (res.intent === 'search_events') {
           const found = this.findEvents(res.query, res.rangeStart, res.rangeEnd);
           this.push(found.length ? `${res.reply}\n${this.listMsg(found)}` : `${res.reply}\n(Không tìm thấy sự kiện nào.)`);
+          return;
+        }
+
+        if (res.intent === 'invite_guest') {
+          const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
+          if (emails.length === 0) {
+            this.push('Bạn muốn mời email nào? Nhập kèm địa chỉ email nhé.');
+            return;
+          }
+          const found = this.findEvents(res.query);
+          if (found.length === 0) {
+            this.push(`Không tìm thấy sự kiện "${res.query ?? ''}".`);
+            return;
+          }
+          if (found.length > 1) {
+            this.push(`Có ${found.length} sự kiện khớp:\n${this.listMsg(found)}\nBạn nói rõ hơn (ngày nào?) nhé.`);
+            return;
+          }
+          const e = found[0];
+          // Chỉ chủ event mới được thêm khách
+          if (e.creatorEmail && e.creatorEmail.toLowerCase() !== this.supabase.user()?.email?.toLowerCase()) {
+            this.push('Bạn chỉ có thể mời người vào sự kiện của chính mình.');
+            return;
+          }
+          // Bỏ những email đã có sẵn trong danh sách khách
+          const existing = new Set(e.guests.map((g) => g.email.toLowerCase()));
+          const toAdd = emails.filter((em) => !existing.has(em.toLowerCase()));
+          if (toAdd.length === 0) {
+            this.push('Những người này đã có trong sự kiện rồi.');
+            return;
+          }
+          this.push(res.reply);
+          this.pending.set({ kind: 'invite', event: e, emails: toAdd });
           return;
         }
 
@@ -452,17 +634,29 @@ export class AiAssistantComponent {
     const p = this.pending();
     if (!p) return;
     if (p.kind === 'create') {
-      this.state.saveEvent({
-        kind: 'event',
-        title: p.title,
-        description: undefined,
-        location: undefined,
-        start: p.start,
-        end: p.end,
-        isAllDay: false,
-        guests: [],
-        color: 'sky',
-      });
+      this.state.saveEvent(
+        {
+          kind: 'event',
+          title: p.title,
+          description: undefined,
+          location: undefined,
+          start: p.start,
+          end: p.end,
+          isAllDay: false,
+          // Vừa tạo vừa mời: gắn khách ngay lúc tạo -> backend tự thêm attendee + gửi email mời.
+          guests: p.emails.map((email) => ({ email, status: 'needsAction' as const })),
+          color: 'sky',
+        },
+        undefined,
+        // Sau khi lưu xong mới có id thật -> nếu người dùng muốn kèm Meet thì tạo phòng luôn.
+        // createMeetForEvent tự lo việc xin quyền Google nếu chưa cấp (chuyển hướng rồi tạo tiếp).
+        p.withMeet
+          ? (event) => {
+              this.push(this.tr.t('ai.msg.creatingMeet'));
+              void this.state.createMeetForEvent(event.id);
+            }
+          : undefined,
+      );
       this.push(`${this.tr.t('ai.msg.created')} "${p.title}" ✅`);
     } else if (p.kind === 'plan') {
       for (const slot of p.slots) {
@@ -482,6 +676,14 @@ export class AiAssistantComponent {
     } else if (p.kind === 'reschedule') {
       this.state.updateEventTimes({ ...p.event, start: p.start, end: p.end });
       this.push(`${this.tr.t('ai.msg.moved')} "${p.event.title}" ✅`);
+    } else if (p.kind === 'invite') {
+      // Gộp khách cũ + khách mới rồi lưu -> backend tự thêm attendee + gửi email mời.
+      const merged = [
+        ...p.event.guests,
+        ...p.emails.map((email) => ({ email, status: 'needsAction' as const })),
+      ];
+      this.state.saveEvent({ ...p.event, guests: merged });
+      this.push(`${this.tr.t('ai.msg.invited')} ${p.emails.join(', ')} → "${p.event.title}" ✅`);
     } else {
       this.state.deleteEvent(p.event.id);
       this.push(`${this.tr.t('ai.msg.deleted')} "${p.event.title}" ✅`);

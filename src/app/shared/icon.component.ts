@@ -13,7 +13,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export type IconName =
   | 'trash' | 'settings' | 'moon' | 'sun' | 'search' | 'calendar' | 'robot'
   | 'download' | 'upload' | 'inbox' | 'alarm' | 'arrow-back' | 'check'
-  | 'alert' | 'x' | 'chevron-left' | 'chevron-right' | 'plus' | 'pencil'
+  | 'alert' | 'x' | 'chevron-left' | 'chevron-right' | 'chevron-up' | 'chevron-down' | 'plus' | 'pencil'
   | 'notes' | 'target' | 'palette' | 'message' | 'send'
   | 'user' | 'world' | 'bell' | 'mail' | 'shield' | 'dots' | 'logout'
   | 'lock' | 'eye' | 'eye-off' | 'adjustments' | 'menu';
@@ -102,6 +102,12 @@ export type IconName =
         }
         @case ('chevron-right') {
           <path d="M9 6l6 6l-6 6" />
+        }
+        @case ('chevron-up') {
+          <path d="M6 15l6-6l6 6" />
+        }
+        @case ('chevron-down') {
+          <path d="M6 9l6 6l6-6" />
         }
         @case ('plus') {
           <path d="M12 5v14 M5 12h14" />

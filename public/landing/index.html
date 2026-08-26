@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calendar — Landing</title>
+<meta name="description" content="Calendar gom mọi lịch, sự kiện và lời nhắc vào một nơi. Lên lịch nhanh, mời người tham dự, và không bao giờ quên một cuộc hẹn." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<style>
+:root{
+  /* light palette (default) */
+  --paper:#F5F3EE;
+  --paper-2:#EEEBE3;
+  --card:#FBFAF7;
+  --ink:#161514;
+  --ink-soft:#3A3833;
+  --muted:#78736B;
+  --line:#DAD5CA;
+  --line-strong:#C7C0B2;
+  --accent:#22407D;
+  --accent-soft:#4568A8;
+  --today:#D6482F;
+  --ev-blue:#3E6DB0;    --ev-blue-bg:#E3EBF6;
+  --ev-green:#3E8E6E;   --ev-green-bg:#E0EFE7;
+  --ev-amber:#B67A22;   --ev-amber-bg:#F4E9D3;
+  --ev-violet:#6A55A6;  --ev-violet-bg:#EAE5F4;
+  --ev-rose:#B8506B;    --ev-rose-bg:#F6E3E9;
+  --shadow:0 1px 2px rgba(20,18,16,.04),0 12px 34px -18px rgba(20,18,16,.22);
+  color-scheme:light;
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --paper:#111214;
+    --paper-2:#17181B;
+    --card:#191B1F;
+    --ink:#F3F1EC;
+    --ink-soft:#CFCcC4;
+    --muted:#8E8A82;
+    --line:#2A2C31;
+    --line-strong:#3A3D44;
+    --accent:#8AA9E0;
+    --accent-soft:#6E8CC7;
+    --today:#F0644B;
+    --ev-blue:#8CB0E6;    --ev-blue-bg:#1D2634;
+    --ev-green:#7FC7A6;   --ev-green-bg:#16271F;
+    --ev-amber:#E0B36A;   --ev-amber-bg:#2C2416;
+    --ev-violet:#AC98E0;  --ev-violet-bg:#22203A;
+    --ev-rose:#E594AC;    --ev-rose-bg:#2E1D24;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -20px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111214;
+  --paper-2:#17181B;
+  --card:#191B1F;
+  --ink:#F3F1EC;
+  --ink-soft:#CFCcC4;
+  --muted:#8E8A82;
+  --line:#2A2C31;
+  --line-strong:#3A3D44;
+  --accent:#8AA9E0;
+  --accent-soft:#6E8CC7;
+  --today:#F0644B;
+  --ev-blue:#8CB0E6;    --ev-blue-bg:#1D2634;
+  --ev-green:#7FC7A6;   --ev-green-bg:#16271F;
+  --ev-amber:#E0B36A;   --ev-amber-bg:#2C2416;
+  --ev-violet:#AC98E0;  --ev-violet-bg:#22203A;
+  --ev-rose:#E594AC;    --ev-rose-bg:#2E1D24;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -20px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Hanken Grotesk",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  font-size:17px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *{animation:none !important;transition:none !important}
+}
+h1,h2,h3{font-family:"Bricolage Grotesque",var(--fallback),sans-serif;font-weight:600;line-height:1.04;letter-spacing:-.02em;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+.wrap{width:min(1120px,92vw);margin-inline:auto}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--accent);
+}
+.section{padding:104px 0;position:relative}
+.section-head{max-width:640px}
+.section-head h2{font-size:clamp(30px,4.4vw,46px)}
+.section-head p{color:var(--muted);margin-top:18px;font-size:19px}
+
+/* buttons */
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  font-weight:600;font-size:15.5px;
+  padding:13px 22px;border-radius:11px;
+  border:1px solid transparent;cursor:pointer;
+  transition:transform .15s ease, background .2s ease, border-color .2s ease, color .2s ease;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-primary:hover{background:var(--accent)}
+.btn-ghost{border-color:var(--line-strong);color:var(--ink);background:transparent}
+.btn-ghost:hover{border-color:var(--ink);background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.btn-lg{padding:16px 28px;font-size:16.5px;border-radius:13px}
+
+/* ---------- NAV ---------- */
+header.nav{position:sticky;top:0;z-index:50;
+  background:color-mix(in srgb,var(--paper) 82%,transparent);
+  backdrop-filter:saturate(1.1) blur(12px);
+  border-bottom:1px solid transparent;transition:border-color .3s ease}
+header.nav.scrolled{border-bottom-color:var(--line)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:70px}
+.brand{display:flex;align-items:center;gap:11px;font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:19px;letter-spacing:-.02em}
+.brand .glyph{width:30px;height:30px;flex:0 0 auto;display:block}
+.nav-links{display:flex;align-items:center;gap:30px}
+.nav-links a.link{font-size:15px;color:var(--ink-soft);transition:color .2s}
+.nav-links a.link:hover{color:var(--ink)}
+.nav-actions{display:flex;align-items:center;gap:14px}
+.theme-toggle{width:38px;height:38px;border-radius:10px;border:1px solid var(--line-strong);background:transparent;color:var(--ink);cursor:pointer;display:grid;place-items:center;transition:border-color .2s,background .2s}
+.theme-toggle:hover{border-color:var(--ink)}
+@media (max-width:860px){.nav-links{display:none}}
+
+/* ---------- HERO ---------- */
+.hero{padding:76px 0 48px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;z-index:0;
+  background:
+    linear-gradient(to right,var(--line) 1px,transparent 1px) 0 0/72px 100%,
+    linear-gradient(to bottom,var(--line) 1px,transparent 1px) 0 0/100% 72px;
+  -webkit-mask-image:radial-gradient(120% 80% at 70% 0%,#000 0%,transparent 70%);
+  mask-image:radial-gradient(120% 80% at 70% 0%,#000 0%,transparent 70%);
+  opacity:.5;pointer-events:none}
+.hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+.hero h1{font-size:clamp(38px,6.2vw,68px);margin-top:22px}
+.hero .lede{color:var(--muted);font-size:20px;margin-top:22px;max-width:34ch}
+.hero-cta{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap}
+.hero-meta{display:flex;gap:28px;margin-top:34px;flex-wrap:wrap}
+.hero-meta div{display:flex;flex-direction:column}
+.hero-meta b{font-family:"Bricolage Grotesque",sans-serif;font-size:26px;font-weight:600}
+.hero-meta span{font-size:13.5px;color:var(--muted)}
+@media (max-width:900px){.hero-grid{grid-template-columns:1fr;gap:40px}.hero .lede{max-width:46ch}}
+
+/* schedule mock */
+.mock{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.mock-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.mock-top .mt-title{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:15px}
+.mock-top .mt-title small{color:var(--muted);font-weight:400;margin-left:8px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.dots{display:flex;gap:6px}
+.dots i{width:10px;height:10px;border-radius:50%;display:block}
+.dots i:nth-child(1){background:var(--ev-rose)}
+.dots i:nth-child(2){background:var(--ev-amber)}
+.dots i:nth-child(3){background:var(--ev-green)}
+.week-head{display:grid;grid-template-columns:44px repeat(4,1fr);border-bottom:1px solid var(--line)}
+.week-head span{padding:9px 6px;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;color:var(--muted)}
+.week-head span b{display:block;color:var(--ink);font-size:14px;font-weight:600;margin-top:2px}
+.week-head span.today b{color:var(--paper);background:var(--today);width:24px;height:24px;line-height:24px;border-radius:50%;margin:2px auto 0}
+.grid-body{position:relative;display:grid;grid-template-columns:44px repeat(4,1fr);height:326px}
+.rows{position:absolute;inset:0;left:44px;pointer-events:none}
+.rows i{position:absolute;left:0;right:0;height:1px;background:var(--line)}
+.timecol{display:flex;flex-direction:column;border-right:1px solid var(--line)}
+.timecol span{flex:1;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted);padding:2px 6px 0;text-align:right}
+.daycol{border-right:1px solid var(--line);position:relative}
+.daycol:last-child{border-right:0}
+.ev{position:absolute;left:5px;right:5px;border-radius:8px;padding:7px 9px;font-size:12px;line-height:1.28;overflow:hidden;
+  border:1px solid color-mix(in srgb,currentColor 26%,transparent);
+  opacity:0;transform:translateY(6px);animation:evIn .5s ease forwards}
+.ev b{display:block;font-weight:600;font-size:12.5px;font-family:"Hanken Grotesk",sans-serif}
+.ev .t{font-family:"IBM Plex Mono",monospace;font-size:10.5px;opacity:.85;margin-top:2px}
+.ev.blue{color:var(--ev-blue);background:var(--ev-blue-bg)}
+.ev.green{color:var(--ev-green);background:var(--ev-green-bg)}
+.ev.amber{color:var(--ev-amber);background:var(--ev-amber-bg)}
+.ev.violet{color:var(--ev-violet);background:var(--ev-violet-bg)}
+.ev.rose{color:var(--ev-rose);background:var(--ev-rose-bg)}
+@keyframes evIn{to{opacity:1;transform:none}}
+.nowline{position:absolute;left:44px;right:0;height:2px;background:var(--today);z-index:5}
+.nowline::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--today);box-shadow:0 0 0 4px color-mix(in srgb,var(--today) 22%,transparent)}
+.nowline::after{content:attr(data-time);position:absolute;right:8px;top:-9px;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--paper);background:var(--today);padding:2px 6px;border-radius:5px}
+
+/* logo / trust strip */
+.trust{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:26px 0;background:var(--paper-2)}
+.trust .wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;justify-content:space-between}
+.trust p{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.trust .marks{display:flex;gap:34px;align-items:center;flex-wrap:wrap}
+.trust .marks span{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:19px;color:var(--ink-soft);opacity:.7;letter-spacing:-.01em}
+
+/* ---------- FEATURES ---------- */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:56px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.feat{background:var(--card);padding:30px 28px 34px}
+.feat .fi{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;margin-bottom:18px;background:var(--paper-2);border:1px solid var(--line)}
+.feat .fi svg{width:21px;height:21px;stroke:var(--accent);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.feat h3{font-size:19.5px;margin-bottom:9px}
+.feat p{color:var(--muted);font-size:15.5px}
+@media (max-width:820px){.feat-grid{grid-template-columns:1fr}}
+
+/* ---------- HOW ---------- */
+.how{background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;margin-top:56px}
+.step .num{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--accent);border-top:2px solid var(--accent);padding-top:12px;display:inline-block;width:100%}
+.step h3{font-size:22px;margin:16px 0 8px}
+.step p{color:var(--muted);font-size:15.5px}
+@media (max-width:760px){.steps{grid-template-columns:1fr;gap:26px}}
+
+/* ---------- PRICING ---------- */
+.price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
+.plan{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px 28px;display:flex;flex-direction:column}
+.plan.featured{border-color:var(--accent);box-shadow:var(--shadow);position:relative}
+.plan.featured .tag{position:absolute;top:-12px;left:28px;background:var(--accent);color:#fff;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:20px}
+.plan .pname{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:19px}
+.plan .cost{margin:16px 0 4px;display:flex;align-items:baseline;gap:6px}
+.plan .cost b{font-family:"Bricolage Grotesque",sans-serif;font-size:40px;font-weight:600;letter-spacing:-.02em}
+.plan .cost span{color:var(--muted);font-size:14px}
+.plan .pdesc{color:var(--muted);font-size:14.5px;min-height:42px}
+.plan ul{list-style:none;padding:0;margin:22px 0 26px;display:flex;flex-direction:column;gap:11px}
+.plan li{display:flex;gap:10px;font-size:15px;color:var(--ink-soft)}
+.plan li svg{flex:0 0 auto;width:18px;height:18px;stroke:var(--ev-green);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-top:3px}
+.plan .btn{width:100%;justify-content:center;margin-top:auto}
+@media (max-width:820px){.price-grid{grid-template-columns:1fr}}
+
+/* ---------- TESTIMONIALS ---------- */
+.quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
+.quote{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
+.quote .stars{color:var(--ev-amber);letter-spacing:2px;font-size:15px}
+.quote p{margin:14px 0 20px;font-size:16px}
+.quote .who{display:flex;align-items:center;gap:12px}
+.quote .av{width:40px;height:40px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;font-family:"Bricolage Grotesque",sans-serif;font-weight:600;color:#fff;font-size:15px}
+.quote .who b{font-size:15px;display:block}
+.quote .who span{font-size:13px;color:var(--muted)}
+@media (max-width:820px){.quotes{grid-template-columns:1fr}}
+
+/* ---------- CTA ---------- */
+.cta-band{background:var(--ink);color:var(--paper);border-radius:22px;padding:64px 40px;text-align:center;position:relative;overflow:hidden}
+.cta-band::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(to right,color-mix(in srgb,var(--paper) 8%,transparent) 1px,transparent 1px) 0 0/56px 100%,
+             linear-gradient(to bottom,color-mix(in srgb,var(--paper) 8%,transparent) 1px,transparent 1px) 0 0/100% 56px;
+  -webkit-mask-image:radial-gradient(80% 120% at 50% 0%,#000,transparent 75%);
+  mask-image:radial-gradient(80% 120% at 50% 0%,#000,transparent 75%)}
+.cta-band h2{position:relative;font-size:clamp(30px,4.6vw,48px)}
+.cta-band p{position:relative;color:color-mix(in srgb,var(--paper) 74%,transparent);margin:16px auto 30px;max-width:48ch;font-size:18px}
+.cta-band .btn-primary{background:var(--paper);color:var(--ink)}
+.cta-band .btn-primary:hover{background:var(--accent);color:#fff}
+.cta-band .row{position:relative;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+/* ---------- FOOTER ---------- */
+footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
+.foot-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:32px}
+.foot-grid h4{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 16px;font-weight:500}
+.foot-grid a{display:block;color:var(--ink-soft);font-size:15px;margin-bottom:10px;transition:color .2s}
+.foot-grid a:hover{color:var(--accent)}
+.foot-brand p{color:var(--muted);font-size:14.5px;margin-top:14px;max-width:34ch}
+.foot-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:48px;padding-top:24px;border-top:1px solid var(--line);flex-wrap:wrap;gap:12px}
+.foot-bottom p{color:var(--muted);font-size:13.5px}
+@media (max-width:760px){.foot-grid{grid-template-columns:1fr 1fr}}
+
+/* ---------- 3D SCROLL SHOWCASE ---------- */
+.showcase{position:relative;height:340vh;background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.sc-sticky{position:sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center}
+.ambient{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.sc-copy{position:absolute;top:12vh;left:0;right:0;z-index:3;text-align:center;pointer-events:none;padding:0 6vw}
+.sc-line{position:absolute;left:0;right:0;top:0;opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease;padding:0 6vw}
+.sc-line.on{opacity:1;transform:none}
+.sc-line .eyebrow{display:block;margin-bottom:12px}
+.sc-line h2{font-size:clamp(28px,4.6vw,50px);max-width:16ch;margin:0 auto}
+.sc-stage{position:relative;z-index:2;perspective:1500px;perspective-origin:50% 42%;width:min(620px,90vw)}
+.sc-card{position:relative;transform-style:preserve-3d;will-change:transform;
+  background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+.sc-card .mock-top{padding:16px 18px}
+.sc-card .mt-title{font-size:16px}
+.sc-card .week-head span{padding:11px 6px}
+.sc-card .grid-body{height:300px}
+/* floating notification chips (depth layers) */
+.sc-chip{position:absolute;z-index:4;transform-style:preserve-3d;will-change:transform,opacity;opacity:0;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 15px;
+  box-shadow:0 20px 50px -20px rgba(20,18,16,.5);display:flex;gap:11px;align-items:center;min-width:210px}
+:root[data-theme="dark"] .sc-chip,:root:not([data-theme="light"]) .sc-chip{box-shadow:0 24px 60px -20px rgba(0,0,0,.75)}
+.sc-chip .ci{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
+.sc-chip .ci svg{width:17px;height:17px;stroke:#fff;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.sc-chip b{font-size:13.5px;font-family:"Bricolage Grotesque",sans-serif;font-weight:600;display:block;line-height:1.2}
+.sc-chip span{font-size:11.5px;color:var(--muted);font-family:"IBM Plex Mono",monospace}
+.sc-chip.c1{top:-6%;left:-16%}
+.sc-chip.c2{top:26%;right:-19%}
+.sc-chip.c3{bottom:8%;left:-14%}
+.sc-chip.c4{bottom:-8%;right:-10%}
+.sc-hint{position:absolute;bottom:26px;left:0;right:0;z-index:3;text-align:center;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  transition:opacity .4s ease}
+.sc-hint svg{display:block;margin:8px auto 0;width:16px;height:16px;stroke:var(--muted);animation:bob 1.8s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@media (max-width:640px){
+  .sc-chip.c1{left:-4%}.sc-chip.c2{right:-4%}.sc-chip.c3{left:-4%}.sc-chip.c4{right:-4%}
+  .sc-chip{min-width:0;padding:10px 12px}
+}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- WORD FADE + SLIDE REVEAL (no clipping) ---------- */
+.rv-word{display:inline-block;vertical-align:baseline}
+.rv-word > i{
+  display:inline-block;font-style:inherit;
+  opacity:0;transform:translateY(28%);
+  transition:opacity .8s cubic-bezier(.22,.8,.2,1),transform .9s cubic-bezier(.22,.8,.2,1);
+  transition-delay:var(--d,0s);
+}
+.rv-word.in > i{opacity:1;transform:none}
+.hero h1{line-height:1.15}
+
+/* ---------- MARQUEE TICKER ---------- */
+.marquee{
+  overflow:hidden;position:relative;
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent);
+          mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent);
+  padding:22px 0;
+}
+.marquee-track{display:flex;gap:0;width:max-content;animation:marq 34s linear infinite;will-change:transform}
+.marquee-track:hover{animation-play-state:paused}
+.marq-item{
+  display:inline-flex;align-items:center;gap:44px;padding-right:44px;
+  font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:26px;
+  color:var(--ink-soft);letter-spacing:-.015em;white-space:nowrap;
+}
+.marq-item::before{
+  content:"";width:9px;height:9px;border-radius:50%;background:var(--accent);
+  display:inline-block;flex:0 0 auto;opacity:.85;
+}
+@keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ---------- HORIZONTAL PINNED SCROLL (FEATURES) ---------- */
+.h-scroll{position:relative;height:360vh;background:var(--paper)}
+.h-sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.h-head{padding:0 max(6vw,32px);max-width:900px;margin-bottom:34px}
+.h-viewport{overflow:hidden}
+.h-track{display:flex;gap:22px;padding:6px max(6vw,32px) 6px;will-change:transform}
+.h-card{
+  flex:0 0 clamp(280px,32vw,400px);
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:30px 28px 34px;display:flex;flex-direction:column;min-height:340px;
+  box-shadow:0 1px 2px rgba(20,18,16,.03);
+  transition:border-color .2s ease;
+}
+.h-card:hover{border-color:var(--line-strong)}
+.h-card .num{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;margin-bottom:22px}
+.h-card .fi{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;margin-bottom:20px;background:var(--paper-2);border:1px solid var(--line)}
+.h-card .fi svg{width:23px;height:23px;stroke:var(--accent);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.h-card h3{font-size:22px;margin-bottom:10px}
+.h-card p{color:var(--muted);font-size:15.5px}
+.h-progress{position:absolute;left:max(6vw,32px);right:max(6vw,32px);bottom:52px;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
+.h-progress i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);width:0%;transition:width .1s linear}
+.h-count{position:absolute;right:max(6vw,32px);bottom:66px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;color:var(--muted)}
+.h-count b{color:var(--ink);font-weight:500}
+@media (max-width:820px){
+  .h-scroll{height:auto}
+  .h-sticky{position:static;height:auto;padding:80px 0}
+  .h-viewport{overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}
+  .h-track{padding:6px 20px;gap:14px}
+  .h-card{flex:0 0 84vw;min-height:auto;scroll-snap-align:start}
+  .h-progress,.h-count{display:none}
+}
+
+/* ---------- MAGNETIC BUTTON ---------- */
+.btn.magnetic{transition:transform .35s cubic-bezier(.2,.8,.2,1),background .2s,color .2s,border-color .2s}
+
+/* ---------- TILT PRICING CARDS ---------- */
+.plan{transform:perspective(1100px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateZ(0);
+      transition:transform .35s cubic-bezier(.2,.8,.2,1),border-color .25s,box-shadow .25s;
+      transform-style:preserve-3d;will-change:transform}
+.plan.tilting{transition:transform .05s linear}
+.plan:hover{border-color:var(--line-strong)}
+.plan.featured:hover{border-color:var(--accent)}
+
+/* ---------- COUNTER ---------- */
+.count{font-variant-numeric:tabular-nums}
+
+/* ---------- ORYZO-STYLE EDITORIAL ---------- */
+.display{
+  font-family:"Bricolage Grotesque",sans-serif;
+  font-weight:700;letter-spacing:-.045em;line-height:.9;text-transform:uppercase;
+  text-wrap:balance;
+}
+.hero h1.display{font-size:clamp(52px,13vw,196px);margin-top:14px}
+.hero h1 .accent{color:var(--accent);font-style:italic;font-weight:600}
+.hero h1 .outline{
+  -webkit-text-stroke:1.5px var(--ink);color:transparent;font-weight:700;
+}
+:root[data-theme="dark"] .hero h1 .outline,:root:not([data-theme="light"]) .hero h1 .outline{-webkit-text-stroke-color:var(--ink)}
+
+/* editorial badge (ISSUE NO. style) */
+.badge-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.badge-row .bull{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
+.badge-row .no{color:var(--ink);border:1px solid var(--line-strong);padding:5px 10px;border-radius:999px}
+
+/* GIANT scrolling headline marquee */
+.mega-marq{
+  overflow:hidden;position:relative;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  background:var(--paper-2);padding:26px 0;
+}
+.mega-marq .marquee-track{gap:0;animation-duration:42s}
+.mega-marq .marq-item{
+  font-size:clamp(52px,11vw,150px);letter-spacing:-.045em;text-transform:uppercase;
+  gap:52px;padding-right:52px;color:var(--ink);font-weight:700;
+}
+.mega-marq .marq-item::before{width:22px;height:22px;background:var(--today)}
+.mega-marq .marq-item .thin{-webkit-text-stroke:1.5px var(--ink);color:transparent;font-weight:700}
+:root[data-theme="dark"] .mega-marq .marq-item .thin,:root:not([data-theme="light"]) .mega-marq .marq-item .thin{-webkit-text-stroke-color:var(--ink)}
+
+/* ---------- STORY PIN SCENES (always dark) ---------- */
+.story{position:relative;height:320vh;background:#111214;color:#F3F1EC;color-scheme:dark}
+.story-sticky{position:sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center}
+.story-bg{position:absolute;inset:0;transition:background-color .8s ease}
+.story-frame{
+  position:absolute;inset:0;display:grid;place-items:center;padding:8vh 6vw;text-align:center;
+  opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;
+}
+.story-frame.on{opacity:1;transform:none}
+.story-frame .num{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.24em;text-transform:uppercase;
+  color:rgba(243,241,236,.6);margin-bottom:28px;display:block;
+}
+.story-frame .big{
+  font-family:"Bricolage Grotesque",sans-serif;font-weight:600;letter-spacing:-.025em;line-height:1.02;
+  font-size:clamp(40px,7vw,88px);text-wrap:balance;max-width:18ch;margin:0 auto;
+}
+.story-frame p{max-width:52ch;margin:28px auto 0;font-size:18px;line-height:1.6;color:rgba(243,241,236,.74)}
+.story-dots{position:absolute;left:0;right:0;bottom:34px;display:flex;justify-content:center;gap:10px;z-index:3}
+.story-dots i{width:24px;height:2px;background:rgba(243,241,236,.25);border-radius:2px;transition:background .3s,width .3s}
+.story-dots i.on{background:#F3F1EC;width:48px}
+.story-tag{position:absolute;top:32px;left:0;right:0;text-align:center;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(243,241,236,.55);z-index:3}
+
+/* ---------- HERO AMBIENT BLOB ---------- */
+.hero{position:relative;isolation:isolate}
+.hero-blob{
+  position:absolute;z-index:-1;pointer-events:none;
+  width:min(900px,80vw);height:min(900px,80vw);
+  right:-16%;top:-18%;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,
+    color-mix(in srgb,var(--accent) 22%,transparent),
+    color-mix(in srgb,var(--today) 12%,transparent) 45%,
+    transparent 70%);
+  filter:blur(60px);opacity:.7;
+  animation:blobMorph 18s ease-in-out infinite;
+}
+:root[data-theme="dark"] .hero-blob,:root:not([data-theme="light"]) .hero-blob{opacity:.5}
+@keyframes blobMorph{
+  0%,100%{transform:translate(0,0) scale(1) rotate(0deg);border-radius:50% 50% 50% 50%}
+  25%{transform:translate(-4%,3%) scale(1.08) rotate(30deg);border-radius:56% 44% 62% 38%}
+  50%{transform:translate(3%,-4%) scale(.94) rotate(60deg);border-radius:42% 58% 40% 60%}
+  75%{transform:translate(-2%,-2%) scale(1.05) rotate(90deg);border-radius:60% 40% 50% 50%}
+}
+
+/* ---------- FEATURE CARD 3D TILT ---------- */
+.h-card{
+  transform-style:preserve-3d;perspective:1200px;
+  will-change:transform;
+}
+.h-card.tilt3d{transition:transform .05s linear !important}
+
+
+/* ---------- GRAIN OVERLAY ---------- */
+.grain{
+  position:fixed;inset:-50%;pointer-events:none;z-index:99;
+  opacity:.06;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  animation:grainMove 8s steps(8) infinite;
+}
+:root[data-theme="dark"] .grain,:root:not([data-theme="light"]) .grain{opacity:.09;mix-blend-mode:soft-light}
+@keyframes grainMove{
+  0%{transform:translate(0,0)}
+  10%{transform:translate(-2%,-3%)} 20%{transform:translate(-4%,2%)}
+  30%{transform:translate(2%,-4%)}  40%{transform:translate(-2%,3%)}
+  50%{transform:translate(-4%,1%)}  60%{transform:translate(3%,2%)}
+  70%{transform:translate(-2%,-3%)} 80%{transform:translate(2%,4%)}
+  90%{transform:translate(-3%,1%)}  100%{transform:translate(0,0)}
+}
+
+/* ---------- CONTINUOUS BOB ON HERO MOCK ---------- */
+.mock.bob{animation:mockBob 9s ease-in-out infinite}
+@keyframes mockBob{
+  0%,100%{transform:translateY(0) rotate(0deg)}
+  50%{transform:translateY(-10px) rotate(.4deg)}
+}
+.mock{transform-style:preserve-3d;transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.hero .mock.tilt{animation:none}
+
+/* subtle continuous drift on individual events */
+.mock .daycol .ev{animation:evIn .5s ease forwards,evFloat 6s ease-in-out infinite 1s}
+@keyframes evFloat{0%,100%{translate:0 0}50%{translate:0 -3px}}
+
+/* ---------- NAV LINK UNDERLINE ---------- */
+.nav-links{position:relative}
+.nav-links a.link{position:relative;padding:6px 0}
+.nav-links a.link::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:1.5px;
+  background:var(--accent);transform:scaleX(0);transform-origin:right;
+  transition:transform .4s cubic-bezier(.2,.8,.2,1);
+}
+.nav-links a.link:hover::after,.nav-links a.link.active::after{transform:scaleX(1);transform-origin:left}
+
+/* ---------- BUTTON RIPPLE (subtle) ---------- */
+.btn{position:relative;overflow:hidden}
+.btn .ripple{
+  position:absolute;border-radius:50%;
+  background:color-mix(in srgb,currentColor 12%,transparent);
+  transform:scale(0);pointer-events:none;
+  animation:ripple .55s ease-out forwards;
+}
+@keyframes ripple{to{transform:scale(3);opacity:0}}
+
+/* ---------- SCRAMBLE TEXT (hero eyebrow) ---------- */
+.scramble{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";display:inline-block;min-width:1ch}
+
+/* ---------- SECTION ENTRANCE ---------- */
+.section-enter{opacity:0;transform:translateY(30px);transition:opacity .9s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
+.section-enter.in{opacity:1;transform:none}
+
+/* ---------- ICON MICRO-PULSE ---------- */
+.feat .fi svg,.h-card .fi svg{transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.h-card:hover .fi svg{transform:rotate(-6deg) scale(1.1)}
+.h-card:hover .fi{background:color-mix(in srgb,var(--accent) 12%,var(--paper-2))}
+
+/* ---------- MARQUEE ITEM COLOR ROTATION ---------- */
+.marq-item::before{transition:background .3s ease}
+.marquee-track:hover .marq-item::before{background:var(--today)}
+
+/* ---------- HERO EYEBROW PILL ---------- */
+.hero .eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:7px 14px;border:1px solid var(--line-strong);border-radius:999px;
+  background:var(--card);
+}
+.hero .eyebrow::before{
+  content:"";width:7px;height:7px;border-radius:50%;background:var(--today);
+  animation:pulseDot 1.6s ease-in-out infinite;
+}
+@keyframes pulseDot{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--today) 60%,transparent);opacity:1}
+  50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--today) 0%,transparent);opacity:.7}
+}
+
+/* ---------- SCROLL PROGRESS BAR ---------- */
+.scroll-progress{
+  position:fixed;left:0;top:0;height:2px;width:0%;
+  background:linear-gradient(90deg,var(--accent),var(--today));
+  z-index:100;transition:width .08s linear;pointer-events:none;
+  box-shadow:0 0 12px color-mix(in srgb,var(--accent) 60%,transparent);
+}
+
+/* ---------- CURSOR SPOTLIGHT ---------- */
+.spotlight{
+  position:fixed;pointer-events:none;z-index:1;
+  width:520px;height:520px;border-radius:50%;
+  transform:translate3d(-9999px,-9999px,0);
+  background:radial-gradient(circle at center,
+    color-mix(in srgb,var(--accent) 22%,transparent) 0%,
+    color-mix(in srgb,var(--accent) 10%,transparent) 30%,
+    transparent 70%);
+  filter:blur(30px);opacity:0;transition:opacity .5s ease;
+  mix-blend-mode:multiply;
+}
+:root[data-theme="dark"] .spotlight,:root:not([data-theme="light"]) .spotlight{
+  mix-blend-mode:screen;
+  background:radial-gradient(circle at center,
+    color-mix(in srgb,var(--accent) 28%,transparent) 0%,
+    color-mix(in srgb,var(--accent) 12%,transparent) 30%,
+    transparent 70%);
+}
+.spotlight.on{opacity:1}
+@media (hover:none),(max-width:820px){.spotlight{display:none}}
+
+/* ---------- SIDE PAGE NAV (dots) ---------- */
+.side-nav{
+  position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:40;
+  display:flex;flex-direction:column;gap:14px;
+}
+.side-nav a{
+  width:9px;height:9px;border-radius:50%;
+  background:transparent;border:1.5px solid color-mix(in srgb,var(--ink) 30%,transparent);
+  transition:all .3s cubic-bezier(.2,.8,.2,1);
+  position:relative;
+}
+.side-nav a:hover{border-color:var(--ink);transform:scale(1.2)}
+.side-nav a.on{background:var(--accent);border-color:var(--accent);transform:scale(1.15)}
+.side-nav a span{
+  position:absolute;right:22px;top:50%;transform:translateY(-50%) translateX(6px);
+  background:var(--ink);color:var(--paper);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 10px;border-radius:6px;white-space:nowrap;
+  opacity:0;pointer-events:none;transition:opacity .25s ease,transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.side-nav a:hover span{opacity:1;transform:translateY(-50%) translateX(0)}
+@media (max-width:960px){.side-nav{display:none}}
+
+/* ---------- FEATURE-CARD STAGGER ENTRANCE ---------- */
+.h-card{opacity:0;transform:translateY(24px) scale(.98);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+.h-card.in{opacity:1;transform:none}
+
+/* ---------- QUOTE CARD HOVER ---------- */
+.quote{transition:transform .3s cubic-bezier(.2,.8,.2,1),border-color .3s ease,box-shadow .3s ease}
+.quote:hover{transform:translateY(-6px);border-color:var(--line-strong);box-shadow:var(--shadow)}
+
+/* free banner */
+.free-band{
+  background:var(--card);border:1px solid var(--line);border-radius:22px;
+  padding:44px 44px;display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center;
+  box-shadow:var(--shadow);
+}
+.free-band .eyebrow{margin-bottom:12px;display:inline-block}
+.free-band h2{font-size:clamp(28px,3.8vw,40px);letter-spacing:-.02em}
+.free-band p{color:var(--muted);margin-top:12px;font-size:17px;max-width:52ch}
+@media (max-width:760px){
+  .free-band{grid-template-columns:1fr;padding:34px 28px;text-align:left}
+  .free-band .btn{width:100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+<div class="scroll-progress" id="scrollProgress"></div>
+<nav class="side-nav" id="sideNav" aria-label="Điều hướng trang">
+  <a href="#top" data-target="top" class="on"><span>Đầu trang</span></a>
+  <a href="#showcase" data-target="showcase"><span>Trải nghiệm</span></a>
+  <a href="#features" data-target="features"><span>Tính năng</span></a>
+  <a href="#how" data-target="how"><span>Cách hoạt động</span></a>
+  <a href="#reviews" data-target="reviews"><span>Đánh giá</span></a>
+  <a href="#free" data-target="free"><span>Miễn phí</span></a>
+  <a href="#cta" data-target="cta"><span>Bắt đầu</span></a>
+</nav>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top"><svg class="glyph" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect x="9" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="20.4" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="21.5" rx="6" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="6.5" rx="6" fill="var(--accent-soft)"/><g fill="#fff" opacity=".92"><circle cx="10.5" cy="18.5" r="1.5"/><circle cx="16" cy="18.5" r="1.5"/><circle cx="10.5" cy="23.5" r="1.5"/><circle cx="16" cy="23.5" r="1.5"/><circle cx="21.5" cy="18.5" r="1.5"/></g><circle cx="21.5" cy="23.5" r="2.1" fill="var(--today)"/></svg>Calendar</a>
+    <nav class="nav-links">
+      <a class="link" href="#features">Tính năng</a>
+      <a class="link" href="#how">Cách hoạt động</a>
+      <a class="link" href="#reviews">Đánh giá</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="Đổi giao diện sáng/tối" title="Sáng / Tối">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      </button>
+      <a class="btn btn-primary magnetic" href="/login">Dùng thử miễn phí</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-blob" aria-hidden="true"></div>
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow" id="heroEyebrow" data-scramble="Lịch thông minh · Nhắc đúng lúc">Lịch thông minh · Nhắc đúng lúc</span>
+        <h1 id="heroTitle">
+          <span class="rv-word"><i style="--d:.05s">Làm</i></span>
+          <span class="rv-word"><i style="--d:.12s">chủ</i></span>
+          <span class="rv-word"><i class="accent" style="--d:.19s">thời</i></span>
+          <span class="rv-word"><i class="accent" style="--d:.26s">gian,</i></span><br/>
+          <span class="rv-word"><i style="--d:.34s">gọn</i></span>
+          <span class="rv-word"><i style="--d:.41s">đến</i></span>
+          <span class="rv-word"><i style="--d:.48s">từng</i></span>
+          <span class="rv-word"><i style="--d:.55s">phút.</i></span>
+        </h1>
+        <p class="lede">Calendar gom mọi lịch, sự kiện và lời nhắc vào một nơi. Lên lịch trong vài giây, mời người tham dự, và không bao giờ quên một cuộc hẹn.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg magnetic" href="/login">Bắt đầu miễn phí
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a class="btn btn-ghost btn-lg magnetic" href="#how">Xem cách hoạt động</a>
+        </div>
+        <div class="hero-meta">
+          <div><b>3 loại</b><span>Sự kiện · Công việc · Cuộc hẹn</span></div>
+          <div><b>Không giới hạn</b><span>Lịch màu &amp; lời mời</span></div>
+          <div><b>Đúng giờ</b><span>Nhắc qua email tự động</span></div>
+        </div>
+      </div>
+
+      <!-- schedule mock -->
+      <div class="mock bob" id="heroMock" aria-hidden="true">
+        <div class="mock-top">
+          <div class="mt-title">Tuần này <small>Tháng 8, 2026</small></div>
+          <div class="dots"><i></i><i></i><i></i></div>
+        </div>
+        <div class="week-head">
+          <span></span>
+          <span>T4<b>19</b></span>
+          <span>T5<b>20</b></span>
+          <span class="today">T6<b>21</b></span>
+          <span>T7<b>22</b></span>
+        </div>
+        <div class="grid-body">
+          <div class="rows">
+            <i style="top:0%"></i><i style="top:20%"></i><i style="top:40%"></i><i style="top:60%"></i><i style="top:80%"></i>
+          </div>
+          <div class="timecol">
+            <span>08:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span>
+          </div>
+          <div class="daycol">
+            <div class="ev blue" style="top:6%;height:20%;animation-delay:.05s"><b>Họp nhóm</b><span class="t">08:30–10:00</span></div>
+            <div class="ev amber" style="top:58%;height:16%;animation-delay:.2s"><b>Rà soát KPI</b><span class="t">13:00</span></div>
+          </div>
+          <div class="daycol">
+            <div class="ev green" style="top:20%;height:15%;animation-delay:.12s"><b>Cà phê 1-1</b><span class="t">10:00</span></div>
+            <div class="ev violet" style="top:44%;height:22%;animation-delay:.28s"><b>Thiết kế sprint</b><span class="t">12:00–14:00</span></div>
+          </div>
+          <div class="daycol">
+            <div class="ev rose" style="top:2%;height:14%;animation-delay:.16s"><b>Gọi khách hàng</b><span class="t">08:00</span></div>
+            <div class="ev blue" style="top:34%;height:24%;animation-delay:.34s"><b>Demo sản phẩm</b><span class="t">11:30–13:30</span></div>
+            <div class="ev green" style="top:76%;height:12%;animation-delay:.44s"><b>Gym</b><span class="t">15:30</span></div>
+          </div>
+          <div class="daycol">
+            <div class="ev amber" style="top:10%;height:18%;animation-delay:.24s"><b>Sinh nhật Mai</b><span class="t">Cả ngày</span></div>
+            <div class="ev violet" style="top:62%;height:16%;animation-delay:.4s"><b>Đọc sách</b><span class="t">13:30</span></div>
+          </div>
+          <div class="nowline" id="nowline" data-time="11:20" style="top:42%"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D SCROLL SHOWCASE -->
+  <section class="showcase" id="showcase">
+    <div class="sc-sticky">
+      <canvas class="ambient" id="ambient"></canvas>
+
+      <div class="sc-copy">
+        <div class="sc-line" data-i="0">
+          <span class="eyebrow">Trải nghiệm</span>
+          <h2>Cả tuần của bạn, trong một cái nhìn.</h2>
+        </div>
+        <div class="sc-line" data-i="1">
+          <span class="eyebrow">Không bỏ lỡ</span>
+          <h2>Lời mời, lời nhắc — tự động bay đến.</h2>
+        </div>
+        <div class="sc-line" data-i="2">
+          <span class="eyebrow">Sẵn sàng</span>
+          <h2>Bạn chỉ việc xuất hiện đúng lúc.</h2>
+        </div>
+      </div>
+
+      <div class="sc-stage">
+        <div class="sc-card" id="scCard" aria-hidden="true">
+          <div class="mock-top">
+            <div class="mt-title">Lịch của tôi <small class="mono" style="color:var(--muted);margin-left:8px">Thg 8, 2026</small></div>
+            <div class="dots"><i></i><i></i><i></i></div>
+          </div>
+          <div class="week-head">
+            <span></span>
+            <span>T4<b>19</b></span>
+            <span>T5<b>20</b></span>
+            <span class="today">T6<b>21</b></span>
+            <span>T7<b>22</b></span>
+          </div>
+          <div class="grid-body">
+            <div class="rows"><i style="top:0%"></i><i style="top:20%"></i><i style="top:40%"></i><i style="top:60%"></i><i style="top:80%"></i></div>
+            <div class="timecol"><span>08:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span></div>
+            <div class="daycol"><div class="ev blue" style="top:6%;height:22%;opacity:1;transform:none"><b>Họp nhóm</b><span class="t">08:30–10:00</span></div></div>
+            <div class="daycol"><div class="ev green" style="top:22%;height:16%;opacity:1;transform:none"><b>Cà phê 1-1</b><span class="t">10:00</span></div><div class="ev violet" style="top:52%;height:22%;opacity:1;transform:none"><b>Thiết kế sprint</b><span class="t">12:00–14:00</span></div></div>
+            <div class="daycol"><div class="ev rose" style="top:4%;height:14%;opacity:1;transform:none"><b>Gọi khách</b><span class="t">08:00</span></div><div class="ev blue" style="top:36%;height:24%;opacity:1;transform:none"><b>Demo sản phẩm</b><span class="t">11:30–13:30</span></div></div>
+            <div class="daycol"><div class="ev amber" style="top:12%;height:18%;opacity:1;transform:none"><b>Sinh nhật Mai</b><span class="t">Cả ngày</span></div></div>
+          </div>
+        </div>
+
+        <div class="sc-chip c1" data-z="180">
+          <div class="ci" style="background:var(--ev-blue)"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+          <div><b>Nhắc trước 30 phút</b><span>Demo sản phẩm · 11:00</span></div>
+        </div>
+        <div class="sc-chip c2" data-z="120">
+          <div class="ci" style="background:var(--ev-green)"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div><b>Minh đã nhận lời</b><span>Họp nhóm · T6</span></div>
+        </div>
+        <div class="sc-chip c3" data-z="150">
+          <div class="ci" style="background:var(--ev-violet)"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.5 15A9 9 0 1 1 18.4 5.6L23 10"/></svg></div>
+          <div><b>Lặp lại hằng tuần</b><span>Thiết kế sprint</span></div>
+        </div>
+        <div class="sc-chip c4" data-z="90">
+          <div class="ci" style="background:var(--ev-amber)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div><b>Đúng múi giờ</b><span>GMT+7 · Hà Nội</span></div>
+        </div>
+      </div>
+
+      <div class="sc-hint" id="scHint">Cuộn để khám phá<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></div>
+    </div>
+  </section>
+
+  <!-- TRUST — infinite marquee -->
+  <div class="trust">
+    <div class="marquee" aria-label="Hợp với mọi cách bạn dùng thời gian">
+      <div class="marquee-track" id="marqTrack">
+        <div class="marq-item">Cá nhân</div>
+        <div class="marq-item">Gia đình</div>
+        <div class="marq-item">Freelancer</div>
+        <div class="marq-item">Startup</div>
+        <div class="marq-item">Đội nhóm</div>
+        <div class="marq-item">Sinh viên</div>
+        <div class="marq-item">Nhà sáng lập</div>
+        <div class="marq-item">Nhóm sản phẩm</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES — horizontal pinned scroll -->
+  <section class="h-scroll" id="features">
+    <div class="h-sticky">
+      <div class="h-head reveal">
+        <span class="eyebrow">Tính năng</span>
+        <h2 data-reveal-words>Mọi thứ để giữ lịch trong tầm kiểm soát.</h2>
+        <p style="color:var(--muted);margin-top:18px;font-size:18px;max-width:56ch">Cuộn xuống — từng tính năng lần lượt trượt qua.</p>
+      </div>
+
+      <div class="h-viewport">
+        <div class="h-track" id="hTrack">
+          <div class="h-card">
+            <span class="num">01 / 06</span>
+            <div class="fi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+            <h3>Nhiều lịch, nhiều màu</h3>
+            <p>Tách bạch công việc, cá nhân và gia đình bằng những lịch màu riêng. Bật/tắt từng lịch chỉ với một chạm.</p>
+          </div>
+          <div class="h-card">
+            <span class="num">02 / 06</span>
+            <div class="fi"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <h3>Sự kiện, công việc &amp; cuộc hẹn</h3>
+            <p>Ba loại lịch trình cho mọi nhu cầu — từ deadline đến buổi hẹn cà phê, tất cả trên một khung nhìn.</p>
+          </div>
+          <div class="h-card">
+            <span class="num">03 / 06</span>
+            <div class="fi"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg></div>
+            <h3>Mời &amp; phản hồi</h3>
+            <p>Gửi lời mời qua email. Theo dõi ai đã nhận, ai từ chối hay còn phân vân — trạng thái RSVP cập nhật ngay.</p>
+          </div>
+          <div class="h-card">
+            <span class="num">04 / 06</span>
+            <div class="fi"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg></div>
+            <h3>Lặp lại linh hoạt</h3>
+            <p>Đặt quy tắc lặp hằng ngày, hằng tuần hay tùy chỉnh. Tạo một lần, Calendar lo phần còn lại.</p>
+          </div>
+          <div class="h-card">
+            <span class="num">05 / 06</span>
+            <div class="fi"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+            <h3>Nhắc qua email</h3>
+            <p>Tự động gửi email nhắc trước giờ diễn ra. Không bỏ lỡ cuộc họp, không quên sinh nhật.</p>
+          </div>
+          <div class="h-card">
+            <span class="num">06 / 06</span>
+            <div class="fi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2M3 12h18"/></svg></div>
+            <h3>Chuẩn múi giờ</h3>
+            <p>Hiển thị đúng giờ dù bạn hay người tham dự đang ở bất cứ đâu. Hết cảnh nhầm giờ khi họp xuyên múi giờ.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-count"><b id="hIdx">01</b> / 06</div>
+      <div class="h-progress"><i id="hProg"></i></div>
+    </div>
+  </section>
+
+  <!-- HOW — pinned story frames -->
+  <section class="story" id="how">
+    <div class="story-sticky">
+      <div class="story-bg" id="storyBg"></div>
+      <div class="story-tag">Cách hoạt động · 03 bước</div>
+
+      <div class="story-frame on" data-i="0" data-bg="#161514">
+        <div>
+          <span class="num">Bước 01</span>
+          <div class="big">Tạo lịch của bạn.</div>
+          <p>Thêm lịch cho công việc, gia đình hay dự án. Chọn màu cho mỗi lịch để phân biệt trong nháy mắt.</p>
+        </div>
+      </div>
+
+      <div class="story-frame" data-i="1" data-bg="#22407D">
+        <div>
+          <span class="num">Bước 02</span>
+          <div class="big">Thêm sự kiện, mời người.</div>
+          <p>Tạo sự kiện, công việc hoặc cuộc hẹn — đặt quy tắc lặp và gửi lời mời chỉ qua email. Ai nhận, ai từ chối đều rõ.</p>
+        </div>
+      </div>
+
+      <div class="story-frame" data-i="2" data-bg="#3E8E6E">
+        <div>
+          <span class="num">Bước 03</span>
+          <div class="big">Bạn chỉ việc xuất hiện.</div>
+          <p>Calendar tự gửi email nhắc trước giờ. Đúng nơi, đúng giờ — không bao giờ bỏ lỡ điều quan trọng.</p>
+        </div>
+      </div>
+
+      <div class="story-dots" id="storyDots">
+        <i class="on"></i><i></i><i></i>
+      </div>
+    </div>
+  </section>
+
+  <!-- FREE BANNER -->
+  <section class="section" id="free">
+    <div class="wrap">
+      <div class="free-band reveal">
+        <div>
+          <span class="eyebrow">Hoàn toàn miễn phí</span>
+          <h2>Mọi tính năng. Không giới hạn. 0đ.</h2>
+          <p>Calendar miễn phí cho tất cả mọi người — không có gói trả phí, không quảng cáo, không giới hạn số lịch hay lời mời.</p>
+        </div>
+        <a class="btn btn-primary btn-lg magnetic" href="/login">Tạo tài khoản
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="section how" id="reviews" style="border-bottom:1px solid var(--line)">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">Đánh giá</span>
+        <h2 data-reveal-words>Người dùng nói gì về Calendar.</h2>
+      </div>
+      <div class="quotes reveal">
+        <div class="quote">
+          <div class="stars">★★★★★</div>
+          <p>“Trước mình dùng ba app khác nhau cho công việc và gia đình. Giờ tất cả gọn trong một lịch màu — nhìn là biết ngay hôm nay có gì.”</p>
+          <div class="who"><span class="av" style="background:#2C5896">ĐH</span><div><b>Đức Hòa</b><span>Quản lý dự án</span></div></div>
+        </div>
+        <div class="quote">
+          <div class="stars">★★★★★</div>
+          <p>“Tính năng mời và RSVP tiết kiệm cả buổi mỗi tuần. Mình gửi lời mời, hệ thống tự theo dõi ai tham gia. Quá tiện.”</p>
+          <div class="who"><span class="av" style="background:#216B4F">AH</span><div><b>Anh Huy</b><span>Freelancer thiết kế</span></div></div>
+        </div>
+        <div class="quote">
+          <div class="stars">★★★★☆</div>
+          <p>“Email nhắc đúng lúc là thứ mình cần nhất. Từ ngày dùng Calendar, mình chưa lỡ một cuộc họp nào cả.”</p>
+          <div class="who"><span class="av" style="background:#52428C">ĐH</span><div><b>Đắc Hoàng</b><span>Trưởng nhóm kinh doanh</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" id="cta">
+    <div class="wrap">
+      <div class="cta-band reveal">
+        <h2 data-reveal-words>Sẵn sàng làm chủ thời gian của bạn?</h2>
+        <p>Tạo tài khoản miễn phí trong một phút. Không cần thẻ tín dụng, không ràng buộc.</p>
+        <div class="row">
+          <a class="btn btn-primary btn-lg magnetic" href="/login">Bắt đầu miễn phí</a>
+          <a class="btn btn-ghost btn-lg magnetic" href="#features" style="border-color:color-mix(in srgb,var(--paper) 40%,transparent);color:var(--paper)">Khám phá tính năng</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="#top"><svg class="glyph" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect x="9" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="20.4" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="21.5" rx="6" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="6.5" rx="6" fill="var(--accent-soft)"/><g fill="#fff" opacity=".92"><circle cx="10.5" cy="18.5" r="1.5"/><circle cx="16" cy="18.5" r="1.5"/><circle cx="10.5" cy="23.5" r="1.5"/><circle cx="16" cy="23.5" r="1.5"/><circle cx="21.5" cy="18.5" r="1.5"/></g><circle cx="21.5" cy="23.5" r="2.1" fill="var(--today)"/></svg>Calendar</a>
+        <p>Lịch thông minh giúp bạn sắp xếp thời gian gọn gàng, cộng tác dễ dàng và không bao giờ bỏ lỡ điều quan trọng.</p>
+      </div>
+      <div>
+        <h4>Sản phẩm</h4>
+        <a href="#features">Tính năng</a>
+        <a href="#how">Cách hoạt động</a>
+        <a href="#reviews">Đánh giá</a>
+        <a href="#free">Miễn phí</a>
+      </div>
+      <div>
+        <h4>Công ty</h4>
+        <a href="#features">Về chúng tôi</a>
+        <a href="#how">Blog</a>
+        <a href="#cta">Tuyển dụng</a>
+        <a href="mailto:longtyran@gmail.com">Liên hệ</a>
+      </div>
+      <div>
+        <h4>Hỗ trợ</h4>
+        <a href="#how">Trung tâm trợ giúp</a>
+        <a href="#free">Điều khoản</a>
+        <a href="#free">Quyền riêng tư</a>
+        <a href="#top">Trạng thái</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p>© 2026 Calendar. Bản quyền thuộc về bạn.</p>
+      <p class="mono">Made with focus · Việt Nam</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+// nav shadow on scroll
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>8),{passive:true});
+
+// scroll reveal
+const io=new IntersectionObserver((es)=>{
+  es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});
+},{threshold:.14});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// theme toggle (respects system until user chooses)
+const root=document.documentElement;
+const tbtn=document.getElementById('themeToggle');
+tbtn.addEventListener('click',()=>{
+  const isDark = root.getAttribute('data-theme')==='dark'
+    || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+});
+
+// ---------- 3D scroll showcase ----------
+(function(){
+  const sec=document.getElementById('showcase');
+  const card=document.getElementById('scCard');
+  const chips=[...document.querySelectorAll('.sc-chip')];
+  const lines=[...document.querySelectorAll('.sc-line')];
+  const hint=document.getElementById('scHint');
+  if(!sec||!card) return;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ease=t=>t<0?0:t>1?1:t*t*(3-2*t);            // smoothstep
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+  let target=0, cur=0;          // scroll progress 0..1
+  let mx=0, my=0, cmx=0, cmy=0; // mouse parallax
+  function measure(){
+    const r=sec.getBoundingClientRect();
+    const total=sec.offsetHeight-innerHeight;
+    target = total>0 ? clamp(-r.top/total,0,1) : 0;
+  }
+  addEventListener('scroll',measure,{passive:true});
+  addEventListener('resize',measure);
+  addEventListener('pointermove',e=>{
+    mx=(e.clientX/innerWidth-.5)*2;
+    my=(e.clientY/innerHeight-.5)*2;
+  },{passive:true});
+  measure();
+
+  if(reduce){
+    card.style.transform='rotateX(0) scale(1)';
+    chips.forEach(c=>c.style.opacity=1);
+    lines[0].classList.add('on');
+    return;
+  }
+
+  function frame(){
+    cur+=(target-cur)*0.09;
+    cmx+=(mx-cmx)*0.06; cmy+=(my-cmy)*0.06;
+    const p=cur;
+    const rise=ease(clamp(p/0.5,0,1));          // 0..1 as card stands up
+    const rx=(1-rise)*-46 - cmy*6;              // tilted back -> upright + mouse
+    const ry=cmx*9 + Math.sin(p*Math.PI)*4;     // gentle sweep + mouse
+    const sc=0.82+0.18*rise;
+    const ty=(1-rise)*46;
+    card.style.transform=`translateY(${ty}px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${sc})`;
+
+    // chips fly in from depth, staggered across 0.32..0.9
+    chips.forEach((c,i)=>{
+      const z=+c.dataset.z||120;
+      const local=ease(clamp((p-0.30-i*0.06)/0.34,0,1));
+      const startZ=-z-160, curZ=startZ+(z-startZ)*local;
+      const px=cmx*(14+i*6), py=cmy*(10+i*5);
+      c.style.opacity=local.toFixed(3);
+      c.style.transform=`translate3d(${px}px,${py}px,${curZ}px) scale(${0.9+0.1*local})`;
+    });
+
+    // swap headline lines by progress band
+    const active = p<0.40?0 : p<0.74?1 : 2;
+    lines.forEach((l,i)=>l.classList.toggle('on',i===active));
+    if(hint) hint.style.opacity = p>0.06?0:1;
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- ambient glow canvas ----------
+  const cv=document.getElementById('ambient');
+  if(cv){
+    const ctx=cv.getContext('2d');
+    let W,H,dpr;
+    const pal=['#3E6DB0','#3E8E6E','#6A55A6','#B67A22','#B8506B'];
+    const blobs=pal.map((col,i)=>({
+      col, r:0, bx:Math.random(), by:Math.random(),
+      sx:0.02+Math.random()*0.05, sy:0.02+Math.random()*0.05,
+      ph:Math.random()*Math.PI*2
+    }));
+    function resize(){
+      dpr=Math.min(devicePixelRatio||1,2);
+      W=cv.clientWidth; H=cv.clientHeight;
+      cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+      blobs.forEach(b=>b.r=Math.max(W,H)*0.34);
+    }
+    resize(); addEventListener('resize',resize);
+    let t=0;
+    function isDark(){
+      const dt=document.documentElement.getAttribute('data-theme');
+      if(dt) return dt==='dark';
+      return matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    function draw(){
+      t+=0.005;
+      ctx.clearRect(0,0,W,H);
+      ctx.globalCompositeOperation='lighter';
+      const alpha=isDark()?0.30:0.16;
+      blobs.forEach((b,i)=>{
+        const x=(b.bx+0.14*Math.sin(t*b.sx*8+b.ph))*W;
+        const y=(b.by+0.14*Math.cos(t*b.sy*8+b.ph))*H;
+        const g=ctx.createRadialGradient(x,y,0,x,y,b.r);
+        g.addColorStop(0,hexA(b.col,alpha));
+        g.addColorStop(1,hexA(b.col,0));
+        ctx.fillStyle=g;
+        ctx.beginPath(); ctx.arc(x,y,b.r,0,7); ctx.fill();
+      });
+      ctx.globalCompositeOperation='source-over';
+      requestAnimationFrame(draw);
+    }
+    function hexA(h,a){const n=parseInt(h.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+    requestAnimationFrame(draw);
+  }
+})();
+
+// ---------- word/line reveal (splits h1/h2 into masked words) ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function split(el){
+    if(el.dataset.split==='1') return;
+    const text=el.textContent.trim();
+    const words=text.split(/\s+/);
+    el.innerHTML=words.map((w,i)=>`<span class="rv-word"><i style="--d:${(0.04+i*0.055).toFixed(3)}s">${w}</i></span>`).join(' ');
+    el.dataset.split='1';
+  }
+  function activate(el){
+    el.querySelectorAll('.rv-word').forEach(w=>w.classList.add('in'));
+  }
+  const targets=[...document.querySelectorAll('[data-reveal-words]')];
+  targets.forEach(split);
+  if(reduce){targets.forEach(activate);return;}
+  // load-time reveal
+  targets.filter(t=>t.dataset.revealOn==='load').forEach(t=>requestAnimationFrame(()=>activate(t)));
+  // scroll-time reveal
+  const rest=targets.filter(t=>t.dataset.revealOn!=='load');
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{if(e.isIntersecting){activate(e.target);io.unobserve(e.target);}});
+  },{threshold:.2});
+  rest.forEach(t=>io.observe(t));
+})();
+
+// ---------- marquee: duplicate tracks for seamless loop ----------
+(function(){
+  ['marqTrack','megaMarq'].forEach(id=>{
+    const t=document.getElementById(id);
+    if(t) t.innerHTML+=t.innerHTML;
+  });
+})();
+
+// ---------- h-card 3D tilt on hover ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce||matchMedia('(hover:none)').matches) return;
+  document.querySelectorAll('.h-card').forEach(card=>{
+    let raf=0;
+    card.addEventListener('pointermove',e=>{
+      const r=card.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-0.5;
+      const y=(e.clientY-r.top)/r.height-0.5;
+      cancelAnimationFrame(raf);
+      raf=requestAnimationFrame(()=>{
+        card.classList.add('tilt3d');
+        card.style.transform=`perspective(900px) rotateX(${(-y*7).toFixed(2)}deg) rotateY(${(x*10).toFixed(2)}deg) translateZ(6px)`;
+      });
+    });
+    card.addEventListener('pointerleave',()=>{
+      card.classList.remove('tilt3d');
+      card.style.transform='';
+    });
+  });
+})();
+
+// ---------- hero mock 3D parallax ----------
+(function(){
+  const m=document.getElementById('heroMock');
+  if(!m) return;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce||matchMedia('(hover:none)').matches) return;
+  const wrap=m.closest('.hero-grid')||m.parentElement;
+  let raf=0,tx=0,ty=0,cx=0,cy=0,active=false;
+  wrap.addEventListener('pointermove',e=>{
+    const r=wrap.getBoundingClientRect();
+    tx=(e.clientX-r.left)/r.width-0.5;
+    ty=(e.clientY-r.top)/r.height-0.5;
+    if(!active){active=true;m.classList.add('tilt');loop();}
+  });
+  wrap.addEventListener('pointerleave',()=>{
+    tx=0;ty=0;
+    setTimeout(()=>{if(Math.abs(cx)<0.01&&Math.abs(cy)<0.01){m.classList.remove('tilt');active=false;cancelAnimationFrame(raf);m.style.transform='';}},600);
+  });
+  function loop(){
+    cx+=(tx-cx)*0.09; cy+=(ty-cy)*0.09;
+    const rx=(-cy*7).toFixed(2), ry=(cx*10).toFixed(2), tz=(Math.abs(cx)+Math.abs(cy))*10;
+    m.style.transform=`perspective(1200px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(${tz.toFixed(1)}px)`;
+    raf=requestAnimationFrame(loop);
+  }
+})();
+
+// ---------- click ripple on all .btn ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce) return;
+  document.querySelectorAll('.btn').forEach(btn=>{
+    btn.addEventListener('pointerdown',e=>{
+      const r=btn.getBoundingClientRect();
+      const size=Math.max(r.width,r.height);
+      const rip=document.createElement('span');
+      rip.className='ripple';
+      rip.style.width=rip.style.height=size+'px';
+      rip.style.left=(e.clientX-r.left-size/2)+'px';
+      rip.style.top=(e.clientY-r.top-size/2)+'px';
+      btn.appendChild(rip);
+      setTimeout(()=>rip.remove(),720);
+    });
+  });
+})();
+
+// ---------- section entrance ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('main > section, main > div.trust').forEach(s=>s.classList.add('section-enter'));
+  if(reduce){document.querySelectorAll('.section-enter').forEach(s=>s.classList.add('in'));return;}
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});
+  },{threshold:.08,rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.section-enter').forEach(s=>io.observe(s));
+})();
+
+// ---------- nav link active-state ----------
+(function(){
+  const links=[...document.querySelectorAll('.nav-links a.link')];
+  if(!links.length) return;
+  const targets=links.map(a=>({a,el:document.querySelector(a.getAttribute('href'))})).filter(t=>t.el);
+  function upd(){
+    const y=scrollY+innerHeight*0.35;
+    let cur=null;
+    for(const t of targets){if(y>=t.el.offsetTop) cur=t;}
+    links.forEach(a=>a.classList.remove('active'));
+    if(cur) cur.a.classList.add('active');
+  }
+  addEventListener('scroll',upd,{passive:true});
+  addEventListener('resize',upd);
+  upd();
+})();
+
+// ---------- scroll progress bar ----------
+(function(){
+  const bar=document.getElementById('scrollProgress');
+  if(!bar) return;
+  function upd(){
+    const s=scrollY;
+    const h=document.documentElement.scrollHeight-innerHeight;
+    bar.style.width=h>0?(s/h*100).toFixed(2)+'%':'0%';
+  }
+  addEventListener('scroll',upd,{passive:true});
+  addEventListener('resize',upd);
+  upd();
+})();
+
+// ---------- side page nav (active section) ----------
+(function(){
+  const links=[...document.querySelectorAll('.side-nav a')];
+  if(!links.length) return;
+  const map=links.map(a=>({a,el:a.dataset.target==='top'?document.body:document.getElementById(a.dataset.target)}));
+  function upd(){
+    const y=scrollY+innerHeight*0.35;
+    let cur=map[0];
+    for(const m of map){
+      if(!m.el) continue;
+      const top=m.el===document.body?0:m.el.offsetTop;
+      if(y>=top) cur=m;
+    }
+    links.forEach(a=>a.classList.toggle('on',a===cur.a));
+  }
+  addEventListener('scroll',upd,{passive:true});
+  addEventListener('resize',upd);
+  upd();
+})();
+
+// ---------- feature card stagger reveal ----------
+(function(){
+  const cards=document.querySelectorAll('.h-card');
+  if(!cards.length) return;
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{
+      if(!e.isIntersecting) return;
+      const i=[...cards].indexOf(e.target);
+      e.target.style.transitionDelay=(i*80)+'ms';
+      e.target.classList.add('in');
+      io.unobserve(e.target);
+    });
+  },{threshold:.15,rootMargin:'0px 0px -10% 0px'});
+  cards.forEach(c=>io.observe(c));
+})();
+
+// ---------- hero title: activate word masks on load ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const words=document.querySelectorAll('#heroTitle .rv-word');
+  if(reduce){words.forEach(w=>w.classList.add('in'));return;}
+  requestAnimationFrame(()=>requestAnimationFrame(()=>words.forEach(w=>w.classList.add('in'))));
+})();
+
+// ---------- story pinned frames (color swap on scroll) ----------
+(function(){
+  const sec=document.getElementById('how');
+  if(!sec||!sec.classList.contains('story')) return;
+  const frames=[...sec.querySelectorAll('.story-frame')];
+  const dots=sec.querySelectorAll('.story-dots i');
+  const bg=document.getElementById('storyBg');
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+  let last=-1;
+  function upd(){
+    const r=sec.getBoundingClientRect();
+    const total=sec.offsetHeight-innerHeight;
+    const p=total>0?clamp(-r.top/total,0,1):0;
+    // pick frame by band
+    const n=frames.length;
+    const idx=Math.min(n-1,Math.floor(p*n*0.999));
+    if(idx!==last){
+      last=idx;
+      frames.forEach((f,i)=>f.classList.toggle('on',i===idx));
+      dots.forEach((d,i)=>d.classList.toggle('on',i===idx));
+      if(bg) bg.style.backgroundColor=frames[idx].dataset.bg||'#161514';
+    }
+  }
+  addEventListener('scroll',upd,{passive:true});
+  addEventListener('resize',upd);
+  if(bg) bg.style.backgroundColor=frames[0].dataset.bg||'#161514';
+  upd();
+})();
+
+// ---------- horizontal pinned scroll (features) ----------
+(function(){
+  const sec=document.getElementById('features');
+  const track=document.getElementById('hTrack');
+  const prog=document.getElementById('hProg');
+  const idxEl=document.getElementById('hIdx');
+  if(!sec||!track||sec.classList.contains('section')) return;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+  let cur=0,tgt=0;
+  function measure(){
+    const r=sec.getBoundingClientRect();
+    const total=sec.offsetHeight-innerHeight;
+    tgt=total>0?clamp(-r.top/total,0,1):0;
+  }
+  addEventListener('scroll',measure,{passive:true});
+  addEventListener('resize',measure);
+  measure();
+  if(reduce){
+    // fall back: let overflow scroll handle
+    const vp=sec.querySelector('.h-viewport');
+    if(vp) vp.style.overflowX='auto';
+    return;
+  }
+  function frame(){
+    cur+=(tgt-cur)*0.12;
+    const p=cur;
+    const dist=Math.max(0,track.scrollWidth - sec.querySelector('.h-viewport').clientWidth);
+    track.style.transform=`translate3d(${(-p*dist).toFixed(1)}px,0,0)`;
+    if(prog) prog.style.width=(p*100).toFixed(1)+'%';
+    if(idxEl){
+      const n=track.children.length;
+      const i=Math.min(n,Math.max(1,Math.round(p*(n-1))+1));
+      idxEl.textContent=String(i).padStart(2,'0');
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+// ---------- magnetic buttons (subtle) ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce||matchMedia('(hover:none)').matches) return;
+  document.querySelectorAll('.btn.magnetic').forEach(btn=>{
+    let raf=0;
+    btn.addEventListener('pointermove',e=>{
+      const r=btn.getBoundingClientRect();
+      const dx=e.clientX-(r.left+r.width/2);
+      const dy=e.clientY-(r.top+r.height/2);
+      cancelAnimationFrame(raf);
+      raf=requestAnimationFrame(()=>{
+        btn.style.transform=`translate(${(dx*0.08).toFixed(1)}px,${(dy*0.12).toFixed(1)}px)`;
+      });
+    });
+    btn.addEventListener('pointerleave',()=>{cancelAnimationFrame(raf);btn.style.transform='';});
+  });
+})();
+
+// ---------- 3D tilt on pricing cards ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce) return;
+  document.querySelectorAll('#pricing .plan').forEach(card=>{
+    let raf=0;
+    card.addEventListener('pointermove',e=>{
+      const r=card.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-0.5;
+      const y=(e.clientY-r.top)/r.height-0.5;
+      card.classList.add('tilting');
+      cancelAnimationFrame(raf);
+      raf=requestAnimationFrame(()=>{
+        card.style.setProperty('--rx',(-y*5).toFixed(2)+'deg');
+        card.style.setProperty('--ry',(x*7).toFixed(2)+'deg');
+      });
+    });
+    card.addEventListener('pointerleave',()=>{
+      card.classList.remove('tilting');
+      card.style.setProperty('--rx','0deg');
+      card.style.setProperty('--ry','0deg');
+    });
+  });
+})();
+
+// ---------- animated counters (hero-meta bold numbers) ----------
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nodes=[...document.querySelectorAll('.hero-meta b')];
+  nodes.forEach(n=>{
+    const m=n.textContent.match(/^(\d+)/);
+    if(!m) return;
+    n.dataset.to=m[1];
+    n.dataset.suffix=n.textContent.slice(m[1].length);
+    n.classList.add('count');
+    if(reduce) return;
+    n.textContent='0'+n.dataset.suffix;
+  });
+  if(reduce) return;
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{
+      if(!e.isIntersecting) return;
+      const el=e.target;
+      if(!el.dataset.to) {io.unobserve(el);return;}
+      const to=+el.dataset.to; const suf=el.dataset.suffix||'';
+      const dur=900, t0=performance.now();
+      function tick(t){
+        const p=Math.min(1,(t-t0)/dur);
+        const v=Math.round(to*(1-Math.pow(1-p,3)));
+        el.textContent=v+suf;
+        if(p<1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+      io.unobserve(el);
+    });
+  },{threshold:.6});
+  nodes.filter(n=>n.dataset.to).forEach(n=>io.observe(n));
+})();
+
+// live "now" line in hero mock (08:00 top -> 16:00 bottom window)
+(function(){
+  const line=document.getElementById('nowline');
+  if(!line) return;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function tick(){
+    const d=new Date();
+    let h=d.getHours()+d.getMinutes()/60;
+    // clamp to visible 8:00–16:00 window for a believable position
+    const top=Math.min(96,Math.max(2,((h-8)/8)*100));
+    line.style.top=top+'%';
+    line.setAttribute('data-time', String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
+  }
+  tick();
+  if(!reduce) setInterval(tick,30000);
+})();
+</script>
+</body>
+</html>
