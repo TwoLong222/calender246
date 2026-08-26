@@ -143,6 +143,14 @@ export class CalendarStateService {
   readonly invitations = signal<Invitation[]>([]);
 
   constructor() {
+    // Ghi lại chỗ bấm gần nhất để bảng chi tiết sự kiện bung ra ngay tại đó.
+    if (typeof document !== 'undefined') {
+      document.addEventListener(
+        'pointerdown',
+        (e) => this.lastPointer.set({ x: e.clientX, y: e.clientY }),
+        true,
+      );
+    }
     this.reload();
     this.reloadInvitations();
     this.loadSharedCalendars();
@@ -329,6 +337,13 @@ export class CalendarStateService {
     this.viewedDate.set(startOfDay(d));
     if (switchToDayView) this.viewMode.set('day');
   }
+
+  /**
+   * Vị trí con trỏ lúc bấm gần nhất — bảng chi tiết sự kiện dùng để hiện NGAY CHỖ BẤM
+   * (thay vì luôn dính một góc màn hình). null = mở không qua click (vd từ thông báo)
+   * -> khi đó bảng hiện ở giữa phía trên như cũ.
+   */
+  readonly lastPointer = signal<{ x: number; y: number } | null>(null);
 
   selectEvent(id: string): void {
     this.selectedEventId.set(id);

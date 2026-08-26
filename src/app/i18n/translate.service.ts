@@ -105,7 +105,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'feed.enable': 'Link lịch công khai (.ics)',
     'feed.desc': 'Tạo 1 link https để người khác đăng ký (Subscribe) vào Google Calendar / Outlook / Apple Calendar. Lịch tự cập nhật.',
     'feed.link': 'Link đăng ký', 'feed.hint': 'Ai có link này đều xem được sự kiện của bạn. App đăng ký làm mới sau vài giờ (không tức thì).',
-    'feed.rotate': 'Đổi link mới (thu hồi link cũ)',
+    'feed.rotate': 'Đổi link mới (thu hồi link cũ)', 'feed.rangeHint': 'Để trống = chia sẻ tất cả. Đặt khoảng ngày để link chỉ hiện sự kiện trong khoảng đó.',
     // Email prefs
     'email.note': 'Backend kiểm tra các tuỳ chọn này trước khi gửi email.',
     'email.event_invitation': 'Lời mời sự kiện', 'email.event_updated': 'Sự kiện được cập nhật',
@@ -281,7 +281,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'feed.enable': 'Public calendar link (.ics)',
     'feed.desc': 'Create an https link others can subscribe to in Google Calendar / Outlook / Apple Calendar. It updates automatically.',
     'feed.link': 'Subscription link', 'feed.hint': 'Anyone with this link can see your events. Subscribing apps refresh every few hours (not instant).',
-    'feed.rotate': 'Reset link (revoke old one)',
+    'feed.rotate': 'Reset link (revoke old one)', 'feed.rangeHint': 'Leave blank = share everything. Set a date range so the link only shows events within it.',
     'email.note': 'The server checks these preferences before sending email.',
     'email.event_invitation': 'Event invitations', 'email.event_updated': 'Event updates',
     'email.event_cancelled': 'Event cancellations', 'email.event_reminder': 'Event reminders',

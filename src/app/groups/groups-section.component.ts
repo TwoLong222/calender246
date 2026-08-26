@@ -31,23 +31,27 @@ import { GroupChatService } from './chat.service';
     <!-- Mỗi nhóm là 1 THẺ riêng cho dễ phân biệt (trước đây các dòng dính liền nhau) -->
     <ul class="space-y-2 text-sm text-gray-700">
       @for (g of groupsState.groups(); track g.id) {
-        <li class="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2">
+        <!-- Bấm BẤT KỲ chỗ nào trong thẻ (kể cả rìa) đều mở nhóm; ô tick và nút 💬 có
+             xử lý riêng nên chặn nổi bọt để không mở nhầm. -->
+        <li class="cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 hover:border-gray-300"
+            (click)="openGroup(g.id)">
           <div class="flex items-center gap-2">
             <!-- Ô tick = HIỆN/ẨN sự kiện của nhóm này trên lịch (không phải tham gia/rời nhóm) -->
             <input
               type="checkbox"
               [checked]="groupsState.isVisible(g.id)"
               (change)="groupsState.toggleVisible(g.id)"
+              (click)="$event.stopPropagation()"
               [class]="groupAccent(g.id)"
               title="Hiện/ẩn sự kiện của nhóm này trên lịch"
             />
-            <button type="button" (click)="openGroup(g.id)" class="min-w-0 flex-1 truncate py-1 text-left font-medium">{{ g.name }}</button>
+            <span class="min-w-0 flex-1 truncate py-1 text-left font-medium">{{ g.name }}</span>
             @if (groupsState.onlineCount(g.id) > 0) {
               <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
             }
             <button
               type="button"
-              (click)="openGroup(g.id, 'chat')"
+              (click)="$event.stopPropagation(); openGroup(g.id, 'chat')"
               class="relative shrink-0 p-1.5 text-gray-500 opacity-70 transition hover:opacity-100"
               title="Mở trò chuyện"
             >
