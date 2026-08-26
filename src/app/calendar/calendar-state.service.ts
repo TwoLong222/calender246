@@ -16,6 +16,8 @@ import { GoogleMeetService } from '../groups/google-meet.service';
 
 /** Sự kiện đang chờ tạo Google Meet, ghi lại trước khi rời app đi xin quyền. */
 const PENDING_MEET_KEY = 'pending-meet-event';
+/** Đã đi xin quyền Meet trong phiên này chưa — chặn vòng lặp xin quyền vô tận. */
+const MEET_CONSENT_TRIED_KEY = 'meet-consent-tried';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
@@ -274,6 +276,12 @@ export class CalendarStateService {
     this.loadError.set(null);
     try {
       const link = await this.meet.createSpace(); // gọi Google Meet API (cần token Google + quyền Meet)
+      // Thành công -> xoá cờ, lần sau token hết hạn vẫn xin quyền lại được.
+      try {
+        sessionStorage.removeItem(MEET_CONSENT_TRIED_KEY);
+      } catch {
+        /* bỏ qua */
+      }
       this.api.setMeetLink(eventId, link).subscribe({
         next: (saved) => {
           this.markLocalChange();
@@ -286,10 +294,25 @@ export class CalendarStateService {
       // về app TỰ TẠO tiếp, người dùng không phải bấm "Tạo Meet" lần thứ hai (trước đây
       // quay về là im lặng, nhìn như bấm xong không có gì xảy ra).
       if (e?.code === 'NEED_CONSENT') {
+        // CHỐNG VÒNG LẶP: chỉ đi xin quyền MỘT lần cho mỗi lần người dùng bấm. Nếu đã xin
+        // rồi mà Google vẫn từ chối thì xin nữa cũng vô ích (thường do Meet API chưa bật)
+        // -> báo lỗi rõ ràng thay vì đá qua lại màn hình chọn tài khoản mãi.
+        let already = false;
         try {
-          sessionStorage.setItem(PENDING_MEET_KEY, eventId);
+          already = sessionStorage.getItem(MEET_CONSENT_TRIED_KEY) === '1';
+          if (!already) {
+            sessionStorage.setItem(MEET_CONSENT_TRIED_KEY, '1');
+            sessionStorage.setItem(PENDING_MEET_KEY, eventId);
+          }
         } catch {
-          /* chặn cookie/storage -> vẫn xin quyền, chỉ là phải bấm lại */
+          /* chặn cookie/storage -> vẫn thử xin quyền, chỉ là phải bấm lại */
+        }
+        if (already) {
+          this.loadError.set(
+            'Đã cấp quyền Google nhưng vẫn không tạo được phòng Meet. ' +
+              'Kiểm tra xem Google Meet API đã được BẬT trong Google Cloud của dự án chưa.',
+          );
+          return;
         }
         await this.meet.requestAccess();
         return;
