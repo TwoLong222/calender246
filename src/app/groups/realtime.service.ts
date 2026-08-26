@@ -50,9 +50,13 @@ export class GroupRealtimeService {
   /** Luồng "đang gõ" — GroupChatService gom lại thành trạng thái hiển thị tạm thời */
   readonly typing$ = new Subject<TypingSignal>();
 
-  /** Địa chỉ socket = origin của apiUrl (bỏ hậu tố /api) */
+  /** Địa chỉ socket = origin của apiUrl (bỏ hậu tố /api). */
   private origin(): string {
-    return environment.apiUrl.replace(/\/api\/?$/, '');
+    const base = environment.apiUrl.replace(/\/api\/?$/, '');
+    // DEV: apiUrl='/api' -> base rỗng. io('') nối tới host rỗng (không chạy) -> phải dùng origin
+    // của chính trang để Vite proxy '/socket.io' chuyển tiếp sang backend (localhost:3000).
+    // PROD: apiUrl là URL backend đầy đủ -> base != rỗng -> nối thẳng tới backend.
+    return base || (typeof window !== 'undefined' ? window.location.origin : '');
   }
 
   private ensureConnected(): void {
