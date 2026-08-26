@@ -14,6 +14,9 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SharingApiService } from '../sharing/sharing-api.service';
 import { GoogleMeetService } from '../groups/google-meet.service';
 
+/** Sự kiện đang chờ tạo Google Meet, ghi lại trước khi rời app đi xin quyền. */
+const PENDING_MEET_KEY = 'pending-meet-event';
+
 @Injectable({ providedIn: 'root' })
 export class CalendarStateService {
   private readonly api = inject(EventsApiService);
@@ -166,6 +169,12 @@ export class CalendarStateService {
       this.supabase.client.realtime.setAuth(token);
       this.subscribeRealtime();
     });
+
+    // Vừa cấp quyền Google Meet xong -> tạo tiếp phòng cho sự kiện đang chờ.
+    effect(() => {
+      this.supabase.session(); // chạy lại mỗi khi phiên đổi (sau khi quay về từ Google)
+      this.resumePendingMeet();
+    });
   }
 
   /**
@@ -273,13 +282,41 @@ export class CalendarStateService {
         error: () => this.loadError.set('Lưu link Meet thất bại.'),
       });
     } catch (e: any) {
-      // Chưa cấp quyền Meet -> chuyển sang Google xin quyền, xong quay lại bấm "Tạo Meet" lần nữa.
+      // Chưa cấp quyền Meet -> sang Google xin quyền. GHI NHỚ sự kiện đang chờ để khi quay
+      // về app TỰ TẠO tiếp, người dùng không phải bấm "Tạo Meet" lần thứ hai (trước đây
+      // quay về là im lặng, nhìn như bấm xong không có gì xảy ra).
       if (e?.code === 'NEED_CONSENT') {
+        try {
+          sessionStorage.setItem(PENDING_MEET_KEY, eventId);
+        } catch {
+          /* chặn cookie/storage -> vẫn xin quyền, chỉ là phải bấm lại */
+        }
         await this.meet.requestAccess();
         return;
       }
       this.loadError.set(e?.message || 'Tạo Google Meet thất bại.');
     }
+  }
+
+  /**
+   * Vừa quay về từ màn hình cấp quyền Google Meet -> tạo tiếp phòng cho sự kiện đang chờ.
+   * Chỉ chạy khi phiên đã có provider_token (token Google), tức quyền đã được cấp.
+   */
+  private resumePendingMeet(): void {
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem(PENDING_MEET_KEY);
+    } catch {
+      return;
+    }
+    if (!pending) return;
+    if (!this.supabase.session()?.provider_token) return; // chưa có quyền -> chờ tiếp
+    try {
+      sessionStorage.removeItem(PENDING_MEET_KEY);
+    } catch {
+      /* bỏ qua */
+    }
+    void this.createMeetForEvent(pending);
   }
 
   /** Gỡ link Google Meet khỏi 1 sự kiện. */
