@@ -1,6 +1,6 @@
 // View "Tháng": lưới 6 hàng x 7 cột, mỗi ô ngày hiển thị tối đa vài sự kiện dạng chip.
 
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { CalendarEvent } from './calendar.types';
 import { isSameDay, startOfMonth } from './date-utils';
 import { HolidaysService } from './holidays.service';
@@ -38,7 +38,13 @@ const MAX_CHIPS_PER_CELL = 3;
           <div
             class="flex flex-col border-b border-r border-gray-100 p-1"
             [class.bg-gray-50]="!cell.inCurrentMonth"
+            [class.ring-2]="dragOverTime() === cell.date.getTime()"
+            [class.ring-inset]="dragOverTime() === cell.date.getTime()"
+            [class.ring-blue-400]="dragOverTime() === cell.date.getTime()"
             (click)="dateClicked.emit(cell.date)"
+            (dragover)="onDragOver(cell.date, $event)"
+            (dragleave)="onDragLeave(cell.date)"
+            (drop)="onDrop(cell.date, $event)"
           >
             <div class="mb-0.5 flex items-start justify-between">
               <span
@@ -74,8 +80,12 @@ const MAX_CHIPS_PER_CELL = 3;
               @for (e of eventsFor(cell.date); track e.id) {
                 <button
                   type="button"
+                  [draggable]="state.canEditEvent(e)"
+                  (dragstart)="onDragStart(e, $event)"
+                  (dragend)="onDragEnd()"
                   (click)="onEventClick(e, $event)"
                   class="truncate rounded px-1 text-left text-[11px] text-white"
+                  [class.cursor-move]="state.canEditEvent(e)"
                   [class]="colorClass(e.color) + (state.isHighlighted(e.id) ? ' ring-2 ring-amber-400 animate-pulse' : '')"
                 >
                   @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
@@ -171,5 +181,52 @@ export class MonthViewComponent {
   onEventClick(e: CalendarEvent, domEvent: Event): void {
     domEvent.stopPropagation();
     this.eventClicked.emit(e);
+  }
+
+  // ----- Kéo-thả sự kiện sang ngày khác (chỉ trong lịch tháng) -----
+  /** Sự kiện đang được kéo. */
+  private draggedEvent: CalendarEvent | null = null;
+  /** getTime() của ô ngày đang rê chuột lên -> tô viền xanh gợi ý nơi thả. */
+  protected readonly dragOverTime = signal<number | null>(null);
+
+  onDragStart(e: CalendarEvent, ev: DragEvent): void {
+    // Không có quyền sửa -> chặn kéo (draggable đã false nhưng chặn thêm cho chắc).
+    if (!this.state.canEditEvent(e)) {
+      ev.preventDefault();
+      return;
+    }
+    this.draggedEvent = e;
+    ev.dataTransfer?.setData('text/plain', e.id);
+    if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
+  }
+
+  onDragEnd(): void {
+    this.draggedEvent = null;
+    this.dragOverTime.set(null);
+  }
+
+  onDragOver(date: Date, ev: DragEvent): void {
+    if (!this.draggedEvent) return; // chỉ nhận thả khi đang kéo sự kiện
+    ev.preventDefault(); // bắt buộc để cho phép 'drop'
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+    this.dragOverTime.set(date.getTime());
+  }
+
+  onDragLeave(date: Date): void {
+    if (this.dragOverTime() === date.getTime()) this.dragOverTime.set(null);
+  }
+
+  onDrop(date: Date, ev: DragEvent): void {
+    ev.preventDefault();
+    const e = this.draggedEvent;
+    this.draggedEvent = null;
+    this.dragOverTime.set(null);
+    if (!e) return;
+    if (isSameDay(e.start, date)) return; // thả lại đúng ngày cũ -> không đổi
+    if (!this.state.canEditEvent(e)) return;
+    // Giữ nguyên GIỜ và thời lượng, chỉ dời sang NGÀY mới.
+    const newStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), e.start.getHours(), e.start.getMinutes(), 0, 0);
+    const newEnd = new Date(newStart.getTime() + (e.end.getTime() - e.start.getTime()));
+    this.state.updateEventTimes({ ...e, start: newStart, end: newEnd });
   }
 }

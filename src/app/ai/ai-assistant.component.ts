@@ -3,7 +3,7 @@
 // (đúng quyền), hiện PREVIEW, người dùng bấm Xác nhận thì mới thực thi qua các
 // service có sẵn (auth + RLS). AI không bao giờ chạm thẳng database.
 
-import { ChangeDetectionStrategy, Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
@@ -42,7 +42,7 @@ interface PlanPreferences {
   allowedWeekdays?: Set<number>;
 }
 type Pending =
-  | { kind: 'create'; title: string; start: Date; end: Date }
+  | { kind: 'create'; title: string; start: Date; end: Date; withMeet: boolean; emails: string[] }
   | { kind: 'plan'; title: string; slots: PlannedSlot[]; requestedCount: number }
   | { kind: 'reschedule'; event: CalendarEvent; start: Date; end: Date }
   | { kind: 'delete'; event: CalendarEvent }
@@ -131,6 +131,12 @@ type Pending =
                   <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.createEvent') }}</p>
                   <p class="text-gray-700">📌 {{ p.title }}</p>
                   <p class="text-gray-700">🕐 {{ rangeLabel(p.start, p.end) }}</p>
+                  @if (p.withMeet) {
+                    <p class="text-gray-700">📹 {{ tr.t('ai.withMeet') }}</p>
+                  }
+                  @if (p.emails.length) {
+                    <p class="text-gray-700">👤 {{ p.emails.join(', ') }}</p>
+                  }
                 }
                 @case ('plan') {
                   <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.planSuggest') }} {{ p.title }}</p>
@@ -192,6 +198,16 @@ export class AiAssistantComponent {
   private readonly supabase = inject(SupabaseService);
   protected readonly tr = inject(TranslateService);
   private readonly confirmSvc = inject(ConfirmService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** Bấm ra ngoài panel -> tự đóng chatbox (nút nổi + panel đều nằm trong host nên bấm chúng không bị đóng). */
+  @HostListener('document:pointerdown', ['$event'])
+  onDocumentPointerDown(ev: Event): void {
+    if (!this.open()) return;
+    const target = ev.target as Node | null;
+    if (target && this.host.nativeElement.contains(target)) return;
+    this.open.set(false);
+  }
 
   open = signal(false);
   input = signal('');
@@ -510,8 +526,9 @@ export class AiAssistantComponent {
         this.loading.set(false);
 
         if (res.intent === 'create_event' && res.title && res.startTime && res.endTime) {
+          const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
           this.push(res.reply);
-          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime) });
+          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime), withMeet: !!res.withMeet, emails });
           return;
         }
 
@@ -617,17 +634,29 @@ export class AiAssistantComponent {
     const p = this.pending();
     if (!p) return;
     if (p.kind === 'create') {
-      this.state.saveEvent({
-        kind: 'event',
-        title: p.title,
-        description: undefined,
-        location: undefined,
-        start: p.start,
-        end: p.end,
-        isAllDay: false,
-        guests: [],
-        color: 'sky',
-      });
+      this.state.saveEvent(
+        {
+          kind: 'event',
+          title: p.title,
+          description: undefined,
+          location: undefined,
+          start: p.start,
+          end: p.end,
+          isAllDay: false,
+          // Vừa tạo vừa mời: gắn khách ngay lúc tạo -> backend tự thêm attendee + gửi email mời.
+          guests: p.emails.map((email) => ({ email, status: 'needsAction' as const })),
+          color: 'sky',
+        },
+        undefined,
+        // Sau khi lưu xong mới có id thật -> nếu người dùng muốn kèm Meet thì tạo phòng luôn.
+        // createMeetForEvent tự lo việc xin quyền Google nếu chưa cấp (chuyển hướng rồi tạo tiếp).
+        p.withMeet
+          ? (event) => {
+              this.push(this.tr.t('ai.msg.creatingMeet'));
+              void this.state.createMeetForEvent(event.id);
+            }
+          : undefined,
+      );
       this.push(`${this.tr.t('ai.msg.created')} "${p.title}" ✅`);
     } else if (p.kind === 'plan') {
       for (const slot of p.slots) {

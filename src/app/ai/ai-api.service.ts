@@ -8,6 +8,7 @@ export interface AiParseResult {
   title?: string;
   startTime?: string;
   endTime?: string;
+  withMeet?: boolean;
   query?: string;
   guestEmails?: string[];
   rangeStart?: string;

@@ -68,6 +68,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
           <input
             type="text"
             [(ngModel)]="title"
+            (keydown.enter)="onEnterSave()"
             maxlength="200"
             [placeholder]="tr.t('form.addTitle')"
             class="min-w-0 flex-1 border-b border-gray-300 pb-1 text-xl outline-none focus:border-blue-600"
@@ -121,8 +122,8 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
             </label>
 
-            <!-- Lặp lại: chỉ cho tạo mới (sửa 1 event trong chuỗi lặp phức tạp -> để sau) -->
-            @if (!editing()) {
+            <!-- Lặp lại: hiện khi TẠO MỚI, hoặc khi SỬA 1 sự kiện CHƯA thuộc chuỗi (chọn lặp -> tạo chuỗi). -->
+            @if (!editing() || !editingSeries()) {
               <div class="flex flex-wrap items-center gap-2 pl-7 text-sm text-gray-600">
                 <span>🔁</span>
                 <select [ngModel]="recurKey()" (ngModelChange)="onRecurChange($event)" class="rounded border border-gray-300 px-2 py-1">
@@ -137,6 +138,21 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                   <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600">{{ tr.t('detail.edit') }}</button>
                 </p>
               }
+            }
+
+            <!-- #24: sửa 1 mắt trong CHUỖI lặp -> chọn phạm vi áp dụng. -->
+            @if (editing() && editingSeries()) {
+              <div class="rounded-md bg-blue-50 px-3 py-2 pl-7 text-sm">
+                <p class="mb-1 flex items-center gap-1 font-medium text-gray-700">🔁 {{ tr.t('form.recurEditScope') }}</p>
+                <label class="flex items-center gap-2 text-gray-700">
+                  <input type="radio" name="editScope" value="single" [checked]="editScope() === 'single'" (change)="editScope.set('single')" />
+                  {{ tr.t('form.recurThisOnly') }}
+                </label>
+                <label class="flex items-center gap-2 text-gray-700">
+                  <input type="radio" name="editScope" value="series" [checked]="editScope() === 'series'" (change)="editScope.set('series')" />
+                  {{ tr.t('form.recurAll') }}
+                </label>
+              </div>
             }
 
             @if (conflicts().length > 0) {
@@ -204,7 +220,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
             <div class="flex items-center gap-2 text-sm">
               <span class="w-5 text-center">📍</span>
-              <input type="text" [(ngModel)]="location" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1" />
+              <input type="text" [(ngModel)]="location" (keydown.enter)="onEnterSave()" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1" />
             </div>
 
             <div class="flex items-start gap-2 text-sm">
@@ -307,8 +323,32 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
             <div class="flex items-center gap-2 text-sm">
               <app-icon name="target" class="h-4 w-4 text-gray-500" />
               <input type="date" [(ngModel)]="startDate" class="rounded border border-gray-300 px-2 py-1" />
-              <app-time-picker [(ngModel)]="startTime" />
+              <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay()" />
             </div>
+
+            <!-- Cả ngày (việc cần làm không cần giờ cụ thể) -->
+            <label class="flex items-center gap-2 pl-6 text-sm text-gray-600">
+              <input type="checkbox" [(ngModel)]="isAllDay" />{{ tr.t('common.allDay') }}
+            </label>
+
+            <!-- Lặp lại theo chu kỳ: chỉ cho tạo mới -->
+            @if (!editing()) {
+              <div class="flex flex-wrap items-center gap-2 pl-6 text-sm text-gray-600">
+                <span>🔁</span>
+                <select [ngModel]="recurKey()" (ngModelChange)="onRecurChange($event)" class="rounded border border-gray-300 px-2 py-1">
+                  @for (o of recurOptions(); track o.key) {
+                    <option [value]="o.key">{{ o.label }}</option>
+                  }
+                </select>
+              </div>
+              @if (recurKey() === 'custom') {
+                <p class="pl-6 text-xs text-gray-500">
+                  {{ customSummary() }}
+                  <button type="button" (click)="openCustomAgain()" class="ml-1 text-blue-600">{{ tr.t('detail.edit') }}</button>
+                </p>
+              }
+            }
+
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
               <textarea [(ngModel)]="description" rows="3" maxlength="2000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded border border-gray-300 px-2 py-1 [field-sizing:content]"></textarea>
@@ -591,8 +631,12 @@ export class EventFormModalComponent {
   guests = signal<Guest[]>([]);
   guestEmailDraft = signal('');
   color = signal('sky');
-  /** true khi đang SỬA event có sẵn -> ẩn tùy chọn lặp (chỉ cho lặp khi tạo mới) */
+  /** true khi đang SỬA event có sẵn. */
   editing = signal(false);
+  /** #24: true khi event đang sửa THUỘC một chuỗi lặp -> hiện lựa chọn "chỉ mục này / cả chuỗi". */
+  editingSeries = signal(false);
+  /** #24: phạm vi áp dụng khi sửa 1 mắt trong chuỗi. */
+  editScope = signal<'single' | 'series'>('single');
 
   // ----- Lặp lại (recurrence) -----
   readonly weekdayIdx = [0, 1, 2, 3, 4, 5, 6];
@@ -783,6 +827,11 @@ export class EventFormModalComponent {
               : [];
         this.reminders.set(mins.map(minutesToItem));
         this.reminderMessage.set(editing.reminderMessage ?? '');
+        // #24: biết event có thuộc chuỗi lặp không -> quyết định hiện dropdown lặp hay lựa chọn phạm vi.
+        this.editingSeries.set(!!editing.seriesId);
+        this.editScope.set('single');
+        this.recurKey.set('none');
+        this.showCustomRecur.set(false);
       } else {
         const start = this.state.formInitialStart();
         let end = new Date(start.getTime() + 60 * 60_000);
@@ -803,6 +852,8 @@ export class EventFormModalComponent {
         this.color.set('sky');
         this.recurKey.set('none');
         this.showCustomRecur.set(false);
+        this.editingSeries.set(false);
+        this.editScope.set('single');
         // Nhắc mặc định lấy từ Cài đặt (default_reminder) khi tạo mới; null = không có mốc nào.
         const def = this.settings.settings().default_reminder;
         this.reminders.set(def != null ? [minutesToItem(def)] : []);
@@ -875,6 +926,12 @@ export class EventFormModalComponent {
     this.state.closeForm();
   }
 
+  /** Bấm Enter trong ô tiêu đề/địa điểm -> lưu luôn (như bấm nút Lưu). Tab "Lên lịch hẹn" không có nút Lưu nên bỏ qua. */
+  protected onEnterSave(): void {
+    if (this.tab() === 'appointment' || this.saving()) return;
+    this.save();
+  }
+
   save(): void {
     // Đang chờ lần lưu trước phản hồi -> bỏ qua, tránh bấm nhiều lần tạo trùng sự kiện
     // (đây chính là nguyên nhân sinh ra nhiều bản ghi trùng khi lưu bị chậm/lỗi mà form
@@ -917,8 +974,11 @@ export class EventFormModalComponent {
     this.formError.set('');
     this.saving.set(true);
 
-    // Chỉ cho lặp khi TẠO MỚI (sửa 1 event trong chuỗi lặp phức tạp -> để sau).
-    const recurrence = !this.editingId ? this.buildRecurrence() : undefined;
+    // #24: Lặp khi TẠO MỚI, hoặc khi SỬA sự kiện CHƯA thuộc chuỗi (chọn lặp -> backend sinh chuỗi).
+    // Sửa 1 mắt trong chuỗi -> không đổi luật lặp, chỉ chọn phạm vi (editScope).
+    const isEdit = !!this.editingId;
+    const recurrence = (!isEdit || !this.editingSeries()) ? this.buildRecurrence() : undefined;
+    const editScope = (isEdit && this.editingSeries()) ? this.editScope() : undefined;
 
     this.state.saveEvent(
       {
@@ -947,6 +1007,7 @@ export class EventFormModalComponent {
         this.saving.set(false);
         this.formError.set(this.tr.t('form.saveFailed'));
       },
+      editScope,
     );
   }
 }

@@ -480,15 +480,17 @@ export class CalendarStateService {
     // (banner đó nằm dưới modal, người dùng không thấy được). Truyền callback để modal
     // tự hiện lỗi ngay trong form, không đóng form (giữ lại dữ liệu vừa nhập, kể cả khách mời).
     onError?: () => void,
+    // Sửa 1 mắt trong chuỗi lặp: 'single' chỉ mắt này, 'series' cả chuỗi.
+    editScope?: 'single' | 'series',
   ): void {
     this.markLocalChange();
     const { id, ...rest } = draft;
-    const request$ = id ? this.api.update(id, rest) : this.api.create(rest, recurrence);
+    const request$ = id ? this.api.update(id, rest, recurrence, editScope) : this.api.create(rest, recurrence);
 
     request$.subscribe({
       next: ({ event, conflictTitles }) => {
-        if (recurrence) {
-          // Sự kiện lặp tạo nhiều event cùng lúc -> tải lại danh sách để thấy hết các lần lặp
+        if (recurrence || editScope === 'series') {
+          // Tạo/đổi nhiều occurrence cùng lúc -> tải lại danh sách để thấy hết các lần lặp
           this.reload();
         } else {
           this.events.update((list) => {
