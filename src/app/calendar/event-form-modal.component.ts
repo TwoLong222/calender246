@@ -21,6 +21,7 @@ import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 import { AttachmentsApiService, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { RecurrenceOptions } from './events-api.service';
+import { eventColorHex, isCustomColor } from './event-color';
 import { SupabaseService } from '../auth/supabase.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
 
@@ -224,10 +225,10 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               <textarea [(ngModel)]="description" rows="3" maxlength="1000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
             </div>
 
-            <!-- Chọn màu cho sự kiện -->
+            <!-- Chọn màu cho sự kiện: vài màu bấm nhanh + ô tự chọn BẤT KỲ màu nào -->
             <div class="flex items-center gap-2 text-sm">
               <app-icon name="palette" class="h-4 w-4 text-gray-500" />
-              <div class="flex gap-2">
+              <div class="flex flex-wrap items-center gap-2">
                 @for (c of colorOptions; track c.name) {
                   <button
                     type="button"
@@ -237,6 +238,25 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                     [class]="c.class + ' tap h-6 w-6 rounded-full transition-transform hover:scale-110 ' + (color() === c.name ? 'ring-2 ring-offset-2 ring-gray-700' : '')"
                   ></button>
                 }
+
+                <span class="mx-0.5 h-5 w-px bg-gray-300"></span>
+
+                <!-- Tự chọn màu: bấm vào ô này mở bảng màu của hệ điều hành, chọn màu nào cũng được.
+                     <input type="color"> luôn trả về mã hex nên lưu thẳng vào event.color. -->
+                <label
+                  class="tap relative h-6 w-6 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-110"
+                  [class]="isCustomColor() ? 'ring-2 ring-offset-2 ring-gray-700' : 'ring-1 ring-gray-300'"
+                  [style.background]="isCustomColor() ? color() : 'conic-gradient(#ef4444,#f59e0b,#22c55e,#06b6d4,#3b82f6,#a855f7,#ef4444)'"
+                  [title]="tr.t('color.custom')"
+                >
+                  <input
+                    type="color"
+                    class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    [value]="colorHex()"
+                    (input)="onCustomColor($event)"
+                    [attr.aria-label]="tr.t('color.custom')"
+                  />
+                </label>
               </div>
             </div>
 
@@ -786,6 +806,22 @@ export class EventFormModalComponent {
     { name: 'rose', label: 'Hồng', class: 'bg-rose-600' },
     { name: 'amber', label: 'Vàng', class: 'bg-amber-600' },
   ];
+
+  /** Màu hiện tại có phải màu người dùng tự chọn (mã hex) không? */
+  protected isCustomColor(): boolean {
+    return isCustomColor(this.color());
+  }
+
+  /** Giá trị hex để đổ vào <input type="color"> (màu dựng sẵn cũng quy ra hex). */
+  protected colorHex(): string {
+    return eventColorHex(this.color());
+  }
+
+  /** Người dùng vừa kéo bảng màu -> lưu thẳng mã hex làm màu sự kiện. */
+  protected onCustomColor(ev: Event): void {
+    const value = (ev.target as HTMLInputElement).value;
+    if (value) this.color.set(value.toLowerCase());
+  }
 
   private editingId: string | null = null;
 

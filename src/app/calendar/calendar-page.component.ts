@@ -117,14 +117,54 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
             class="btn btn-secondary !py-1.5"
           >{{ tr.t('nav.today') }}</button>
 
-          <div class="flex items-center overflow-hidden rounded-md border border-gray-300">
-            <button type="button" (click)="goPrev()" class="flex h-8 w-8 items-center justify-center hover:bg-gray-100" [attr.aria-label]="tr.t('nav.prev')"><app-icon name="chevron-left" class="h-4 w-4" /></button>
+          <!-- Mũi tên lùi/tiến: viền + nền + mũi tên to & đậm màu để nhìn là biết bấm được -->
+          <div class="flex items-center overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+            <button type="button" (click)="goPrev()" class="flex h-8 w-9 items-center justify-center text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100" [attr.aria-label]="tr.t('nav.prev')" [title]="tr.t('nav.prev')"><app-icon name="chevron-left" class="h-5 w-5" /></button>
             <div class="h-5 w-px bg-gray-300"></div>
-            <button type="button" (click)="goNext()" class="flex h-8 w-8 items-center justify-center hover:bg-gray-100" [attr.aria-label]="tr.t('nav.next')"><app-icon name="chevron-right" class="h-4 w-4" /></button>
+            <button type="button" (click)="goNext()" class="flex h-8 w-9 items-center justify-center text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100" [attr.aria-label]="tr.t('nav.next')" [title]="tr.t('nav.next')"><app-icon name="chevron-right" class="h-5 w-5" /></button>
           </div>
         </div>
 
-        <h1 class="text-lg font-medium text-gray-800 sm:text-xl">{{ headerLabel() }}</h1>
+        <!-- Ô tìm kiếm sự kiện — đặt BÊN TRÁI, ngay sau cụm điều hướng ngày -->
+        <div class="drop-anchor relative">
+          <!-- Lớp neo RIÊNG cho icon kính lúp: .drop-anchor bị đặt static trên mobile
+               (để panel kết quả neo theo header), nên icon phải có neo của chính nó. -->
+          <div class="relative">
+            <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              [value]="searchQuery()"
+              (input)="onSearchInput($event)"
+              (focus)="searchFocused.set(true)"
+              (blur)="onSearchBlur()"
+              (keydown.escape)="clearSearch()"
+              [placeholder]="tr.t('nav.search')"
+              class="field w-40 pl-8 sm:w-56"
+            />
+          </div>
+          @if (searchFocused() && searchQuery().trim()) {
+            <!-- Panel kết quả neo theo mép TRÁI vì ô tìm kiếm giờ nằm bên trái header -->
+            <div class="drop-panel surface-panel popup-in absolute left-0 top-full z-40 mt-1.5 max-h-80 w-72 overflow-y-auto py-1 sm:w-80">
+              @if (searchResults().length === 0) {
+                <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
+              } @else {
+                @for (e of searchResults(); track e.id) {
+                  <button
+                    type="button"
+                    (click)="goToSearchResult(e)"
+                    class="block w-full rounded-[calc(var(--radius-md)-4px)] px-3 py-2 text-left hover:bg-gray-50"
+                  >
+                    <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || tr.t('common.untitled') }}</span>
+                    <span class="block truncate text-xs text-gray-500">{{ resultDateLabel(e) }}</span>
+                  </button>
+                }
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Chuông thông báo lời mời (Đồng ý/Từ chối ngay trong app) -->
+        <app-invitation-bell />
 
         @if (seasonal.effectiveSeason(); as season) {
           <span class="hidden items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 sm:inline-flex" [title]="season.when">
@@ -140,45 +180,10 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
         }
 
         <div class="ml-auto flex items-center gap-2">
-          <!-- Ô tìm kiếm sự kiện -->
-          <div class="drop-anchor relative">
-            <!-- Lớp neo RIÊNG cho icon kính lúp: .drop-anchor bị đặt static trên mobile
-                 (để panel kết quả neo theo header), nên icon phải có neo của chính nó. -->
-            <div class="relative">
-              <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                [value]="searchQuery()"
-                (input)="onSearchInput($event)"
-                (focus)="searchFocused.set(true)"
-                (blur)="onSearchBlur()"
-                (keydown.escape)="clearSearch()"
-                [placeholder]="tr.t('nav.search')"
-                class="field w-40 pl-8 sm:w-56"
-              />
-            </div>
-            @if (searchFocused() && searchQuery().trim()) {
-              <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-40 mt-1.5 max-h-80 w-72 overflow-y-auto py-1 sm:w-80">
-                @if (searchResults().length === 0) {
-                  <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
-                } @else {
-                  @for (e of searchResults(); track e.id) {
-                    <button
-                      type="button"
-                      (click)="goToSearchResult(e)"
-                      class="block w-full rounded-[calc(var(--radius-md)-4px)] px-3 py-2 text-left hover:bg-gray-50"
-                    >
-                      <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || tr.t('common.untitled') }}</span>
-                      <span class="block truncate text-xs text-gray-500">{{ resultDateLabel(e) }}</span>
-                    </button>
-                  }
-                }
-              </div>
-            }
-          </div>
-
-          <!-- Chuông thông báo lời mời (Đồng ý/Từ chối ngay trong app) -->
-          <app-invitation-bell />
+          <!-- Tiêu đề tháng/năm đặt ở BÊN PHẢI, ngay trước cụm công cụ.
+               Header có flex-wrap nên màn hình hẹp sẽ tự xuống dòng, không bị chèn ép. -->
+          <h1 class="whitespace-nowrap text-lg font-medium text-gray-800 sm:text-xl">{{ headerLabel() }}</h1>
+          <div class="h-5 w-px bg-gray-300"></div>
 
           <!-- Nút bật sáng/tối đã chuyển vào Cài đặt → Giao diện cho gọn header. -->
 
@@ -317,17 +322,18 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
 
             @if (createMenuOpen()) {
               <div class="surface-panel popup-in absolute left-0 top-full z-30 mt-1.5 w-44 py-1">
-                <button type="button" (click)="openCreate('event')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <span class="h-2 w-2 rounded-full bg-sky-500"></span>{{ tr.t('kind.event') }}
-                </button>
-                <button type="button" (click)="openCreate('task')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <span class="h-2 w-2 rounded-full bg-emerald-500"></span>{{ tr.t('kind.task') }}
-                </button>
-                <button type="button" (click)="openCreate('appointment')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <span class="h-2 w-2 rounded-full bg-violet-500"></span>{{ tr.t('kind.appointment') }}
-                </button>
+                <button type="button" (click)="openCreate('event')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.event') }}</button>
+                <button type="button" (click)="openCreate('task')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.task') }}</button>
+                <button type="button" (click)="openCreate('appointment')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.appointment') }}</button>
               </div>
             }
+          </div>
+
+          <!-- Nhóm lên lịch cùng nhau — đặt NGAY DƯỚI nút "+ Tạo" cho dễ thấy, khỏi cuộn
+               xuống cuối sidebar. (Mobile: dùng nút nổi riêng ở góc phải, xem bên dưới.) -->
+          <div class="mb-5 hidden border-b border-gray-200 pb-4 md:block">
+            <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Nhóm</p>
+            <app-groups-section />
           </div>
 
           <app-mini-calendar [viewedDate]="state.viewedDate()" (dateSelected)="onMiniCalendarPick($event)" />
@@ -335,34 +341,26 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
           <div class="mt-6 border-t border-gray-200 pt-4">
             <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ tr.t('nav.show') }}</p>
             <ul class="space-y-0.5 text-sm text-gray-700">
+              <!-- Không còn chấm màu cố định theo loại: màu giờ do người tạo tự chọn cho từng sự kiện. -->
               <li>
                 <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
-                  <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="h-3.5 w-3.5 accent-sky-600" />
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500"></span>
+                  <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="h-3.5 w-3.5 accent-blue-600" />
                   {{ tr.t('kind.event') }}
                 </label>
               </li>
               <li>
                 <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
-                  <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="h-3.5 w-3.5 accent-emerald-600" />
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500"></span>
+                  <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="h-3.5 w-3.5 accent-blue-600" />
                   {{ tr.t('kind.task') }}
                 </label>
               </li>
               <li>
                 <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
-                  <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="h-3.5 w-3.5 accent-violet-600" />
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500"></span>
+                  <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="h-3.5 w-3.5 accent-blue-600" />
                   {{ tr.t('kind.appointment') }}
                 </label>
               </li>
             </ul>
-          </div>
-
-          <!-- Nhóm lên lịch cùng nhau (mobile: dùng nút nổi riêng ở góc phải, xem dưới) -->
-          <div class="mt-6 hidden border-t border-gray-200 pt-4 md:block">
-            <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Nhóm</p>
-            <app-groups-section />
           </div>
 
         </aside>
@@ -531,18 +529,6 @@ export class CalendarPageComponent implements OnInit {
       this.groupsState.joinByCode(code);
       history.replaceState(null, '', window.location.pathname);
     }
-  }
-
-  /** Tên class màu cho chấm tròn của nhóm ở sidebar */
-  groupDot(groupId: string): string {
-    const map: Record<string, string> = {
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-      sky: 'bg-sky-600',
-    };
-    return map[this.groupsState.colorFor(groupId)] ?? 'bg-violet-600';
   }
 
   // (Danh sách nhóm / tạo nhóm / tham gia bằng mã đã chuyển sang GroupsSectionComponent
@@ -729,10 +715,16 @@ export class CalendarPageComponent implements OnInit {
     return typeof window !== 'undefined' && window.innerWidth < 768;
   }
 
+  /**
+   * Bấm vào chỗ TRỐNG của một ô ngày ở lịch Tháng -> mở luôn form tạo sự kiện cho đúng
+   * ngày đó, KHÔNG nhảy sang view Ngày/Tuần nữa. Muốn sửa sự kiện có sẵn thì bấm thẳng
+   * vào chip sự kiện (đã có onEventClicked lo).
+   * Ô ngày mang mốc 00:00 -> đặt giờ mặc định 08:00 cho hợp lý.
+   */
   onMonthDateClicked(date: Date): void {
-    // Mobile: Tháng -> Tuần (rồi mới tới Ngày). Desktop: vào thẳng Ngày như cũ.
     this.state.selectDate(date, false);
-    this.state.viewMode.set(this.isMobile() ? 'week' : 'day');
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
+    this.state.openCreateForm('event', start);
   }
 
   /** Bấm ngày ở header lưới giờ -> chuyển sang view Ngày của ngày đó */

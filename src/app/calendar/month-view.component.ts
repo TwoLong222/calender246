@@ -8,6 +8,7 @@ import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { CalendarStateService } from './calendar-state.service';
 import { solarToLunar } from '../lunar/lunar.util';
+import { eventColorClass, eventColorStyle } from './event-color';
 
 interface MonthCell {
   date: Date;
@@ -87,6 +88,7 @@ const MAX_CHIPS_PER_CELL = 3;
                   class="flex items-center gap-1 truncate rounded px-1.5 py-[3px] text-left text-[11px] font-medium text-white shadow-sm transition-transform hover:-translate-y-px hover:shadow"
                   [class.cursor-move]="state.canEditEvent(e)"
                   [class]="colorClass(e.color) + (state.isHighlighted(e.id) ? ' ring-2 ring-amber-400 animate-pulse' : '')"
+                  [style.background-color]="colorStyle(e.color)"
                 >
                   @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥</span> }
                   @if (!e.isAllDay) { <span class="mono shrink-0 opacity-80">{{ eventTime(e) }}</span> }
@@ -170,14 +172,12 @@ export class MonthViewComponent {
   }
 
   colorClass(color: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-600',
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-    };
-    return map[color] ?? 'bg-sky-600';
+    return eventColorClass(color);
+  }
+
+  /** Màu nền cho chip khi người dùng tự chọn mã hex (rỗng nếu dùng màu dựng sẵn). */
+  colorStyle(color: string): string {
+    return eventColorStyle(color);
   }
 
   /** Giờ bắt đầu ngắn gọn cho chip sự kiện trong ô ngày (chỉ sự kiện không phải cả ngày). */

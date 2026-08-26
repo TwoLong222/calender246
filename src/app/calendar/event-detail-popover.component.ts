@@ -11,6 +11,7 @@ import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { ConfirmService } from '../shared/confirm.service';
 import { AttendeeStatus } from './calendar.types';
+import { eventColorClass, eventColorStyle } from './event-color';
 import { IconComponent } from '../shared/icon.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 
@@ -30,7 +31,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
         >
           <div class="mb-2 flex items-start justify-between gap-2">
             <div class="flex min-w-0 items-center gap-2">
-              <span class="h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)"></span>
+              <span class="h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)" [style.background-color]="dotStyle(e.color)"></span>
               <h3 class="truncate font-semibold text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
             </div>
             <div class="flex shrink-0 gap-0.5">
@@ -475,14 +476,12 @@ export class EventDetailPopoverComponent implements OnDestroy {
   }
 
   dotClass(color: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-600',
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-    };
-    return map[color] ?? 'bg-sky-600';
+    return eventColorClass(color);
+  }
+
+  /** Màu nền cho chấm khi người dùng tự chọn mã hex (rỗng nếu dùng màu dựng sẵn). */
+  dotStyle(color: string): string {
+    return eventColorStyle(color);
   }
 
   statusDotClass(status: string): string {

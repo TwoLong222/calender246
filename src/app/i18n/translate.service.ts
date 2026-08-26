@@ -176,6 +176,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'form.apptHint': 'Bật công tắc trên để tạo trang đặt lịch + lấy link chia sẻ.',
     'form.apptNote': '✅ Tính năng này đã có! Vào Cài đặt › Quyền riêng tư › "Bật đặt lịch công khai" để tạo trang đặt lịch và lấy link chia sẻ.',
     'color.sky': 'Xanh dương', 'color.violet': 'Tím', 'color.emerald': 'Xanh lá', 'color.rose': 'Hồng', 'color.amber': 'Vàng',
+    'color.custom': 'Tự chọn màu khác',
     // Event detail + RSVP + comments
     'detail.edit': 'Sửa', 'detail.delete': 'Xóa', 'detail.creator': 'Người tạo', 'detail.guests': 'khách',
     'detail.accepted': 'đồng ý', 'detail.pending': 'chưa trả lời', 'detail.attend': 'Tham dự?',
@@ -350,6 +351,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'form.apptHint': 'Turn on the switch above to create your booking page and get a shareable link.',
     'form.apptNote': '✅ This feature is ready! Go to Settings › Privacy › "Enable public booking" to create your booking page and get a shareable link.',
     'color.sky': 'Blue', 'color.violet': 'Purple', 'color.emerald': 'Green', 'color.rose': 'Pink', 'color.amber': 'Amber',
+    'color.custom': 'Pick a custom color',
     'detail.edit': 'Edit', 'detail.delete': 'Delete', 'detail.creator': 'Created by', 'detail.guests': 'guests',
     'detail.accepted': 'accepted', 'detail.pending': 'no reply', 'detail.attend': 'Attending?',
     'detail.comments': 'Comments', 'detail.delComment': 'Delete comment?', 'detail.noComments': 'No comments yet.',

@@ -25,6 +25,7 @@ import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
+import { eventColorClass, eventColorStyle } from './event-color';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -165,6 +166,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   (click)="onEventClick(e, $event)"
                   class="block w-full truncate rounded px-2 py-0.5 text-left text-xs font-medium text-white shadow-sm"
                   [class]="colorClass(e.color)"
+                  [style.background-color]="colorStyle(e.color)"
                 >
                   @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
                 </button>
@@ -255,6 +257,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   [style.left.%]="item.left"
                   [style.width.%]="item.width"
                   [class]="colorClass(item.event.color) + (state.isHighlighted(item.event.id) ? ' ring-2 ring-amber-400 animate-pulse' : '')"
+                  [style.background-color]="colorStyle(item.event.color)"
                 >
                   <!-- Tay cầm kéo mép TRÊN: đổi giờ bắt đầu -->
                   <div
@@ -605,14 +608,12 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   }
 
   colorClass(color: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-600',
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-    };
-    return map[color] ?? 'bg-sky-600';
+    return eventColorClass(color);
+  }
+
+  /** Màu nền cho block khi người dùng tự chọn mã hex (rỗng nếu dùng màu dựng sẵn). */
+  colorStyle(color: string): string {
+    return eventColorStyle(color);
   }
 
   onSlotClick(date: Date, hour: number): void {

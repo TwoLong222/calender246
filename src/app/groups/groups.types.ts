@@ -51,5 +51,4 @@ export interface GroupMessage {
   created_at: string;
 }
 
-/** Bảng màu gán cho từng nhóm để phân biệt trên lịch (xoay vòng theo thứ tự nhóm) */
-export const GROUP_COLORS = ['violet', 'emerald', 'rose', 'amber', 'sky'] as const;
+// (Đã bỏ GROUP_COLORS: nhóm không còn màu riêng — sự kiện giữ đúng màu người tạo chọn.)

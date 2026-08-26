@@ -6,6 +6,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router, RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { EventsApiService, Invitation } from './events-api.service';
+import { eventColorClass, eventColorStyle } from './event-color';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { IconComponent } from '../shared/icon.component';
@@ -34,7 +35,7 @@ import { IconComponent } from '../shared/icon.component';
           @for (iv of list(); track iv.eventId) {
             <div class="rounded-xl border border-gray-200 bg-white p-4">
               <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full" [class]="dotClass(iv.color)"></span>
+                <span class="h-3 w-3 rounded-full" [class]="dotClass(iv.color)" [style.background-color]="dotStyle(iv.color)"></span>
                 <p class="font-medium">{{ iv.title || tr.t('common.untitled') }}</p>
               </div>
               <p class="mt-1 text-sm text-gray-500">{{ timeLabel(iv) }}</p>
@@ -101,10 +102,11 @@ export class InvitationsPageComponent {
   }
 
   protected dotClass(color: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500',
-      rose: 'bg-rose-500', amber: 'bg-amber-500',
-    };
-    return map[color] ?? 'bg-sky-500';
+    return eventColorClass(color);
+  }
+
+  /** Màu nền cho chấm khi người dùng tự chọn mã hex (rỗng nếu dùng màu dựng sẵn). */
+  protected dotStyle(color: string): string {
+    return eventColorStyle(color);
   }
 }

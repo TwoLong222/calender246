@@ -34,7 +34,6 @@ import { SupabaseService } from '../auth/supabase.service';
           <div class="mb-3 flex shrink-0 items-start justify-between gap-3">
             <div>
               <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full" [class]="dotClass()"></span>
                 <h2 class="text-lg font-medium text-gray-900">{{ g.name }}</h2>
               </div>
               <p class="mt-0.5 text-xs text-gray-500">
@@ -156,14 +155,9 @@ import { SupabaseService } from '../auth/supabase.service';
                         </label>
                         <input type="text" [(ngModel)]="eLocation" placeholder="📍 Địa điểm" class="w-full rounded border border-gray-300 px-2 py-1" />
                         <textarea [(ngModel)]="eDescription" rows="2" placeholder="Mô tả" class="w-full resize-none rounded border border-gray-300 px-2 py-1"></textarea>
-                        <div class="flex items-center gap-1.5">
-                          @for (c of eventColors; track c) {
-                            <button type="button" (click)="eColor.set(c)"
-                              class="h-5 w-5 rounded-full ring-offset-1"
-                              [class]="colorDot(c) + (eColor() === c ? ' ring-2 ring-gray-500' : '')"
-                              [attr.aria-label]="c"></button>
-                          }
-                        </div>
+                        <!-- Đã bỏ hàng chọn màu ở đây: nhóm không còn màu riêng.
+                             eColor vẫn giữ nguyên màu cũ của sự kiện khi lưu, và muốn đổi màu
+                             thì mở sự kiện từ lịch chính (ở đó có ô tự chọn màu bất kỳ). -->
                         <div class="flex justify-end gap-2 pt-1">
                           <button type="button" (click)="cancelEventEdit()" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-200">Hủy</button>
                           <button type="button" (click)="saveEventEdit(g.id)" class="rounded bg-blue-700 px-3 py-1 text-white hover:bg-blue-800">Lưu</button>
@@ -389,7 +383,6 @@ export class GroupPanelComponent implements OnDestroy {
   endTime = signal('10:00');
 
   // ---------- Form SỬA sự kiện nhóm (đầy đủ như sự kiện thường) ----------
-  readonly eventColors = ['sky', 'violet', 'emerald', 'rose', 'amber'] as const;
   readonly editEventId = signal<string | null>(null);
   eTitle = signal('');
   eDate = signal(this.todayStr());
@@ -398,16 +391,8 @@ export class GroupPanelComponent implements OnDestroy {
   eAllDay = signal(false);
   eLocation = signal('');
   eDescription = signal('');
-  eColor = signal<string>('violet');
-
-  /** Class chấm màu cho nút chọn màu. */
-  protected colorDot(c: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500',
-      rose: 'bg-rose-500', amber: 'bg-amber-500',
-    };
-    return map[c] ?? 'bg-sky-500';
-  }
+  /** Giữ nguyên màu sẵn có của sự kiện khi lưu (không còn ô chọn màu trong panel nhóm). */
+  eColor = signal<string>('sky');
 
   /** Mở form sửa, nạp dữ liệu sự kiện hiện tại. */
   protected startEventEdit(e: CalendarEvent): void {
@@ -419,7 +404,7 @@ export class GroupPanelComponent implements OnDestroy {
     this.eAllDay.set(e.isAllDay);
     this.eLocation.set(e.location ?? '');
     this.eDescription.set(e.description ?? '');
-    this.eColor.set(e.color ?? 'violet');
+    this.eColor.set(e.color ?? 'sky');
   }
 
   protected cancelEventEdit(): void {
@@ -461,19 +446,6 @@ export class GroupPanelComponent implements OnDestroy {
   }
   private timeStr(d: Date): string {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  }
-
-  dotClass(): string {
-    const g = this.group();
-    const color = g ? this.state.colorFor(g.id) : 'violet';
-    const map: Record<string, string> = {
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-      sky: 'bg-sky-600',
-    };
-    return map[color] ?? 'bg-violet-600';
   }
 
   isOnline(email: string): boolean {
@@ -557,7 +529,8 @@ export class GroupPanelComponent implements OnDestroy {
       end,
       isAllDay: false,
       guests: [],
-      color: this.state.colorFor(groupId),
+      // Nhóm không còn màu riêng -> dùng màu mặc định như sự kiện cá nhân.
+      color: 'sky',
     });
     this.title.set('');
   }

@@ -6,7 +6,7 @@ import { CalendarEvent } from '../calendar/calendar.types';
 import { GroupsApiService } from './groups-api.service';
 import { GoogleMeetService } from './google-meet.service';
 import { GroupRealtimeService, GroupEventMessage } from './realtime.service';
-import { GROUP_COLORS, Group, PendingGroupInvite } from './groups.types';
+import { Group, PendingGroupInvite } from './groups.types';
 
 @Injectable({ providedIn: 'root' })
 export class GroupsStateService {
@@ -37,17 +37,6 @@ export class GroupsStateService {
 
   private started = false;
 
-  /** Map groupId -> tên màu (xoay vòng theo thứ tự nhóm) */
-  private readonly colorMap = computed<Record<string, string>>(() => {
-    const m: Record<string, string> = {};
-    this.groups().forEach((g, i) => (m[g.id] = GROUP_COLORS[i % GROUP_COLORS.length]));
-    return m;
-  });
-
-  colorFor(groupId: string): string {
-    return this.colorMap()[groupId] ?? 'violet';
-  }
-
   /** Số người đang online trong 1 nhóm (từ presence realtime) */
   onlineCount(groupId: string): number {
     return this.realtime.presence()[groupId]?.length ?? 0;
@@ -58,15 +47,17 @@ export class GroupsStateService {
     return this.realtime.presence()[groupId] ?? [];
   }
 
-  /** Sự kiện của các nhóm ĐANG HIỆN, đã gán màu — calendar-page gộp cái này vào lịch */
+  /**
+   * Sự kiện của các nhóm ĐANG HIỆN — calendar-page gộp cái này vào lịch.
+   * Không còn ép màu theo nhóm nữa: mỗi sự kiện giữ đúng màu do người tạo chọn.
+   */
   readonly visibleGroupEvents = computed<CalendarEvent[]>(() => {
     const vis = this.visibleGroupIds();
     const map = this.groupEvents();
     const out: CalendarEvent[] = [];
     for (const id of Object.keys(map)) {
       if (!vis.has(id)) continue;
-      const color = this.colorFor(id);
-      for (const e of map[id]) out.push({ ...e, color, groupId: id });
+      for (const e of map[id]) out.push({ ...e, groupId: id });
     }
     return out;
   });
