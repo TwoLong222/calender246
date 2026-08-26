@@ -1,7 +1,7 @@
 // Popover chi tiết sự kiện — khớp bố cục hình 7: tiêu đề, thời gian, danh sách khách
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
-import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
@@ -257,23 +257,25 @@ export class EventDetailPopoverComponent implements OnDestroy {
   private readonly confirm = inject(ConfirmService);
 
   /**
-   * Vị trí bảng chi tiết: bung ra NGAY CHỖ VỪA BẤM, kẹp lại để không tràn khỏi màn hình.
-   * Màn hẹp (<768px) hoặc chưa rõ chỗ bấm -> canh giữa phía trên như cũ.
+   * Vị trí bảng chi tiết — CHỐT MỘT LẦN lúc mở sự kiện (xem effect trong constructor).
+   * KHÔNG được tính lại theo con trỏ: nếu tính lại, mỗi lần bấm trong bảng (nút X, nút
+   * xoá…) bảng sẽ nhích theo chuột, nút trượt khỏi ngón tay và cú bấm không ăn.
    */
-  protected readonly panelPos = computed<{ left: number; top: number }>(() => {
+  protected readonly panelPos = signal<{ left: number; top: number }>({ left: 0, top: 96 });
+
+  /** Tính chỗ đặt bảng từ vị trí vừa bấm, kẹp lại để không tràn khỏi màn hình. */
+  private computePanelPos(): { left: number; top: number } {
     const W = 320; // = w-80
     const M = 12; // chừa mép
     const vw = typeof window === 'undefined' ? 1280 : window.innerWidth;
     const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
-    // Signal này cũng khiến vị trí tính lại mỗi lần mở sự kiện khác.
-    this.state.selectedEventId();
     const p = this.state.lastPointer();
     if (!p || vw < 768) return { left: Math.max(M, (vw - W) / 2), top: 96 };
     return {
       left: Math.min(Math.max(p.x - W / 2, M), Math.max(M, vw - W - M)),
       top: Math.min(Math.max(p.y - 24, M), Math.max(M, vh - 360)),
     };
-  });
+  }
 
   // ----- Tài liệu đính kèm -----
   protected readonly attachments = signal<EventAttachment[]>([]);
@@ -495,6 +497,14 @@ export class EventDetailPopoverComponent implements OnDestroy {
   }
 
   constructor() {
+    // CHỐT vị trí bảng ngay khi mở (hoặc đổi sang sự kiện khác). untracked() để hàm
+    // tính vị trí đọc lastPointer mà KHÔNG bị chạy lại mỗi lần con trỏ bấm chỗ mới.
+    effect(() => {
+      const id = this.state.selectedEventId();
+      if (!id) return;
+      untracked(() => this.panelPos.set(this.computePanelPos()));
+    });
+
     // Mở/đổi event -> tải bình luận của event đó; đóng popover -> dọn
     effect(() => {
       const e = this.event();
