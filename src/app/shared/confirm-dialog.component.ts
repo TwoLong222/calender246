@@ -12,29 +12,26 @@ import { TranslateService } from '../i18n/translate.service';
   template: `
     @if (confirm.pending(); as p) {
       <div class="modal-backdrop-in fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/40" (click)="confirm.answer('no')">
-        <div class="modal-card-in w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
-          <div class="mb-3 flex items-start gap-3">
+        <div class="modal-card-in w-full max-w-sm !rounded-[var(--radius-lg)] bg-white p-5 !shadow-[var(--shadow-lg)]" (click)="$event.stopPropagation()">
+          <div class="mb-4 flex items-start gap-3">
             <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full" [class]="p.danger ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-700'">
               <app-icon [name]="p.danger ? 'trash' : 'alert'" class="h-5 w-5" />
             </span>
-            <div class="min-w-0 flex-1">
-              <p class="break-words text-base font-medium text-gray-900">{{ p.message }}</p>
+            <div class="min-w-0 flex-1 pt-1.5">
+              <p class="break-words text-base font-semibold text-gray-900">{{ p.message }}</p>
               @if (p.detail) {
                 <p class="mt-1 break-words text-sm text-gray-500">{{ p.detail }}</p>
               }
             </div>
           </div>
-          <div class="mt-5 flex flex-wrap justify-end gap-2">
-            <button type="button" (click)="confirm.answer('no')"
-              class="tap rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ tr.t('del.cancel') }}</button>
+          <div class="flex flex-wrap justify-end gap-2">
+            <button type="button" (click)="confirm.answer('no')" class="btn btn-secondary">{{ tr.t('del.cancel') }}</button>
             @if (p.secondaryText) {
-              <button type="button" (click)="confirm.answer('secondary')"
-                class="tap rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-              >{{ p.secondaryText }}</button>
+              <button type="button" (click)="confirm.answer('secondary')" class="btn btn-danger">{{ p.secondaryText }}</button>
             }
             <button type="button" (click)="confirm.answer('yes')"
-              class="tap rounded-md px-4 py-2 text-sm font-medium text-white"
-              [class]="p.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'"
+              class="btn text-white"
+              [class]="p.danger ? '!bg-red-600 hover:!bg-red-700' : 'btn-primary'"
             >{{ p.confirmText || tr.t('detail.delete') }}</button>
           </div>
         </div>

@@ -4,6 +4,7 @@
 // và cảnh báo trùng lịch do SERVER xác nhận sau khi lưu (lastSavedConflicts).
 
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
@@ -29,6 +30,7 @@ import { addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
+import { SelectComponent, SelectOption } from '../shared/select.component';
 
 @Component({
   selector: 'app-calendar-page',
@@ -47,45 +49,47 @@ import { TranslateService } from '../i18n/translate.service';
     GroupPanelComponent,
     GroupsSectionComponent,
     InvitationBellComponent,
+    SelectComponent,
+    FormsModule,
     RouterLink,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex h-screen flex-col bg-gray-50 text-gray-900">
       @if (state.loadError(); as msg) {
-        <div class="flex items-center justify-between bg-red-50 px-4 py-2 text-sm text-red-700">
-          <span class="flex items-center gap-2"><app-icon name="alert" />{{ msg }}</span>
-          <button type="button" (click)="state.reload()" class="rounded border border-red-300 px-2 py-0.5 hover:bg-red-100">{{ tr.t('nav.retry') }}</button>
+        <div class="flex items-center justify-between gap-3 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          <span class="flex items-center gap-2"><app-icon name="alert" class="h-4 w-4 shrink-0" />{{ msg }}</span>
+          <button type="button" (click)="state.reload()" class="btn btn-secondary !py-1 !text-xs shrink-0">{{ tr.t('nav.retry') }}</button>
         </div>
       }
       @if (state.lastSavedConflicts().length > 0) {
-        <div class="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm text-amber-800">
+        <div class="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           <span class="flex items-center gap-2">
-            <app-icon name="alert" />
+            <app-icon name="alert" class="h-4 w-4 shrink-0" />
             {{ tr.t('nav.conflictWarn') }} {{ state.lastSavedConflicts().join(', ') }}
           </span>
-          <button type="button" (click)="state.lastSavedConflicts.set([])" class="rounded p-1 hover:bg-amber-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+          <button type="button" (click)="state.lastSavedConflicts.set([])" class="btn-icon !p-1 shrink-0" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
       }
       @if (importMsg(); as msg) {
-        <div class="flex items-center justify-between bg-gray-50 px-4 py-2 text-sm text-gray-700">
-          <span class="flex items-center gap-2"><app-icon name="inbox" />{{ msg }}</span>
-          <button type="button" (click)="importMsg.set('')" class="rounded p-1 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+        <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700">
+          <span class="flex items-center gap-2"><app-icon name="inbox" class="h-4 w-4 shrink-0" />{{ msg }}</span>
+          <button type="button" (click)="importMsg.set('')" class="btn-icon !p-1 shrink-0" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
         </div>
       }
 
       <!-- Top bar -->
-      <header class="relative flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-200 px-4 py-2">
+      <header class="relative flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-200 px-4 py-2.5">
         <button
           type="button"
           (click)="sidebarOpen.set(!sidebarOpen())"
-          class="tap rounded-full p-2 hover:bg-gray-100"
+          class="btn-icon"
           [attr.aria-label]="tr.t('nav.toggleSidebar')"
           [title]="tr.t('nav.toggleSidebar')"
         >
           <app-icon name="menu" class="h-5 w-5 text-gray-600" />
         </button>
-        <span class="flex items-center gap-2 text-lg font-medium text-gray-700">
+        <span class="flex items-center gap-2 text-lg font-semibold text-gray-800">
           <svg viewBox="0 0 32 32" class="h-7 w-7" aria-hidden="true">
             <rect x="9.2" y="3" width="2.6" height="6" rx="1.3" fill="var(--accent-600)"/>
             <rect x="20.2" y="3" width="2.6" height="6" rx="1.3" fill="var(--accent-600)"/>
@@ -103,18 +107,22 @@ import { TranslateService } from '../i18n/translate.service';
           <span class="hidden sm:inline">{{ tr.t('nav.calendar') }}</span>
         </span>
 
-        <button
-          type="button"
-          (click)="state.goToday()"
-          class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-        >{{ tr.t('nav.today') }}</button>
+        <!-- Cụm điều hướng ngày: Hôm nay + mũi tên, gom trong 1 nhóm để đỡ rời rạc -->
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            (click)="state.goToday()"
+            class="btn btn-secondary !py-1.5"
+          >{{ tr.t('nav.today') }}</button>
 
-        <div class="flex gap-1">
-          <button type="button" (click)="state.goPrev()" class="tap rounded-full p-2 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.prev')"><app-icon name="chevron-left" /></button>
-          <button type="button" (click)="state.goNext()" class="tap rounded-full p-2 hover:bg-gray-100" [attr.aria-label]="tr.t('nav.next')"><app-icon name="chevron-right" /></button>
+          <div class="flex items-center overflow-hidden rounded-md border border-gray-300">
+            <button type="button" (click)="goPrev()" class="flex h-8 w-8 items-center justify-center hover:bg-gray-100" [attr.aria-label]="tr.t('nav.prev')"><app-icon name="chevron-left" class="h-4 w-4" /></button>
+            <div class="h-5 w-px bg-gray-300"></div>
+            <button type="button" (click)="goNext()" class="flex h-8 w-8 items-center justify-center hover:bg-gray-100" [attr.aria-label]="tr.t('nav.next')"><app-icon name="chevron-right" class="h-4 w-4" /></button>
+          </div>
         </div>
 
-        <h1 class="text-xl text-gray-800">{{ headerLabel() }}</h1>
+        <h1 class="text-lg font-medium text-gray-800 sm:text-xl">{{ headerLabel() }}</h1>
 
         @if (seasonal.effectiveSeason(); as season) {
           <span class="hidden items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 sm:inline-flex" [title]="season.when">
@@ -123,10 +131,13 @@ import { TranslateService } from '../i18n/translate.service';
         }
 
         @if (state.isLoading()) {
-          <span class="text-xs text-gray-400">{{ tr.t('nav.loading') }}</span>
+          <span class="flex items-center gap-1.5 text-xs text-gray-400">
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-gray-400"></span>
+            {{ tr.t('nav.loading') }}
+          </span>
         }
 
-        <div class="ml-auto flex items-center gap-3">
+        <div class="ml-auto flex items-center gap-2">
           <!-- Ô tìm kiếm sự kiện -->
           <div class="drop-anchor relative">
             <!-- Lớp neo RIÊNG cho icon kính lúp: .drop-anchor bị đặt static trên mobile
@@ -141,11 +152,11 @@ import { TranslateService } from '../i18n/translate.service';
                 (blur)="onSearchBlur()"
                 (keydown.escape)="clearSearch()"
                 [placeholder]="tr.t('nav.search')"
-                class="w-40 rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-blue-600 sm:w-56"
+                class="field w-40 pl-8 sm:w-56"
               />
             </div>
             @if (searchFocused() && searchQuery().trim()) {
-              <div class="drop-panel popup-in absolute right-0 top-full z-40 mt-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:w-80">
+              <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-40 mt-1.5 max-h-80 w-72 overflow-y-auto py-1 sm:w-80">
                 @if (searchResults().length === 0) {
                   <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
                 } @else {
@@ -153,7 +164,7 @@ import { TranslateService } from '../i18n/translate.service';
                     <button
                       type="button"
                       (click)="goToSearchResult(e)"
-                      class="block w-full px-3 py-2 text-left hover:bg-gray-50"
+                      class="block w-full rounded-[calc(var(--radius-md)-4px)] px-3 py-2 text-left hover:bg-gray-50"
                     >
                       <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || tr.t('common.untitled') }}</span>
                       <span class="block truncate text-xs text-gray-500">{{ resultDateLabel(e) }}</span>
@@ -174,7 +185,7 @@ import { TranslateService } from '../i18n/translate.service';
             <button
               type="button"
               (click)="settingsMenuOpen.set(!settingsMenuOpen())"
-              class="tap rounded-full p-2 hover:bg-gray-100"
+              class="btn-icon"
               [title]="tr.t('nav.tools')"
               [attr.aria-label]="tr.t('nav.tools')"
             >
@@ -183,66 +194,96 @@ import { TranslateService } from '../i18n/translate.service';
             @if (settingsMenuOpen()) {
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
-              <div class="drop-panel popup-in absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="download" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.export') }}
+              <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-30 mt-1.5 w-52 py-1">
+                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="download" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.export') }}
                 </button>
-                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="upload" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.import') }}
+                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="upload" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.import') }}
                 </button>
                 <div class="my-1 border-t border-gray-200"></div>
-                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="trash" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.trash') }}
+                <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="trash" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.trash') }}
                 </button>
-                <a routerLink="/tasks" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="check" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.tasks') }}
+                <a routerLink="/tasks" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="check" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.tasks') }}
                 </a>
-                <a routerLink="/am-lich" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="moon" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.lunar') }}
+                <a routerLink="/am-lich" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="moon" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.lunar') }}
                 </a>
-                <a routerLink="/notes" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="notes" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.notes') }}
+                <a routerLink="/notes" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="notes" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.notes') }}
                 </a>
-                <a routerLink="/invitations" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="mail" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.invitations') }}
+                <a routerLink="/invitations" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="mail" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.invitations') }}
                 </a>
-                <a routerLink="/notification-history" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="bell" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.notifHistory') }}
+                <a routerLink="/notification-history" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="bell" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.notifHistory') }}
                 </a>
-                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="settings" class="h-4 w-4 text-gray-600" /> {{ tr.t('nav.settings') }}
+                <a routerLink="/settings" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="settings" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.settings') }}
                 </a>
               </div>
             }
             <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
           </div>
 
-          <select
-            class="rounded border border-gray-300 px-2 py-1.5 text-sm"
-            [value]="state.viewMode()"
-            (change)="onViewModeChange($event)"
-          >
-            <option value="day">{{ tr.t('view.day') }}</option>
-            <option value="week">{{ tr.t('view.week') }}</option>
-            <option value="month">{{ tr.t('view.month') }}</option>
-            <option value="year">{{ tr.t('view.year') }}</option>
-          </select>
+          <!-- Bộ chọn view dạng segmented (thay <select> gốc) — vẫn gọi đúng state.setViewMode(),
+               chỉ đổi cách trình bày thành các nút liền khối rõ ràng hơn dropdown thu gọn. -->
+          <div class="hidden items-center gap-0.5 rounded-md bg-black/5 p-0.5 dark:bg-white/10 sm:flex">
+            @for (v of viewOptions; track v.value) {
+              <button
+                type="button"
+                (click)="state.setViewMode(v.value)"
+                class="rounded px-2.5 py-1 text-sm font-medium transition-colors"
+                [class]="state.viewMode() === v.value ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+              >{{ tr.t(v.key) }}</button>
+            }
+          </div>
+          <!-- Mobile: app-select gọn diện tích thay <select> gốc, vẫn gọi đúng state.setViewMode() -->
+          <app-select
+            class="w-24 !py-1.5 sm:hidden"
+            [options]="viewSelectOptions()"
+            [ngModel]="state.viewMode()"
+            (ngModelChange)="state.setViewMode($any($event))"
+          />
 
           @if (supabase.user(); as user) {
-            <div class="flex shrink-0 items-center gap-2" [title]="displayLabel(user)">
-              @if (avatarUrl(user); as pic) {
-                <img [src]="pic" alt="avatar" referrerpolicy="no-referrer" class="h-7 w-7 shrink-0 rounded-full object-cover ring-1 ring-gray-200" />
-              } @else {
-                <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-semibold text-white">{{ userInitial(user) }}</span>
-              }
-              @if (displayLabel(user); as label) {
-                <span class="hidden text-sm text-gray-500 sm:inline">{{ label }}</span>
+            <!-- Bấm vào khu vực tài khoản (ảnh đại diện) -> mở dropdown nhỏ có nút Đăng xuất,
+                 thay vì đăng xuất ngay (tránh bấm nhầm) và thay vì để riêng icon logout rời. -->
+            <div class="drop-anchor relative border-l border-gray-200 pl-2">
+              <button
+                type="button"
+                (click)="accountMenuOpen.set(!accountMenuOpen())"
+                class="tap flex shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-gray-100"
+                [title]="displayLabel(user)"
+              >
+                @if (avatarUrl(user); as pic) {
+                  <img [src]="pic" alt="avatar" referrerpolicy="no-referrer" class="h-7 w-7 shrink-0 rounded-full object-cover ring-1 ring-gray-200" />
+                } @else {
+                  <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-semibold text-white">{{ userInitial(user) }}</span>
+                }
+                @if (displayLabel(user); as label) {
+                  <span class="hidden text-sm text-gray-500 md:inline">{{ label }}</span>
+                }
+              </button>
+              @if (accountMenuOpen()) {
+                <div class="fixed inset-0 z-20" (click)="accountMenuOpen.set(false)"></div>
+                <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-30 mt-1.5 w-48 py-1">
+                  @if (displayLabel(user); as label) {
+                    <p class="truncate px-3 py-1.5 text-sm font-medium text-gray-800">{{ label }}</p>
+                  }
+                  @if (user.email) {
+                    <p class="truncate px-3 pb-2 text-xs text-gray-500">{{ user.email }}</p>
+                  }
+                  <div class="border-t border-gray-200"></div>
+                  <button type="button" (click)="logout()" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50">
+                    <app-icon name="logout" class="h-4 w-4" /> {{ tr.t('priv.logout') }}
+                  </button>
+                </div>
               }
             </div>
           }
-          <button type="button" (click)="logout()" class="tap rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-            {{ tr.t('priv.logout') }}
-          </button>
         </div>
       </header>
 
@@ -256,25 +297,25 @@ import { TranslateService } from '../i18n/translate.service';
           class="sidebar-panel shrink-0 overflow-y-auto border-r border-gray-200"
           [class.sidebar-collapsed]="!sidebarOpen()"
         >
-          <div class="relative mb-4">
+          <div class="relative mb-5">
             <button
               type="button"
               (click)="createMenuOpen.set(!createMenuOpen())"
-              class="flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium shadow-sm hover:shadow"
+              class="btn btn-primary w-full !justify-start !rounded-full !py-2.5 !pl-3.5"
             >
-              <app-icon name="plus" class="h-5 w-5 text-blue-700" /> {{ tr.t('nav.create') }}
+              <app-icon name="plus" class="h-5 w-5" /> {{ tr.t('nav.create') }}
             </button>
 
             @if (createMenuOpen()) {
-              <div class="popup-in absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button type="button" (click)="openCreate('event')" class="block w-full px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  {{ tr.t('kind.event') }}
+              <div class="surface-panel popup-in absolute left-0 top-full z-30 mt-1.5 w-44 py-1">
+                <button type="button" (click)="openCreate('event')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <span class="h-2 w-2 rounded-full bg-sky-500"></span>{{ tr.t('kind.event') }}
                 </button>
-                <button type="button" (click)="openCreate('task')" class="block w-full px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  {{ tr.t('kind.task') }}
+                <button type="button" (click)="openCreate('task')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <span class="h-2 w-2 rounded-full bg-emerald-500"></span>{{ tr.t('kind.task') }}
                 </button>
-                <button type="button" (click)="openCreate('appointment')" class="block w-full px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  {{ tr.t('kind.appointment') }}
+                <button type="button" (click)="openCreate('appointment')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <span class="h-2 w-2 rounded-full bg-violet-500"></span>{{ tr.t('kind.appointment') }}
                 </button>
               </div>
             }
@@ -283,26 +324,35 @@ import { TranslateService } from '../i18n/translate.service';
           <app-mini-calendar [viewedDate]="state.viewedDate()" (dateSelected)="onMiniCalendarPick($event)" />
 
           <div class="mt-6 border-t border-gray-200 pt-4">
-            <p class="mb-2 text-sm font-medium text-gray-700">{{ tr.t('nav.show') }}</p>
-            <ul class="space-y-1 text-sm text-gray-700">
-              <li class="flex items-center gap-2">
-                <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="accent-sky-600" />
-                {{ tr.t('kind.event') }}
+            <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ tr.t('nav.show') }}</p>
+            <ul class="space-y-0.5 text-sm text-gray-700">
+              <li>
+                <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
+                  <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="h-3.5 w-3.5 accent-sky-600" />
+                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500"></span>
+                  {{ tr.t('kind.event') }}
+                </label>
               </li>
-              <li class="flex items-center gap-2">
-                <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="accent-emerald-600" />
-                {{ tr.t('kind.task') }}
+              <li>
+                <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
+                  <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="h-3.5 w-3.5 accent-emerald-600" />
+                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500"></span>
+                  {{ tr.t('kind.task') }}
+                </label>
               </li>
-              <li class="flex items-center gap-2">
-                <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="accent-violet-600" />
-                {{ tr.t('kind.appointment') }}
+              <li>
+                <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
+                  <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="h-3.5 w-3.5 accent-violet-600" />
+                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500"></span>
+                  {{ tr.t('kind.appointment') }}
+                </label>
               </li>
             </ul>
           </div>
 
           <!-- Nhóm lên lịch cùng nhau (mobile: dùng nút nổi riêng ở góc phải, xem dưới) -->
           <div class="mt-6 hidden border-t border-gray-200 pt-4 md:block">
-            <p class="mb-2 text-sm font-medium text-gray-700">Nhóm</p>
+            <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Nhóm</p>
             <app-groups-section />
           </div>
 
@@ -312,7 +362,7 @@ import { TranslateService } from '../i18n/translate.service';
         <main class="flex-1 overflow-hidden">
           <!-- Bọc trong @for keyed theo view+ngày: mỗi lần đổi -> DOM tạo lại -> chạy animation .view-fade -->
           @for (key of [transitionKey()]; track key) {
-            <div class="view-fade h-full">
+            <div class="view-fade h-full" [class.view-fade-back]="slideDir() === 'back'">
               @switch (state.viewMode()) {
                 @case ('day') {
                   <app-time-grid-view
@@ -374,7 +424,7 @@ import { TranslateService } from '../i18n/translate.service';
       <button
         type="button"
         (click)="groupsMobileOpen.set(true)"
-        class="fixed bottom-6 left-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-lg hover:bg-violet-700 md:hidden"
+        class="tap fixed bottom-6 left-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-[var(--shadow-lg)] hover:bg-violet-700 md:hidden"
         aria-label="Nhóm"
       >
         👥
@@ -386,10 +436,10 @@ import { TranslateService } from '../i18n/translate.service';
       <div class="fixed inset-0 z-40 md:hidden" (click)="groupsMobileOpen.set(false)">
         <div class="absolute inset-0 bg-black/30"></div>
         <!-- Đặt Ở TRÊN (không phải đáy màn) cho dễ nhìn + dễ với tay đọc -->
-        <div class="popup-in groups-lg absolute inset-x-3 top-3 max-h-[82vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
+        <div class="surface-panel popup-in groups-lg absolute inset-x-3 top-3 max-h-[82vh] overflow-y-auto !rounded-[var(--radius-lg)] p-5 !shadow-[var(--shadow-lg)]" (click)="$event.stopPropagation()">
           <div class="mb-4 flex items-center justify-between">
             <span class="flex items-center gap-2 text-lg font-semibold text-gray-800">👥 Nhóm</span>
-            <button type="button" (click)="groupsMobileOpen.set(false)" class="rounded-full p-2.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+            <button type="button" (click)="groupsMobileOpen.set(false)" class="btn-icon" [attr.aria-label]="tr.t('common.close')">
               <app-icon name="x" class="h-5 w-5" />
             </button>
           </div>
@@ -404,7 +454,7 @@ import { TranslateService } from '../i18n/translate.service';
       <app-group-panel />
     }
     @if (groupsState.flash(); as msg) {
-      <div class="popup-in fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">
+      <div class="popup-in fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-[var(--shadow-md)]">
         <span>👥</span> {{ msg }}
       </div>
     }
@@ -420,12 +470,34 @@ export class CalendarPageComponent implements OnInit {
   protected readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);
+  /** Danh sách view cho bộ chọn dạng segmented ở header (desktop). */
+  protected readonly viewOptions: { value: ViewMode; key: string }[] = [
+    { value: 'day', key: 'view.day' },
+    { value: 'week', key: 'view.week' },
+    { value: 'month', key: 'view.month' },
+    { value: 'year', key: 'view.year' },
+  ];
+  /** app-select (mobile) cần shape {value,label} — map lại từ viewOptions. */
+  protected readonly viewSelectOptions = computed<SelectOption[]>(() =>
+    this.viewOptions.map((v) => ({ value: v.value, label: this.tr.t(v.key) })),
+  );
   protected readonly createMenuOpen = signal(false);
   // Mặc định: MỞ trên desktop, ĐÓNG trên mobile (<768px) để lịch có full bề rộng khi mở app.
   protected readonly sidebarOpen = signal(typeof window === 'undefined' || window.innerWidth >= 768);
   /** Panel "Nhóm" nổi trên mobile (desktop dùng khối trong sidebar). */
   protected readonly groupsMobileOpen = signal(false);
   protected readonly settingsMenuOpen = signal(false);
+  protected readonly accountMenuOpen = signal(false);
+  /** Hướng chuyển view gần nhất — quyết định animation trượt vào từ trái (back) hay phải (fwd). */
+  protected readonly slideDir = signal<'fwd' | 'back'>('fwd');
+  goPrev(): void {
+    this.slideDir.set('back');
+    this.state.goPrev();
+  }
+  goNext(): void {
+    this.slideDir.set('fwd');
+    this.state.goNext();
+  }
   protected readonly importMsg = signal('');
 
   /** Sự kiện hiển thị trên lịch = sự kiện cá nhân (đã lọc) + sự kiện của các nhóm đang hiện */
@@ -581,10 +653,6 @@ export class CalendarPageComponent implements OnInit {
     return `${this.tr.monthLong(d.getMonth())}, ${d.getFullYear()}`;
   });
 
-  onViewModeChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value as ViewMode;
-    this.state.setViewMode(value);
-  }
 
   onMiniCalendarPick(date: Date): void {
     this.state.selectDate(date, true);

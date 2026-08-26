@@ -121,12 +121,12 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
           <button
             type="button"
             (click)="dateSelected.emit(date)"
-            class="flex flex-1 flex-col items-center py-2 hover:bg-gray-50"
+            class="flex flex-1 flex-col items-center gap-1 py-2.5 hover:bg-gray-50"
             title="Xem ngày này"
           >
-            <span class="text-xs font-medium uppercase text-gray-500">{{ weekdayLabel(date) }}</span>
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{{ weekdayLabel(date) }}</span>
             <span
-              class="mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg hover:bg-blue-100"
+              class="flex h-9 w-9 items-center justify-center rounded-full text-lg font-medium transition-colors hover:bg-blue-100"
               [class.bg-blue-700]="isToday(date)"
               [class.text-white]="isToday(date)"
               [class.text-gray-800]="!isToday(date)"
@@ -163,7 +163,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                 <button
                   type="button"
                   (click)="onEventClick(e, $event)"
-                  class="block w-full truncate rounded px-2 py-0.5 text-left text-xs text-white"
+                  class="block w-full truncate rounded px-2 py-0.5 text-left text-xs font-medium text-white shadow-sm"
                   [class]="colorClass(e.color)"
                 >
                   @if (state.isSharedEvent(e)) { <span title="Lịch được chia sẻ">👥 </span> }{{ e.title || tr.t('common.untitled') }}
@@ -190,9 +190,10 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
             @for (hour of hours; track hour) {
               <div class="relative" [style.height.px]="HOUR_HEIGHT">
                 <!-- Nhãn giờ nhô lên -8px để canh đúng vạch kẻ. Riêng giờ ĐẦU TIÊN (0h) thì
-                     không nhô, nếu không nó tràn lên trên và bị dải "Cả ngày" che mất. -->
+                     không nhô, nếu không nó tràn lên trên và bị dải "Cả ngày" che mất
+                     (đúng lỗi "giờ 0h bị cắt/chồng chữ" đã gặp). -->
                 <span
-                  class="absolute right-2 text-[11px] font-semibold text-gray-600"
+                  class="mono absolute right-2 text-[11px] font-medium text-gray-500"
                   [class.-top-2]="hour > 0"
                   [class.top-0]="hour === 0"
                 >{{ formatHourLabel(hour, settings.is24h()) }}</span>
@@ -211,7 +212,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
             >
               @for (hour of hours; track hour) {
                 <div
-                  class="cursor-pointer border-b border-gray-100 hover:bg-blue-50/40"
+                  class="cursor-pointer border-b border-gray-100 transition-colors hover:bg-blue-50/40"
                   [style.height.px]="HOUR_HEIGHT"
                   (click)="onSlotClick(date, hour)"
                 ></div>
@@ -248,7 +249,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   (pointermove)="onMove($event)"
                   (pointerup)="endMove($event)"
                   (pointercancel)="endMove($event)"
-                  class="group absolute z-10 cursor-grab touch-none overflow-hidden rounded-md border border-white px-2 py-1 text-left text-xs text-white shadow-sm active:cursor-grabbing"
+                  class="group absolute z-10 cursor-grab touch-none overflow-hidden rounded px-2 py-1 text-left text-xs text-white shadow-sm ring-1 ring-white/70 transition-shadow hover:shadow-md active:cursor-grabbing"
                   [style.top.px]="item.top"
                   [style.height.px]="item.height"
                   [style.left.%]="item.left"
@@ -257,7 +258,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                 >
                   <!-- Tay cầm kéo mép TRÊN: đổi giờ bắt đầu -->
                   <div
-                    class="absolute inset-x-0 top-0 z-20 h-1.5 cursor-ns-resize opacity-0 group-hover:opacity-100"
+                    class="absolute inset-x-0 top-0 z-20 flex h-2.5 items-start justify-center cursor-ns-resize opacity-0 group-hover:opacity-100"
                     title="Kéo để đổi giờ bắt đầu"
                     (pointerdown)="startResize($event, item.event, 'top')"
                     (pointermove)="onResizeMove($event)"
@@ -265,22 +266,22 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                     (pointercancel)="endResize($event)"
                     (click)="$event.stopPropagation()"
                   >
-                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
+                    <span class="mt-0.5 block h-0.5 w-6 rounded-full bg-white/80"></span>
                   </div>
 
                   @if (item.height < 40) {
                     <!-- Block quá ngắn: gộp giờ bắt đầu + tiêu đề trên 1 dòng để vẫn thấy được giờ -->
                     <span class="block truncate font-medium">
-                      @if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ formatStart(item.event) }} {{ item.event.title || tr.t('common.untitled') }}
+                      @if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }<span class="mono">{{ formatStart(item.event) }}</span> {{ item.event.title || tr.t('common.untitled') }}
                     </span>
                   } @else {
-                    <span class="block truncate font-medium">@if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ item.event.title || tr.t('common.untitled') }}</span>
-                    <span class="block truncate opacity-90">{{ formatRange(item.event) }}</span>
+                    <span class="block truncate font-semibold">@if (state.isSharedEvent(item.event)) { <span title="Lịch được chia sẻ">👥 </span> }{{ item.event.title || tr.t('common.untitled') }}</span>
+                    <span class="mono block truncate text-[11px] opacity-90">{{ formatRange(item.event) }}</span>
                   }
 
                   <!-- Tay cầm kéo mép DƯỚI: đổi giờ kết thúc (thời lượng) -->
                   <div
-                    class="absolute inset-x-0 bottom-0 z-20 flex h-1.5 items-center cursor-ns-resize opacity-0 group-hover:opacity-100"
+                    class="absolute inset-x-0 bottom-0 z-20 flex h-2.5 items-end justify-center cursor-ns-resize opacity-0 group-hover:opacity-100"
                     title="Kéo để đổi thời lượng"
                     (pointerdown)="startResize($event, item.event, 'bottom')"
                     (pointermove)="onResizeMove($event)"
@@ -288,7 +289,7 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                     (pointercancel)="endResize($event)"
                     (click)="$event.stopPropagation()"
                   >
-                    <span class="mx-auto block h-0.5 w-6 rounded-full bg-white/70"></span>
+                    <span class="mb-0.5 block h-0.5 w-6 rounded-full bg-white/80"></span>
                   </div>
                 </button>
               }
