@@ -52,10 +52,14 @@ export class SupabaseService {
   /** Xin quyền tạo phòng Google Meet (chỉ gọi khi người dùng bấm "Tạo Meet"). Sẽ chuyển hướng
    *  sang Google để đồng ý, rồi quay lại app với token có quyền Meet. */
   requestMeetAccess() {
+    // Quay lại ĐÚNG TRANG đang đứng, nhưng bỏ query/hash cũ: nếu giữ nguyên
+    // window.location.href, URL có thể còn mang ?code=… của lần cấp quyền trước ->
+    // vòng sau Supabase nhận về một redirect bẩn và việc đổi mã dễ hỏng.
+    const cleanUrl = `${window.location.origin}${window.location.pathname}`;
     return this.client.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.href, // quay lại đúng trang đang đứng
+        redirectTo: cleanUrl,
         scopes: 'openid email profile https://www.googleapis.com/auth/meetings.space.created',
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },
