@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Calendar — Landing</title>
-<meta name="description" content="Calendar gom mọi lịch, sự kiện và lời nhắc vào một nơi. Lên lịch nhanh, mời người tham dự, và không bao giờ quên một cuộc hẹn." />
+<title>Foresight — Lịch thông minh, luôn đi trước thời gian</title>
+<meta name="description" content="Foresight gom mọi lịch, sự kiện và lời nhắc vào một nơi. Lên lịch trong vài giây, mời mọi người tham dự, và luôn đi trước thời gian." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='8' y1='88' x2='90' y2='6'%3E%3Cstop offset='0' stop-color='%233a2d6d'/%3E%3Cstop offset='.55' stop-color='%233f5aa6'/%3E%3Cstop offset='1' stop-color='%232bb6c4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M58 20 L58 82 M58 54 L24 54 L52 18' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z' fill='url(%23g)'/%3E%3Ccircle cx='80' cy='19' r='7' fill='%2314131c'/%3E%3Ccircle cx='83' cy='16' r='1.8' fill='%23fff' opacity='.9'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
@@ -267,7 +268,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 @media (max-width:760px){.foot-grid{grid-template-columns:1fr 1fr}}
 
 /* ---------- 3D SCROLL SHOWCASE ---------- */
-.showcase{position:relative;height:340vh;background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.showcase{position:relative;height:460vh;background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .sc-sticky{position:sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center}
 .ambient{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 .sc-copy{position:absolute;top:12vh;left:0;right:0;z-index:3;text-align:center;pointer-events:none;padding:0 6vw}
@@ -341,7 +342,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 @keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
 /* ---------- HORIZONTAL PINNED SCROLL (FEATURES) ---------- */
-.h-scroll{position:relative;height:360vh;background:var(--paper)}
+.h-scroll{position:relative;height:480vh;background:var(--paper)}
 .h-sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
 .h-head{padding:0 max(6vw,32px);max-width:900px;margin-bottom:34px}
 .h-viewport{overflow:hidden}
@@ -386,7 +387,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 /* ---------- COUNTER ---------- */
 .count{font-variant-numeric:tabular-nums}
 
-/* ---------- ORYZO-STYLE EDITORIAL ---------- */
+/* ---------- EDITORIAL ---------- */
 .display{
   font-family:"Bricolage Grotesque",sans-serif;
   font-weight:700;letter-spacing:-.045em;line-height:.9;text-transform:uppercase;
@@ -421,7 +422,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 :root[data-theme="dark"] .mega-marq .marq-item .thin,:root:not([data-theme="light"]) .mega-marq .marq-item .thin{-webkit-text-stroke-color:var(--ink)}
 
 /* ---------- STORY PIN SCENES (always dark) ---------- */
-.story{position:relative;height:320vh;background:#111214;color:#F3F1EC;color-scheme:dark}
+.story{position:relative;height:440vh;background:#111214;color:#F3F1EC;color-scheme:dark}
 .story-sticky{position:sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center}
 .story-bg{position:absolute;inset:0;transition:background-color .8s ease}
 .story-frame{
@@ -635,6 +636,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 
 <div class="grain" aria-hidden="true"></div>
 <div class="scroll-progress" id="scrollProgress"></div>
+<div class="spotlight" id="spotlight" aria-hidden="true"></div>
 <nav class="side-nav" id="sideNav" aria-label="Điều hướng trang">
   <a href="#top" data-target="top" class="on"><span>Đầu trang</span></a>
   <a href="#showcase" data-target="showcase"><span>Trải nghiệm</span></a>
@@ -647,7 +649,41 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 
 <header class="nav" id="nav">
   <div class="wrap nav-inner">
-    <a class="brand" href="#top"><svg class="glyph" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect x="9" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="20.4" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="21.5" rx="6" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="6.5" rx="6" fill="var(--accent-soft)"/><g fill="#fff" opacity=".92"><circle cx="10.5" cy="18.5" r="1.5"/><circle cx="16" cy="18.5" r="1.5"/><circle cx="10.5" cy="23.5" r="1.5"/><circle cx="16" cy="23.5" r="1.5"/><circle cx="21.5" cy="18.5" r="1.5"/></g><circle cx="21.5" cy="23.5" r="2.1" fill="var(--today)"/></svg>Calendar</a>
+    <a class="brand" href="#top">
+      <svg class="glyph" viewBox="0 0 96 96" aria-hidden="true">
+        <defs>
+          <linearGradient id="fsGrad" x1="8" y1="88" x2="90" y2="6" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#3a2d6d"/>
+            <stop offset=".55" stop-color="#3f5aa6"/>
+            <stop offset="1" stop-color="#2bb6c4"/>
+          </linearGradient>
+          <linearGradient id="fsCard" x1="14" y1="84" x2="84" y2="20" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#2b2158"/>
+            <stop offset="1" stop-color="#4a5aac"/>
+          </linearGradient>
+        </defs>
+        <!-- thân lịch (nền) + tai treo -->
+        <rect x="30" y="8" width="8" height="14" rx="4" fill="url(#fsCard)"/>
+        <rect x="12" y="20" width="72" height="64" rx="15" fill="url(#fsCard)"/>
+        <!-- lưới ô lịch + 1 ô đã tick -->
+        <circle cx="66" cy="48" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="66" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="66" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="78" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="78" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <rect x="72.5" y="42.5" width="11" height="11" rx="3" fill="#F5F3EE"/>
+        <path d="M75.5 48.2 L77.4 50 L80.5 45.8" fill="none" stroke="#2b2158" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- chấm trong lòng số 4 + góc dưới trái -->
+        <circle cx="38" cy="50" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <circle cx="22" cy="76" r="2.6" fill="#F5F3EE" opacity=".9"/>
+        <!-- số 4 nối liền vào mắt (nét chính) -->
+        <path d="M58 20 L58 82 M58 54 L24 54 L52 18" fill="none" stroke="url(#fsGrad)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z" fill="url(#fsGrad)"/>
+        <circle cx="80" cy="19" r="7" fill="#14131c"/>
+        <circle cx="83" cy="16" r="1.8" fill="#fff" opacity=".9"/>
+      </svg>
+      Foresight
+    </a>
     <nav class="nav-links">
       <a class="link" href="#features">Tính năng</a>
       <a class="link" href="#how">Cách hoạt động</a>
@@ -669,18 +705,18 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
     <div class="hero-blob" aria-hidden="true"></div>
     <div class="wrap hero-grid">
       <div>
-        <span class="eyebrow" id="heroEyebrow" data-scramble="Lịch thông minh · Nhắc đúng lúc">Lịch thông minh · Nhắc đúng lúc</span>
+        <span class="eyebrow" id="heroEyebrow">Lịch thông minh · Nhắc đúng lúc</span>
         <h1 id="heroTitle">
-          <span class="rv-word"><i style="--d:.05s">Làm</i></span>
-          <span class="rv-word"><i style="--d:.12s">chủ</i></span>
+          <span class="rv-word"><i style="--d:.05s">Đi</i></span>
+          <span class="rv-word"><i style="--d:.12s">trước</i></span>
           <span class="rv-word"><i class="accent" style="--d:.19s">thời</i></span>
           <span class="rv-word"><i class="accent" style="--d:.26s">gian,</i></span><br/>
-          <span class="rv-word"><i style="--d:.34s">gọn</i></span>
-          <span class="rv-word"><i style="--d:.41s">đến</i></span>
-          <span class="rv-word"><i style="--d:.48s">từng</i></span>
+          <span class="rv-word"><i style="--d:.34s">không</i></span>
+          <span class="rv-word"><i style="--d:.41s">bỏ</i></span>
+          <span class="rv-word"><i style="--d:.48s">lỡ</i></span>
           <span class="rv-word"><i style="--d:.55s">phút.</i></span>
         </h1>
-        <p class="lede">Calendar gom mọi lịch, sự kiện và lời nhắc vào một nơi. Lên lịch trong vài giây, mời người tham dự, và không bao giờ quên một cuộc hẹn.</p>
+        <p class="lede">Foresight gom mọi lịch, sự kiện và lời nhắc vào một nơi. Lên lịch trong vài giây, mời mọi người tham dự, và luôn nhìn trước những gì sắp tới.</p>
         <div class="hero-cta">
           <a class="btn btn-primary btn-lg magnetic" href="/login">Bắt đầu miễn phí
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -851,7 +887,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
             <span class="num">04 / 06</span>
             <div class="fi"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg></div>
             <h3>Lặp lại linh hoạt</h3>
-            <p>Đặt quy tắc lặp hằng ngày, hằng tuần hay tùy chỉnh. Tạo một lần, Calendar lo phần còn lại.</p>
+            <p>Đặt quy tắc lặp hằng ngày, hằng tuần hay tùy chỉnh. Tạo một lần, Foresight lo phần còn lại.</p>
           </div>
           <div class="h-card">
             <span class="num">05 / 06</span>
@@ -890,7 +926,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
       <div class="story-frame" data-i="1" data-bg="#22407D">
         <div>
           <span class="num">Bước 02</span>
-          <div class="big">Thêm sự kiện, mời người.</div>
+          <div class="big">Thêm sự kiện, mời mọi người.</div>
           <p>Tạo sự kiện, công việc hoặc cuộc hẹn — đặt quy tắc lặp và gửi lời mời chỉ qua email. Ai nhận, ai từ chối đều rõ.</p>
         </div>
       </div>
@@ -899,7 +935,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
         <div>
           <span class="num">Bước 03</span>
           <div class="big">Bạn chỉ việc xuất hiện.</div>
-          <p>Calendar tự gửi email nhắc trước giờ. Đúng nơi, đúng giờ — không bao giờ bỏ lỡ điều quan trọng.</p>
+          <p>Foresight tự gửi email nhắc trước giờ. Đúng nơi, đúng giờ — không bao giờ bỏ lỡ điều quan trọng.</p>
         </div>
       </div>
 
@@ -916,7 +952,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
         <div>
           <span class="eyebrow">Hoàn toàn miễn phí</span>
           <h2>Mọi tính năng. Không giới hạn. 0đ.</h2>
-          <p>Calendar miễn phí cho tất cả mọi người — không có gói trả phí, không quảng cáo, không giới hạn số lịch hay lời mời.</p>
+          <p>Foresight miễn phí cho tất cả mọi người — không có gói trả phí, không quảng cáo, không giới hạn số lịch hay lời mời.</p>
         </div>
         <a class="btn btn-primary btn-lg magnetic" href="/login">Tạo tài khoản
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -930,23 +966,23 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
     <div class="wrap">
       <div class="section-head reveal">
         <span class="eyebrow">Đánh giá</span>
-        <h2 data-reveal-words>Người dùng nói gì về Calendar.</h2>
+        <h2 data-reveal-words>Người dùng nói gì về Foresight.</h2>
       </div>
       <div class="quotes reveal">
         <div class="quote">
           <div class="stars">★★★★★</div>
-          <p>“Trước mình dùng ba app khác nhau cho công việc và gia đình. Giờ tất cả gọn trong một lịch màu — nhìn là biết ngay hôm nay có gì.”</p>
-          <div class="who"><span class="av" style="background:#2C5896">ĐH</span><div><b>Đức Hòa</b><span>Quản lý dự án</span></div></div>
+          <p>"Trước mình dùng ba app khác nhau cho công việc và gia đình. Giờ tất cả gọn trong một lịch màu — nhìn là biết ngay hôm nay có gì."</p>
+          <div class="who"><span class="av" style="background:var(--ev-blue)">LP</span><div><b>Lan Phương</b><span>Quản lý dự án</span></div></div>
         </div>
         <div class="quote">
           <div class="stars">★★★★★</div>
-          <p>“Tính năng mời và RSVP tiết kiệm cả buổi mỗi tuần. Mình gửi lời mời, hệ thống tự theo dõi ai tham gia. Quá tiện.”</p>
-          <div class="who"><span class="av" style="background:#216B4F">AH</span><div><b>Anh Huy</b><span>Freelancer thiết kế</span></div></div>
+          <p>"Tính năng mời và RSVP tiết kiệm cả buổi mỗi tuần. Mình gửi lời mời, hệ thống tự theo dõi ai tham gia. Quá tiện."</p>
+          <div class="who"><span class="av" style="background:var(--ev-green)">MT</span><div><b>Minh Tuấn</b><span>Freelancer thiết kế</span></div></div>
         </div>
         <div class="quote">
-          <div class="stars">★★★★☆</div>
-          <p>“Email nhắc đúng lúc là thứ mình cần nhất. Từ ngày dùng Calendar, mình chưa lỡ một cuộc họp nào cả.”</p>
-          <div class="who"><span class="av" style="background:#52428C">ĐH</span><div><b>Đắc Hoàng</b><span>Trưởng nhóm kinh doanh</span></div></div>
+          <div class="stars">★★★★★</div>
+          <p>"Email nhắc đúng lúc là thứ mình cần nhất. Từ ngày dùng Foresight, mình chưa lỡ một cuộc họp nào cả."</p>
+          <div class="who"><span class="av" style="background:var(--ev-violet)">HA</span><div><b>Hải Anh</b><span>Trưởng nhóm kinh doanh</span></div></div>
         </div>
       </div>
     </div>
@@ -956,7 +992,7 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
   <section class="section" id="cta">
     <div class="wrap">
       <div class="cta-band reveal">
-        <h2 data-reveal-words>Sẵn sàng làm chủ thời gian của bạn?</h2>
+        <h2 data-reveal-words>Sẵn sàng đi trước thời gian của bạn?</h2>
         <p>Tạo tài khoản miễn phí trong một phút. Không cần thẻ tín dụng, không ràng buộc.</p>
         <div class="row">
           <a class="btn btn-primary btn-lg magnetic" href="/login">Bắt đầu miễn phí</a>
@@ -971,8 +1007,38 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
   <div class="wrap">
     <div class="foot-grid">
       <div class="foot-brand">
-        <a class="brand" href="#top"><svg class="glyph" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect x="9" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="20.4" y="3.5" width="2.6" height="5.5" rx="1.3" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="21.5" rx="6" fill="var(--accent)"/><rect x="4" y="6.5" width="24" height="6.5" rx="6" fill="var(--accent-soft)"/><g fill="#fff" opacity=".92"><circle cx="10.5" cy="18.5" r="1.5"/><circle cx="16" cy="18.5" r="1.5"/><circle cx="10.5" cy="23.5" r="1.5"/><circle cx="16" cy="23.5" r="1.5"/><circle cx="21.5" cy="18.5" r="1.5"/></g><circle cx="21.5" cy="23.5" r="2.1" fill="var(--today)"/></svg>Calendar</a>
-        <p>Lịch thông minh giúp bạn sắp xếp thời gian gọn gàng, cộng tác dễ dàng và không bao giờ bỏ lỡ điều quan trọng.</p>
+        <a class="brand" href="#top">
+          <svg class="glyph" viewBox="0 0 96 96" aria-hidden="true">
+            <defs>
+              <linearGradient id="fsGradFoot" x1="8" y1="88" x2="90" y2="6" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#3a2d6d"/>
+                <stop offset=".55" stop-color="#3f5aa6"/>
+                <stop offset="1" stop-color="#2bb6c4"/>
+              </linearGradient>
+              <linearGradient id="fsCardFoot" x1="14" y1="84" x2="84" y2="20" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#2b2158"/>
+                <stop offset="1" stop-color="#4a5aac"/>
+              </linearGradient>
+            </defs>
+            <rect x="30" y="8" width="8" height="14" rx="4" fill="url(#fsCardFoot)"/>
+            <rect x="12" y="20" width="72" height="64" rx="15" fill="url(#fsCardFoot)"/>
+            <circle cx="66" cy="48" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="66" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="66" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="78" cy="60" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="78" cy="72" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <rect x="72.5" y="42.5" width="11" height="11" rx="3" fill="#F5F3EE"/>
+            <path d="M75.5 48.2 L77.4 50 L80.5 45.8" fill="none" stroke="#2b2158" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38" cy="50" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <circle cx="22" cy="76" r="2.6" fill="#F5F3EE" opacity=".9"/>
+            <path d="M58 20 L58 82 M58 54 L24 54 L52 18" fill="none" stroke="url(#fsGradFoot)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z" fill="url(#fsGradFoot)"/>
+            <circle cx="80" cy="19" r="7" fill="#14131c"/>
+            <circle cx="83" cy="16" r="1.8" fill="#fff" opacity=".9"/>
+          </svg>
+          Foresight
+        </a>
+        <p>Foresight giúp bạn nhìn trước lịch trình, sắp xếp thời gian gọn gàng, cộng tác dễ dàng và không bao giờ bỏ lỡ điều quan trọng.</p>
       </div>
       <div>
         <h4>Sản phẩm</h4>
@@ -983,21 +1049,21 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
       </div>
       <div>
         <h4>Công ty</h4>
-        <a href="#features">Về chúng tôi</a>
-        <a href="#how">Blog</a>
-        <a href="#cta">Tuyển dụng</a>
-        <a href="mailto:longtyran@gmail.com">Liên hệ</a>
+        <a href="#">Về chúng tôi</a>
+        <a href="#">Blog</a>
+        <a href="#">Tuyển dụng</a>
+        <a href="#">Liên hệ</a>
       </div>
       <div>
         <h4>Hỗ trợ</h4>
-        <a href="#how">Trung tâm trợ giúp</a>
-        <a href="#free">Điều khoản</a>
-        <a href="#free">Quyền riêng tư</a>
-        <a href="#top">Trạng thái</a>
+        <a href="#">Trung tâm trợ giúp</a>
+        <a href="#">Điều khoản</a>
+        <a href="#">Quyền riêng tư</a>
+        <a href="#">Trạng thái</a>
       </div>
     </div>
     <div class="foot-bottom">
-      <p>© 2026 Calendar. Bản quyền thuộc về bạn.</p>
+      <p>© 2026 Foresight. Bản quyền thuộc về bạn.</p>
       <p class="mono">Made with focus · Việt Nam</p>
     </div>
   </div>
@@ -1277,6 +1343,23 @@ tbtn.addEventListener('click',()=>{
   upd();
 })();
 
+// ---------- cursor spotlight ----------
+(function(){
+  const el=document.getElementById('spotlight');
+  if(!el) return;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce||matchMedia('(hover:none)').matches) return;
+  let tx=innerWidth/2, ty=innerHeight/2, cx=tx, cy=ty;
+  addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY;el.classList.add('on');},{passive:true});
+  addEventListener('pointerleave',()=>el.classList.remove('on'));
+  function tick(){
+    cx+=(tx-cx)*0.12; cy+=(ty-cy)*0.12;
+    el.style.transform=`translate3d(${(cx-260).toFixed(1)}px,${(cy-260).toFixed(1)}px,0)`;
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
 // ---------- side page nav (active section) ----------
 (function(){
   const links=[...document.querySelectorAll('.side-nav a')];
@@ -1476,7 +1559,7 @@ tbtn.addEventListener('click',()=>{
   function tick(){
     const d=new Date();
     let h=d.getHours()+d.getMinutes()/60;
-    // clamp to visible 8:00–16:00 window for a believable position
+    // clamp to visible 8:00-16:00 window for a believable position
     const top=Math.min(96,Math.max(2,((h-8)/8)*100));
     line.style.top=top+'%';
     line.setAttribute('data-time', String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
