@@ -203,12 +203,15 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
 
           <!-- Các cột ngày -->
           @for (date of dates(); track date.getTime()) {
-            <div class="relative flex-1 border-l border-gray-100">
+            <div class="relative flex-1 touch-none select-none border-l border-gray-100">
               @for (hour of hours; track hour) {
                 <div
-                  class="cursor-pointer border-b border-gray-100 transition-colors hover:bg-blue-50/40"
+                  class="touch-none cursor-pointer border-b border-gray-100 transition-colors hover:bg-blue-50/40"
                   [style.height.px]="HOUR_HEIGHT"
-                  (click)="onSlotClick(date, hour)"
+                  (pointerdown)="startCreate($event, date, hour)"
+                  (pointermove)="onCreateMove($event)"
+                  (pointerup)="endCreate($event)"
+                  (pointercancel)="endCreate($event)"
                 ></div>
               }
 
@@ -221,6 +224,21 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
                   <span class="-ml-1 h-2.5 w-2.5 rounded-full bg-red-500"></span>
                   <span class="h-px flex-1 bg-red-500"></span>
                 </div>
+              }
+
+              <!-- Khối xem trước khi đang KÉO chọn khoảng giờ để tạo sự kiện mới (viền đứt
+                   nét, chưa phải sự kiện thật — chỉ hiện tới lúc thả chuột). -->
+              @if (createPreview(); as p) {
+                @if (isPreviewDay(date)) {
+                  <div
+                    class="pointer-events-none absolute inset-x-0.5 z-10 flex items-start justify-center overflow-hidden rounded border-2 border-dashed bg-blue-100/60 px-1 pt-0.5 text-[11px] font-medium"
+                    style="border-color: var(--accent-600); color: var(--accent-700);"
+                    [style.top.px]="p.top"
+                    [style.height.px]="p.height"
+                  >
+                    {{ previewRangeLabel() }}
+                  </div>
+                }
               }
 
               <!-- Các sự kiện trong ngày này — sự kiện trùng giờ được xếp song song cạnh nhau -->
@@ -289,6 +307,9 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
   events = input.required<CalendarEvent[]>();
 
   slotClicked = output<Date>();
+  /** Phát ra khi người dùng KÉO chọn 1 khoảng giờ trên lưới (thay vì bấm 1 click thường)
+   *  -> trang cha mở form tạo sự kiện với đúng giờ bắt đầu/kết thúc đã chọn. */
+  rangeSelected = output<{ start: Date; end: Date }>();
   eventClicked = output<CalendarEvent>();
   /** Bấm vào 1 ngày ở header -> xem view Ngày của ngày đó */
   dateSelected = output<Date>();
@@ -589,10 +610,86 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
     return map[color] ?? 'bg-sky-600';
   }
 
-  onSlotClick(date: Date, hour: number): void {
-    const start = new Date(date);
-    start.setHours(hour, 0, 0, 0);
-    this.slotClicked.emit(start);
+  // ----- Kéo chọn khoảng giờ trên ô trống để tạo sự kiện mới (khác kéo DỜI 1 event có sẵn
+  // ở startMove/onMove/endMove phía trên) -----
+  private createCtx: { date: Date; columnTop: number; startClientY: number; startMin: number; moved: boolean } | null = null;
+  /** Khối xem trước trong lúc đang kéo — chưa phải sự kiện thật, chỉ hiện tới lúc thả chuột. */
+  protected readonly createPreview = signal<{ date: Date; top: number; height: number } | null>(null);
+
+  private snap15(min: number): number {
+    return Math.round(min / 15) * 15;
+  }
+
+  /** Khối xem trước chỉ hiện ở ĐÚNG cột ngày đang kéo (không lặp lại ở các cột khác trong view Tuần). */
+  protected isPreviewDay(columnDate: Date): boolean {
+    const p = this.createPreview();
+    return !!p && isSameDay(p.date, columnDate);
+  }
+
+  /** Nhãn giờ hiển thị trong khối xem trước (vd "09:00 – 10:30"). */
+  protected previewRangeLabel(): string {
+    const p = this.createPreview();
+    if (!p) return '';
+    const dayStart = new Date(p.date);
+    dayStart.setHours(0, 0, 0, 0);
+    const start = new Date(dayStart.getTime() + Math.round((p.top / HOUR_HEIGHT) * 60) * 60000);
+    const end = new Date(dayStart.getTime() + Math.round(((p.top + p.height) / HOUR_HEIGHT) * 60) * 60000);
+    return this.formatRange({ start, end } as CalendarEvent);
+  }
+
+  /** Bắt đầu bấm giữ trên 1 ô giờ trống — CHƯA coi là kéo cho tới khi vượt ngưỡng di chuyển. */
+  startCreate(ev: PointerEvent, date: Date, hour: number): void {
+    const cellRect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    // Top của mốc 0h trong ngày này (suy ra từ vị trí ô giờ đang bấm + số giờ đã qua).
+    const columnTop = cellRect.top - hour * HOUR_HEIGHT;
+    const startMin = Math.max(0, Math.min(1439, ((ev.clientY - columnTop) / HOUR_HEIGHT) * 60));
+    this.createCtx = { date, columnTop, startClientY: ev.clientY, startMin, moved: false };
+    (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+  }
+
+  onCreateMove(ev: PointerEvent): void {
+    const ctx = this.createCtx;
+    if (!ctx) return;
+    // Ngưỡng 4px: dưới ngưỡng vẫn coi là "click" (mở form giờ tròn), không phải kéo chọn.
+    if (!ctx.moved && Math.abs(ev.clientY - ctx.startClientY) < 4) return;
+    ctx.moved = true;
+
+    const curMin = Math.max(0, Math.min(1440, ((ev.clientY - ctx.columnTop) / HOUR_HEIGHT) * 60));
+    const lo = this.snap15(Math.min(ctx.startMin, curMin));
+    let hi = this.snap15(Math.max(ctx.startMin, curMin));
+    if (hi - lo < 15) hi = lo + 15;
+    this.createPreview.set({
+      date: ctx.date,
+      top: (lo / 60) * HOUR_HEIGHT,
+      height: ((hi - lo) / 60) * HOUR_HEIGHT,
+    });
+  }
+
+  endCreate(ev: PointerEvent): void {
+    const ctx = this.createCtx;
+    this.createCtx = null;
+    (ev.currentTarget as HTMLElement).releasePointerCapture?.(ev.pointerId);
+    if (!ctx) return;
+
+    if (!ctx.moved) {
+      // Chỉ là click (không kéo) -> giữ đúng hành vi cũ: mở form ở giờ tròn đã bấm.
+      const start = new Date(ctx.date);
+      start.setHours(Math.floor(ctx.startMin / 60), 0, 0, 0);
+      this.slotClicked.emit(start);
+      return;
+    }
+
+    const p = this.createPreview();
+    this.createPreview.set(null);
+    if (!p) return;
+    const dayStart = new Date(p.date);
+    dayStart.setHours(0, 0, 0, 0);
+    const lo = Math.round((p.top / HOUR_HEIGHT) * 60);
+    const hi = Math.round(((p.top + p.height) / HOUR_HEIGHT) * 60);
+    this.rangeSelected.emit({
+      start: new Date(dayStart.getTime() + lo * 60000),
+      end: new Date(dayStart.getTime() + hi * 60000),
+    });
   }
 
   onEventClick(event: CalendarEvent, domEvent: Event): void {

@@ -369,6 +369,7 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
                     [dates]="[state.viewedDate()]"
                     [events]="mergedEvents()"
                     (slotClicked)="onSlotClicked($event)"
+                    (rangeSelected)="onRangeSelected($event)"
                     (eventClicked)="onEventClicked($event)"
                     (eventTimesChanged)="onEventTimesChanged($event)"
                     (dateSelected)="onDayHeaderClicked($event)"
@@ -379,6 +380,7 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
                     [dates]="weekDates()"
                     [events]="mergedEvents()"
                     (slotClicked)="onSlotClicked($event)"
+                    (rangeSelected)="onRangeSelected($event)"
                     (eventClicked)="onEventClicked($event)"
                     (eventTimesChanged)="onEventTimesChanged($event)"
                     (dateSelected)="onDayHeaderClicked($event)"
@@ -680,6 +682,11 @@ export class CalendarPageComponent implements OnInit {
 
   onSlotClicked(start: Date): void {
     this.state.openCreateForm('event', start);
+  }
+
+  /** Người dùng KÉO chọn 1 khoảng giờ trên lưới -> mở form tạo sự kiện đúng khoảng đó. */
+  onRangeSelected(range: { start: Date; end: Date }): void {
+    this.state.openCreateForm('event', range.start, range.end);
   }
 
   onEventClicked(event: CalendarEvent): void {

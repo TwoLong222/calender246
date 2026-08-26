@@ -845,8 +845,10 @@ export class EventFormModalComponent {
         this.showCustomRecur.set(false);
       } else {
         const start = this.state.formInitialStart();
-        let end = new Date(start.getTime() + 60 * 60_000);
-        // Sự kiện gói gọn trong 1 ngày: nếu +1 tiếng tràn sang ngày sau -> kẹp về 23:59 cùng ngày.
+        // Kéo chọn khoảng giờ trên lưới (time-grid-view) -> dùng đúng khoảng đó thay vì
+        // mặc định +1 tiếng. Click thường (không kéo) thì formInitialEnd là null như cũ.
+        let end = this.state.formInitialEnd() ?? new Date(start.getTime() + 60 * 60_000);
+        // Sự kiện gói gọn trong 1 ngày: nếu tràn sang ngày sau -> kẹp về 23:59 cùng ngày.
         if (end.getDate() !== start.getDate() || end.getMonth() !== start.getMonth() || end.getFullYear() !== start.getFullYear()) {
           end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59);
         }
