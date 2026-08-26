@@ -9,7 +9,7 @@
 // việc thêm khách theo email sẽ tạo record thật trong bảng event_attendees và trigger
 // gửi email mời (xem README-tich-hop-calendar.md).
 
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
@@ -741,8 +741,21 @@ export class EventFormModalComponent {
     });
     // Mỗi khi modal được mở, nạp lại dữ liệu: nếu đang sửa -> điền dữ liệu event cũ,
     // nếu tạo mới -> điền giờ mặc định (giờ được click trên lưới, +1 tiếng cho giờ kết thúc)
+    // CHỈ nạp lại form khi MỞ form hoặc ĐỔI sang sự kiện khác.
+    // Trước đây effect này đọc thẳng editingEvent() — vốn phụ thuộc danh sách sự kiện —
+    // nên mỗi lần app tải lại dữ liệu (poll 30s / realtime) là form bị RESET ngầm giữa
+    // chừng: kiểu lặp về "Không lặp", tiêu đề/giờ vừa nhập cũng mất.
     effect(() => {
-      if (!this.state.isFormOpen()) return;
+      const open = this.state.isFormOpen();
+      this.state.editingEventId(); // signal thuần -> chỉ chạy lại khi đổi sự kiện đang sửa
+      if (!open) return;
+      untracked(() => this.loadFormFromState());
+    });
+  }
+
+  /** Đổ dữ liệu vào form: đang sửa -> điền sự kiện cũ; tạo mới -> giá trị mặc định. */
+  private loadFormFromState(): void {
+    {
       const editing = this.state.editingEvent();
       this.editingId = editing?.id ?? null;
       this.editing.set(!!editing);
@@ -796,7 +809,7 @@ export class EventFormModalComponent {
         this.reminderMessage.set('');
       }
       this.guestEmailDraft.set('');
-    });
+    }
   }
 
   private computedStart = computed(() => new Date(`${this.startDate()}T${this.startTime() || '00:00'}`));
