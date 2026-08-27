@@ -569,12 +569,16 @@ export class CalendarStateService {
     });
   }
 
-  deleteEvent(id: string, scope?: 'series'): void {
+  deleteEvent(
+    id: string,
+    scope?: 'series' | 'range' | 'from',
+    range?: { from: string; to?: string },
+  ): void {
     this.markLocalChange();
-    this.api.delete(id, scope).subscribe({
+    this.api.delete(id, scope, range).subscribe({
       next: () => {
-        if (scope === 'series') {
-          // Xóa cả chuỗi -> nhiều event bị xóa, tải lại danh sách cho chắc
+        if (scope === 'series' || scope === 'range' || scope === 'from') {
+          // Xóa nhiều mắt của chuỗi -> tải lại danh sách cho chắc
           this.reload();
         } else {
           this.events.update((list) => list.filter((e) => e.id !== id));

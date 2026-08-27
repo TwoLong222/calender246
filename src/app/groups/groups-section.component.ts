@@ -5,9 +5,12 @@
 //   - Mobile: trong panel nổi riêng (nút bong bóng góc phải, giống trợ lý AI),
 //     vì sidebar trên điện thoại chật, cuộn xuống tận cuối mới thấy nhóm.
 
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { GroupsStateService } from './groups-state.service';
 import { GroupChatService } from './chat.service';
+
+/** Số nhóm hiện sẵn ở sidebar; phần dư nằm trong khu "xem thêm". */
+const COLLAPSED_LIMIT = 2;
 
 @Component({
   selector: 'app-groups-section',
@@ -28,9 +31,10 @@ import { GroupChatService } from './chat.service';
       </div>
     }
 
-    <!-- Mỗi nhóm là 1 THẺ riêng cho dễ phân biệt (trước đây các dòng dính liền nhau) -->
+    <!-- Mỗi nhóm là 1 THẺ riêng cho dễ phân biệt (trước đây các dòng dính liền nhau).
+         Chỉ hiện 3 nhóm đầu; nhiều hơn thì gộp phần dư vào khu "xem thêm" cho gọn sidebar. -->
     <ul class="space-y-2 text-sm text-gray-700">
-      @for (g of groupsState.groups(); track g.id) {
+      @for (g of shownGroups(); track g.id) {
         <!-- Bấm BẤT KỲ chỗ nào trong thẻ (kể cả rìa) đều mở nhóm; ô tick và nút 💬 có
              xử lý riêng nên chặn nổi bọt để không mở nhầm. -->
         <li class="cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 hover:border-gray-300"
@@ -42,7 +46,7 @@ import { GroupChatService } from './chat.service';
               [checked]="groupsState.isVisible(g.id)"
               (change)="groupsState.toggleVisible(g.id)"
               (click)="$event.stopPropagation()"
-              [class]="groupAccent(g.id)"
+              class="accent-blue-600"
               title="Hiện/ẩn sự kiện của nhóm này trên lịch"
             />
             <span class="min-w-0 flex-1 truncate py-1 text-left font-medium">{{ g.name }}</span>
@@ -66,6 +70,22 @@ import { GroupChatService } from './chat.service';
         <li class="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-center text-xs text-gray-400">Chưa có nhóm nào.</li>
       }
     </ul>
+
+    <!-- Quá 3 nhóm -> nút mở/thu khu chứa các nhóm còn lại -->
+    @if (hiddenCount() > 0) {
+      <button
+        type="button"
+        (click)="expanded.set(!expanded())"
+        class="tap mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+      >
+        @if (expanded()) {
+          Thu gọn ▲
+        } @else {
+          Xem thêm {{ hiddenCount() }} nhóm ▼
+        }
+      </button>
+    }
+
     @if (groupsState.groups().length > 0) {
       <p class="mt-2 text-[11px] leading-relaxed text-gray-400">
         ☑️ Ô tick = hiện/ẩn sự kiện của nhóm đó trên lịch. Bỏ tick chỉ ẩn đi, bạn vẫn ở trong nhóm.
@@ -74,12 +94,12 @@ import { GroupChatService } from './chat.service';
 
     <!-- Tạo nhóm -->
     <div class="mt-2 flex gap-1">
-      <input #gname type="text" placeholder="Tên nhóm mới" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="createGroup(gname.value); gname.value=''" />
+      <input #gname type="text" placeholder="Tên nhóm mới" maxlength="100" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="createGroup(gname.value); gname.value=''" />
       <button type="button" (click)="createGroup(gname.value); gname.value=''" class="shrink-0 rounded bg-blue-700 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Tạo</button>
     </div>
     <!-- Tham gia bằng mã -->
     <div class="mt-1 flex gap-1">
-      <input #gcode type="text" placeholder="Nhập mã tham gia" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
+      <input #gcode type="text" placeholder="Nhập mã tham gia" maxlength="40" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
       <button type="button" (click)="joinGroup(gcode.value); gcode.value=''" class="shrink-0 rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">Vào</button>
     </div>
     @if (groupsState.error(); as err) {
@@ -91,23 +111,26 @@ export class GroupsSectionComponent {
   protected readonly groupsState = inject(GroupsStateService);
   protected readonly chat = inject(GroupChatService);
 
+  /** Đang mở khu chứa các nhóm còn lại hay không. */
+  protected readonly expanded = signal(false);
+
+  /** Danh sách nhóm thực sự vẽ ra: 3 nhóm đầu, hoặc tất cả khi đã mở rộng. */
+  protected readonly shownGroups = computed(() => {
+    const all = this.groupsState.groups();
+    return this.expanded() ? all : all.slice(0, COLLAPSED_LIMIT);
+  });
+
+  /** Số nhóm đang bị giấu (0 nghĩa là không cần nút xem thêm). */
+  protected readonly hiddenCount = computed(() =>
+    Math.max(0, this.groupsState.groups().length - COLLAPSED_LIMIT),
+  );
+
   /** Phát ra khi người dùng mở 1 nhóm — trang cha dùng để đóng panel nổi trên mobile. */
   readonly opened = output<void>();
 
   protected openGroup(id: string, tab?: 'chat'): void {
     this.groupsState.openPanel(id, tab);
     this.opened.emit();
-  }
-
-  protected groupAccent(groupId: string): string {
-    const map: Record<string, string> = {
-      violet: 'accent-violet-600',
-      emerald: 'accent-emerald-600',
-      rose: 'accent-rose-600',
-      amber: 'accent-amber-600',
-      sky: 'accent-sky-600',
-    };
-    return map[this.groupsState.colorFor(groupId)] ?? 'accent-violet-600';
   }
 
   protected createGroup(name: string): void {

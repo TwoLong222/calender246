@@ -1,7 +1,7 @@
 // Popover chi tiết sự kiện — khớp bố cục hình 7: tiêu đề, thời gian, danh sách khách
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
-import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
@@ -11,6 +11,7 @@ import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { ConfirmService } from '../shared/confirm.service';
 import { AttendeeStatus } from './calendar.types';
+import { eventColorClass, eventColorStyle } from './event-color';
 import { IconComponent } from '../shared/icon.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 
@@ -23,14 +24,16 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
     @if (event(); as e) {
       <div class="fixed inset-0 z-30" (click)="state.closeDetail()">
         <div
-          class="popup-in surface-panel absolute max-h-[calc(100vh-8rem)] w-80 overflow-y-auto overflow-x-hidden !rounded-[var(--radius-lg)] p-4 !shadow-[var(--shadow-lg)]"
+          #panelEl
+          class="popup-in surface-panel absolute w-80 overflow-y-auto overflow-x-hidden !rounded-[var(--radius-lg)] p-4 !shadow-[var(--shadow-lg)]"
           [style.left.px]="panelPos().left"
           [style.top.px]="panelPos().top"
+          [style.max-height.px]="panelPos().maxHeight"
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">
             <div class="flex min-w-0 items-center gap-2">
-              <span class="h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)"></span>
+              <span class="h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)" [style.background-color]="dotStyle(e.color)"></span>
               <h3 class="truncate font-semibold text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
             </div>
             <div class="flex shrink-0 gap-0.5">
@@ -57,15 +60,26 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             }
           </div>
 
+          <!-- Sự kiện lặp: cho biết lặp bao nhiêu lần và kéo dài tới ngày nào -->
+          @if (seriesInfo(); as s) {
+            <p class="mb-2 text-sm text-gray-600">
+              🔁 {{ tr.t('detail.repeats') }}:
+              <span class="font-medium">{{ s.count }} {{ tr.t('detail.times') }}</span>
+              · {{ s.first }} → {{ s.last }}
+            </p>
+          }
+
           @if (e.creatorEmail) {
-            <p class="mb-2 text-sm text-gray-600">👤 {{ tr.t('detail.creator') }}: {{ e.creatorEmail }}</p>
+            <p class="mb-2 break-all text-sm text-gray-600">👤 {{ tr.t('detail.creator') }}: {{ e.creatorEmail }}</p>
           }
 
           @if (e.location) {
-            <p class="mb-2 text-sm text-gray-600">📍 {{ e.location }}</p>
+            <!-- break-words: địa điểm/mô tả có thể chứa chuỗi dài không dấu cách (vd link dán vào).
+                 Popover đang overflow-x-hidden nên không ngắt từ là chữ bị CẮT MẤT, không cuộn được. -->
+            <p class="mb-2 break-words text-sm text-gray-600">📍 {{ e.location }}</p>
           }
           @if (e.description) {
-            <p class="mb-2 flex items-start gap-2 text-sm text-gray-600"><app-icon name="notes" class="mt-0.5 h-4 w-4 shrink-0" /><span>{{ e.description }}</span></p>
+            <p class="mb-2 flex items-start gap-2 text-sm text-gray-600"><app-icon name="notes" class="mt-0.5 h-4 w-4 shrink-0" /><span class="min-w-0 break-words">{{ e.description }}</span></p>
           }
 
           @if (e.guests.length > 0) {
@@ -87,7 +101,11 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             </div>
           }
 
-          <div class="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3 text-sm">
+          <!-- CHỈ hiện khi mình THỰC SỰ nằm trong danh sách khách mời. Trước đây khối này
+               không có điều kiện nên ai mở sự kiện cũng thấy "Tham dự?", kể cả người không
+               được mời và cả chính người tạo sự kiện không có khách nào. -->
+          @if (isInvited()) {
+          <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 text-sm">
             <span class="text-gray-500">{{ tr.t('detail.attend') }}</span>
             <button
               type="button"
@@ -114,6 +132,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
               {{ tr.t('rsvp.maybe') }}
             </button>
           </div>
+          }
 
           <!-- Tài liệu đính kèm -->
           <div class="mt-4 border-t border-gray-100 pt-3">
@@ -196,7 +215,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                     <span class="shrink-0 text-[10px] text-gray-400">{{ commentTime(c.createdAt) }}</span>
                   </div>
                   @if (editingId() === c.id) {
-                    <textarea [(ngModel)]="editText" rows="2" class="field mt-1 w-full text-sm"></textarea>
+                    <textarea [(ngModel)]="editText" maxlength="2000" rows="2" class="field mt-1 w-full text-sm"></textarea>
                     <div class="mt-1 flex gap-3">
                       <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700">{{ tr.t('form.save') }}</button>
                       <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
@@ -228,7 +247,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 
             <div class="flex gap-2">
               <textarea
-                [(ngModel)]="newComment"
+                [(ngModel)]="newComment" maxlength="2000"
                 rows="1"
                 [placeholder]="tr.t('detail.writeComment')"
                 class="field flex-1 resize-none text-sm"
@@ -249,6 +268,47 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
         </div>
       </div>
     }
+
+    <!-- Chọn khoảng ngày cần xoá trong chuỗi lặp (mở từ nút "Xoá theo khoảng ngày…") -->
+    @if (rangeDeleteOpen()) {
+      <div class="modal-backdrop-in fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4" (click)="rangeDeleteOpen.set(false)">
+        <div class="modal-card-in w-full max-w-sm !rounded-[var(--radius-lg)] bg-white p-5 !shadow-[var(--shadow-lg)]" (click)="$event.stopPropagation()">
+          <p class="text-base font-semibold text-gray-900">{{ tr.t('detail.deleteRangeTitle') }}</p>
+          <p class="mt-1 text-sm text-gray-500">{{ tr.t('detail.deleteRangeHint') }}</p>
+
+          <div class="mt-4 space-y-3">
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-gray-600">{{ tr.t('detail.rangeFrom') }}</span>
+              <input type="date" [value]="rangeFrom()" (input)="rangeFrom.set($any($event.target).value)" class="field w-full" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-gray-600">{{ tr.t('detail.rangeTo') }}</span>
+              <input type="date" [value]="rangeTo()" (input)="rangeTo.set($any($event.target).value)" class="field w-full" />
+            </label>
+          </div>
+
+          @if (rangeError(); as err) {
+            <p class="mt-2 text-xs text-red-600">{{ err }}</p>
+          }
+
+          <div class="mt-5 flex justify-end gap-2">
+            <button type="button" (click)="rangeDeleteOpen.set(false)" class="btn btn-secondary">{{ tr.t('del.cancel') }}</button>
+            <button type="button" (click)="confirmRangeDelete()" class="btn text-white !bg-red-600 hover:!bg-red-700">{{ tr.t('detail.deleteRangeBtn') }}</button>
+          </div>
+
+          <!-- NGẮT LẶP: dừng hẳn chuỗi từ "Từ ngày" trở đi — không cần biết chuỗi kết thúc
+               ngày nào, nên để riêng chứ không nhét chung nút xoá khoảng ở trên. -->
+          <div class="mt-4 border-t border-gray-200 pt-3">
+            <p class="mb-2 text-xs text-gray-500">{{ tr.t('detail.stopRepeatHint') }}</p>
+            <button
+              type="button"
+              (click)="confirmStopRepeat()"
+              class="btn btn-secondary w-full !justify-center"
+            >{{ tr.t('detail.stopRepeat') }} {{ rangeFrom() || '…' }}</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class EventDetailPopoverComponent implements OnDestroy {
@@ -265,20 +325,46 @@ export class EventDetailPopoverComponent implements OnDestroy {
    * KHÔNG được tính lại theo con trỏ: nếu tính lại, mỗi lần bấm trong bảng (nút X, nút
    * xoá…) bảng sẽ nhích theo chuột, nút trượt khỏi ngón tay và cú bấm không ăn.
    */
-  protected readonly panelPos = signal<{ left: number; top: number }>({ left: 0, top: 96 });
+  protected readonly panelPos = signal<{ left: number; top: number; maxHeight: number }>({ left: 0, top: 96, maxHeight: 2000 });
+  private readonly panelEl = viewChild<ElementRef<HTMLDivElement>>('panelEl');
+  private adjustRaf: number | null = null;
 
-  /** Tính chỗ đặt bảng từ vị trí vừa bấm, kẹp lại để không tràn khỏi màn hình. */
-  private computePanelPos(): { left: number; top: number } {
+  /**
+   * Tính chỗ đặt bảng (ước lượng ban đầu) từ vị trí vừa bấm, kẹp lại để không tràn
+   * khỏi màn hình. maxHeight ở đây chỉ là giới hạn AN TOÀN tuyệt đối (gần hết chiều
+   * cao màn hình) — vị trí thật để bảng luôn hiện đủ (không bị cắt) do adjustToFit()
+   * đảm nhiệm sau khi bảng đã vẽ xong và biết chiều cao thật.
+   */
+  private computePanelPos(): { left: number; top: number; maxHeight: number } {
     const W = 320; // = w-80
     const M = 12; // chừa mép
     const vw = typeof window === 'undefined' ? 1280 : window.innerWidth;
     const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+    const maxHeight = Math.max(200, vh - 2 * M);
     const p = this.state.lastPointer();
-    if (!p || vw < 768) return { left: Math.max(M, (vw - W) / 2), top: 96 };
+    if (!p || vw < 768) return { left: Math.max(M, (vw - W) / 2), top: 96, maxHeight };
     return {
       left: Math.min(Math.max(p.x - W / 2, M), Math.max(M, vw - W - M)),
       top: Math.min(Math.max(p.y - 24, M), Math.max(M, vh - 360)),
+      maxHeight,
     };
+  }
+
+  /**
+   * Sau khi bảng đã vẽ xong (biết chiều cao THẬT tùy nội dung: đính kèm, bình luận…),
+   * đẩy top lên nếu bảng tràn quá đáy màn hình — để bảng luôn hiện trọn vẹn, không
+   * phải cuộn bên trong, giống cách Google Calendar tự "lật" popup lên trên khi bên
+   * dưới không đủ chỗ.
+   */
+  private adjustToFit(): void {
+    const el = this.panelEl()?.nativeElement;
+    if (!el) return;
+    const M = 12;
+    const vh = window.innerHeight;
+    const h = el.offsetHeight;
+    const maxTop = Math.max(M, vh - h - M);
+    const cur = this.panelPos();
+    if (cur.top > maxTop) this.panelPos.set({ ...cur, top: maxTop });
   }
 
   // ----- Tài liệu đính kèm -----
@@ -335,6 +421,7 @@ export class EventDetailPopoverComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.clearUnlockTimers();
+    if (this.adjustRaf) cancelAnimationFrame(this.adjustRaf);
   }
   protected onFileSelected(evt: Event): void {
     const input = evt.target as HTMLInputElement;
@@ -424,6 +511,18 @@ export class EventDetailPopoverComponent implements OnDestroy {
     this.deletingId.set(null);
   }
 
+  /**
+   * Mình có nằm trong danh sách khách mời của sự kiện này không.
+   * Dùng để quyết định có hiện khối "Tham dự? Có/Không/Có thể" hay không — người không
+   * được mời (kể cả chủ sự kiện khi không mời ai) thì không có gì để trả lời.
+   */
+  protected readonly isInvited = computed<boolean>(() => {
+    const email = this.supabase.user()?.email?.toLowerCase();
+    const e = this.event();
+    if (!email || !e) return false;
+    return e.guests.some((g) => g.email.toLowerCase() === email);
+  });
+
   /** Trạng thái tham dự của CHÍNH user hiện tại cho event này (để tô đậm nút đang chọn) */
   myStatus = computed<AttendeeStatus | null>(() => {
     const email = this.supabase.user()?.email?.toLowerCase();
@@ -475,14 +574,12 @@ export class EventDetailPopoverComponent implements OnDestroy {
   }
 
   dotClass(color: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-600',
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-    };
-    return map[color] ?? 'bg-sky-600';
+    return eventColorClass(color);
+  }
+
+  /** Màu nền cho chấm khi người dùng tự chọn mã hex (rỗng nếu dùng màu dựng sẵn). */
+  dotStyle(color: string): string {
+    return eventColorStyle(color);
   }
 
   statusDotClass(status: string): string {
@@ -505,8 +602,25 @@ export class EventDetailPopoverComponent implements OnDestroy {
     // tính vị trí đọc lastPointer mà KHÔNG bị chạy lại mỗi lần con trỏ bấm chỗ mới.
     effect(() => {
       const id = this.state.selectedEventId();
+      if (this.adjustRaf) { cancelAnimationFrame(this.adjustRaf); this.adjustRaf = null; }
       if (!id) return;
       untracked(() => this.panelPos.set(this.computePanelPos()));
+    });
+
+    /**
+     * Bình luận/đính kèm được TẢI BẤT ĐỒNG BỘ (gọi API riêng, xong sau khi bảng đã
+     * mở) nên chiều cao thật của bảng còn tăng thêm SAU lần đo đầu tiên — nếu chỉ
+     * chỉnh vị trí một lần lúc mở, phần vừa tải xong (đính kèm/bình luận) vẫn có thể
+     * bị tràn ra ngoài. Effect này đọc lại các danh sách đó để tự chỉnh lại mỗi khi
+     * chúng thay đổi, đảm bảo bảng luôn hiện trọn vẹn.
+     */
+    effect(() => {
+      const id = this.state.selectedEventId();
+      this.comments.comments();
+      this.attachments();
+      if (!id) return;
+      if (this.adjustRaf) cancelAnimationFrame(this.adjustRaf);
+      this.adjustRaf = requestAnimationFrame(() => { this.adjustRaf = null; this.adjustToFit(); });
     });
 
     // Mở/đổi event -> tải bình luận của event đó; đóng popover -> dọn
@@ -526,7 +640,10 @@ export class EventDetailPopoverComponent implements OnDestroy {
     });
   }
 
-  /** Hỏi xác nhận bằng popup dùng chung; sự kiện lặp có thêm lựa chọn "Xóa cả chuỗi". */
+  /**
+   * Hỏi xác nhận bằng popup dùng chung. Sự kiện lặp có thêm 2 lựa chọn:
+   * "Xóa cả chuỗi" và "Xoá theo khoảng ngày…" (mở modal chọn từ ngày → đến ngày).
+   */
   async askDelete(): Promise<void> {
     const e = this.event();
     if (!e) return;
@@ -535,8 +652,79 @@ export class EventDetailPopoverComponent implements OnDestroy {
       detail: e.title || this.tr.t('common.untitled'),
       confirmText: e.seriesId ? this.tr.t('detail.deleteThis') : this.tr.t('detail.delete'),
       secondaryText: e.seriesId ? this.tr.t('detail.deleteSeries') : undefined,
+      tertiaryText: e.seriesId ? this.tr.t('detail.deleteRange') : undefined,
     });
     if (r === 'no') return;
+    if (r === 'tertiary') {
+      // Mặc định gợi ý đúng ngày của sự kiện đang mở, người dùng chỉnh lại tuỳ ý.
+      const d = this.toDateInput(e.start);
+      this.rangeFrom.set(d);
+      this.rangeTo.set(d);
+      this.rangeError.set('');
+      this.rangeDeleteOpen.set(true);
+      return;
+    }
     this.state.deleteEvent(e.id, r === 'secondary' ? 'series' : undefined);
+  }
+
+  /**
+   * Tóm tắt chuỗi lặp của sự kiện đang mở: lặp mấy lần, từ ngày nào tới ngày nào.
+   * Tính từ chính danh sách sự kiện đã tải (backend sinh sẵn mọi lần lặp), nên không
+   * cần gọi thêm API. null nếu sự kiện không thuộc chuỗi lặp nào.
+   */
+  protected readonly seriesInfo = computed<{ count: number; first: string; last: string } | null>(() => {
+    const e = this.event();
+    if (!e?.seriesId) return null;
+    const all = this.state
+      .events()
+      .filter((x) => x.seriesId === e.seriesId)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+    if (all.length === 0) return null;
+    return {
+      count: all.length,
+      first: this.settings.formatDate(all[0].start),
+      last: this.settings.formatDate(all[all.length - 1].start),
+    };
+  });
+
+  // ----- Xoá chuỗi lặp theo khoảng ngày -----
+  protected readonly rangeDeleteOpen = signal(false);
+  protected readonly rangeFrom = signal('');
+  protected readonly rangeTo = signal('');
+  protected readonly rangeError = signal('');
+
+  /** Date -> 'YYYY-MM-DD' theo giờ ĐỊA PHƯƠNG (không dùng toISOString vì nó đổi sang UTC). */
+  private toDateInput(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  protected confirmRangeDelete(): void {
+    const e = this.event();
+    const from = this.rangeFrom();
+    const to = this.rangeTo();
+    if (!e) return;
+    if (!from || !to) {
+      this.rangeError.set(this.tr.t('detail.rangeMissing'));
+      return;
+    }
+    if (from > to) {
+      this.rangeError.set(this.tr.t('detail.rangeInvalid'));
+      return;
+    }
+    this.rangeDeleteOpen.set(false);
+    this.state.deleteEvent(e.id, 'range', { from, to });
+  }
+
+  /** Ngắt lặp: dừng chuỗi từ ô "Từ ngày" trở đi, các lần trước đó giữ nguyên. */
+  protected confirmStopRepeat(): void {
+    const e = this.event();
+    const from = this.rangeFrom();
+    if (!e) return;
+    if (!from) {
+      this.rangeError.set(this.tr.t('detail.rangeMissingFrom'));
+      return;
+    }
+    this.rangeDeleteOpen.set(false);
+    this.state.deleteEvent(e.id, 'from', { from });
   }
 }

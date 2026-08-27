@@ -17,12 +17,14 @@ export interface ConfirmOptions {
   confirmText?: string;
   /** Nút lựa chọn THỨ HAI (tuỳ chọn), vd "Xóa cả chuỗi lặp". */
   secondaryText?: string;
+  /** Nút lựa chọn THỨ BA (tuỳ chọn), vd "Xoá theo khoảng ngày…". */
+  tertiaryText?: string;
   /** true (mặc định) = nút đỏ (hành động xoá/nguy hiểm). */
   danger?: boolean;
 }
 
-/** 'yes' = nút chính, 'secondary' = nút phụ, 'no' = huỷ. */
-export type ConfirmResult = 'yes' | 'secondary' | 'no';
+/** 'yes' = nút chính, 'secondary' = nút phụ, 'tertiary' = nút phụ thứ 2, 'no' = huỷ. */
+export type ConfirmResult = 'yes' | 'secondary' | 'tertiary' | 'no';
 
 interface PendingConfirm extends ConfirmOptions {
   resolve: (r: ConfirmResult) => void;

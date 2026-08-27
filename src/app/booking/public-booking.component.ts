@@ -88,9 +88,9 @@ interface DayGroup {
             } @else {
               <p class="mb-3 rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">{{ chosenLabel() }}</p>
               <label class="mb-1 block text-sm text-gray-600">Tên của bạn</label>
-              <input [(ngModel)]="name" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input [(ngModel)]="name" maxlength="80" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               <label class="mb-1 block text-sm text-gray-600">Email</label>
-              <input type="email" [(ngModel)]="email" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input type="email" [(ngModel)]="email" maxlength="254" (keydown.enter)="onBookingEnter()" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               @if (bookError()) { <p class="mb-2 text-sm text-red-600">{{ bookError() }}</p> }
               <div class="flex gap-2">
                 <button type="button" (click)="chosen.set(null)" class="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">← Chọn giờ khác</button>

@@ -40,7 +40,7 @@ export interface SelectOption {
 
     @if (open()) {
       <div class="fixed inset-0 z-30" (click)="open.set(false)"></div>
-      <div class="surface-panel popup-in absolute left-0 top-full z-40 mt-1 max-h-60 w-full min-w-max overflow-y-auto py-1">
+      <div class="surface-panel popup-in absolute left-0 top-full z-40 mt-1 max-h-60 w-max min-w-full max-w-[calc(100vw-2rem)] overflow-y-auto overflow-x-hidden py-1">
         @for (o of options(); track o.value) {
           <button
             type="button"

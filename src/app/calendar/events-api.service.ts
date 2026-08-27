@@ -192,8 +192,28 @@ export class EventsApiService {
       .pipe(map((res) => fromApiEvent(res.event)));
   }
 
-  delete(id: string, scope?: 'series'): Observable<void> {
-    const url = scope === 'series' ? `${this.base}/${id}?scope=series` : `${this.base}/${id}`;
+  /**
+   * Xoá sự kiện. scope:
+   *  - bỏ trống: chỉ sự kiện này
+   *  - 'series': cả chuỗi lặp
+   *  - 'range' : các mắt của chuỗi nằm trong khoảng ngày (cần range.from + range.to)
+   *  - 'from'  : NGẮT LẶP — xoá mọi mắt từ range.from trở đi (không cần 'to')
+   */
+  delete(
+    id: string,
+    scope?: 'series' | 'range' | 'from',
+    range?: { from: string; to?: string },
+  ): Observable<void> {
+    let url = `${this.base}/${id}`;
+    if (scope === 'series') {
+      url += '?scope=series';
+    } else if (scope === 'range' && range?.to) {
+      const q = new URLSearchParams({ scope: 'range', from: range.from, to: range.to });
+      url += `?${q.toString()}`;
+    } else if (scope === 'from' && range) {
+      const q = new URLSearchParams({ scope: 'from', from: range.from });
+      url += `?${q.toString()}`;
+    }
     return this.http.delete<void>(url);
   }
 

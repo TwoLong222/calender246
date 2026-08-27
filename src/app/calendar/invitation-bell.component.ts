@@ -9,6 +9,7 @@ import { RouterLink } from '@angular/router';
 import { CalendarStateService } from './calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
 import { Invitation } from './events-api.service';
+import { eventColorClass, eventColorStyle } from './event-color';
 import { NotificationService } from '../notifications/notification.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
@@ -117,7 +118,7 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
             @for (iv of invitesVisible(); track iv.eventId) {
               <div class="border-b border-gray-50 px-3 py-2.5">
                 <div class="flex items-center gap-2">
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="dotClass(iv.color)"></span>
+                  <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="dotClass(iv.color)" [style.background-color]="dotStyle(iv.color)"></span>
                   <p class="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{{ iv.title || tr.t('common.untitled') }}</p>
                 </div>
                 <p class="mt-0.5 text-xs text-gray-500">{{ timeLabel(iv) }}</p>
@@ -327,10 +328,11 @@ export class InvitationBellComponent {
   }
 
   protected dotClass(color: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500',
-      rose: 'bg-rose-500', amber: 'bg-amber-500',
-    };
-    return map[color] ?? 'bg-sky-500';
+    return eventColorClass(color);
+  }
+
+  /** Màu nền cho chấm khi người dùng tự chọn mã hex (rỗng nếu dùng màu dựng sẵn). */
+  protected dotStyle(color: string): string {
+    return eventColorStyle(color);
   }
 }

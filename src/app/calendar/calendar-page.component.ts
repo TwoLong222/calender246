@@ -25,6 +25,8 @@ import { InvitationBellComponent } from './invitation-bell.component';
 import { ThemeService } from '../theme.service';
 import { SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { IcsService } from './ics.service';
+import { PdfService } from './pdf.service';
+import { AiApiService } from '../ai/ai-api.service';
 import { CalendarEvent, EventKind, ViewMode } from './calendar.types';
 import { addDays, startOfWeek } from './date-utils';
 import { SupabaseService } from '../auth/supabase.service';
@@ -115,14 +117,54 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
             class="btn btn-secondary !py-1.5"
           >{{ tr.t('nav.today') }}</button>
 
-          <div class="flex items-center overflow-hidden rounded-md border border-gray-300">
-            <button type="button" (click)="goPrev()" class="flex h-8 w-8 items-center justify-center hover:bg-gray-100" [attr.aria-label]="tr.t('nav.prev')"><app-icon name="chevron-left" class="h-4 w-4" /></button>
+          <!-- Mũi tên lùi/tiến: viền + nền + mũi tên to & đậm màu để nhìn là biết bấm được -->
+          <div class="flex items-center overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+            <button type="button" (click)="goPrev()" class="flex h-8 w-9 items-center justify-center text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100" [attr.aria-label]="tr.t('nav.prev')" [title]="tr.t('nav.prev')"><app-icon name="chevron-left" class="h-5 w-5" /></button>
             <div class="h-5 w-px bg-gray-300"></div>
-            <button type="button" (click)="goNext()" class="flex h-8 w-8 items-center justify-center hover:bg-gray-100" [attr.aria-label]="tr.t('nav.next')"><app-icon name="chevron-right" class="h-4 w-4" /></button>
+            <button type="button" (click)="goNext()" class="flex h-8 w-9 items-center justify-center text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100" [attr.aria-label]="tr.t('nav.next')" [title]="tr.t('nav.next')"><app-icon name="chevron-right" class="h-5 w-5" /></button>
           </div>
         </div>
 
-        <h1 class="text-lg font-medium text-gray-800 sm:text-xl">{{ headerLabel() }}</h1>
+        <!-- Ô tìm kiếm sự kiện — đặt BÊN TRÁI, ngay sau cụm điều hướng ngày -->
+        <div class="drop-anchor relative">
+          <!-- Lớp neo RIÊNG cho icon kính lúp: .drop-anchor bị đặt static trên mobile
+               (để panel kết quả neo theo header), nên icon phải có neo của chính nó. -->
+          <div class="relative">
+            <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              [value]="searchQuery()"
+              (input)="onSearchInput($event)"
+              (focus)="searchFocused.set(true)"
+              (blur)="onSearchBlur()"
+              (keydown.escape)="clearSearch()"
+              maxlength="100" [placeholder]="tr.t('nav.search')"
+              class="field w-40 pl-8 sm:w-56"
+            />
+          </div>
+          @if (searchFocused() && searchQuery().trim()) {
+            <!-- Panel kết quả neo theo mép TRÁI vì ô tìm kiếm giờ nằm bên trái header -->
+            <div class="drop-panel surface-panel popup-in absolute left-0 top-full z-40 mt-1.5 max-h-80 w-72 overflow-y-auto py-1 sm:w-80">
+              @if (searchResults().length === 0) {
+                <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
+              } @else {
+                @for (e of searchResults(); track e.id) {
+                  <button
+                    type="button"
+                    (click)="goToSearchResult(e)"
+                    class="block w-full rounded-[calc(var(--radius-md)-4px)] px-3 py-2 text-left hover:bg-gray-50"
+                  >
+                    <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || tr.t('common.untitled') }}</span>
+                    <span class="block truncate text-xs text-gray-500">{{ resultDateLabel(e) }}</span>
+                  </button>
+                }
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Chuông thông báo lời mời (Đồng ý/Từ chối ngay trong app) -->
+        <app-invitation-bell />
 
         @if (seasonal.effectiveSeason(); as season) {
           <span class="hidden items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 sm:inline-flex" [title]="season.when">
@@ -137,46 +179,13 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
           </span>
         }
 
-        <div class="ml-auto flex items-center gap-2">
-          <!-- Ô tìm kiếm sự kiện -->
-          <div class="drop-anchor relative">
-            <!-- Lớp neo RIÊNG cho icon kính lúp: .drop-anchor bị đặt static trên mobile
-                 (để panel kết quả neo theo header), nên icon phải có neo của chính nó. -->
-            <div class="relative">
-              <app-icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                [value]="searchQuery()"
-                (input)="onSearchInput($event)"
-                (focus)="searchFocused.set(true)"
-                (blur)="onSearchBlur()"
-                (keydown.escape)="clearSearch()"
-                [placeholder]="tr.t('nav.search')"
-                class="field w-40 pl-8 sm:w-56"
-              />
-            </div>
-            @if (searchFocused() && searchQuery().trim()) {
-              <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-40 mt-1.5 max-h-80 w-72 overflow-y-auto py-1 sm:w-80">
-                @if (searchResults().length === 0) {
-                  <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
-                } @else {
-                  @for (e of searchResults(); track e.id) {
-                    <button
-                      type="button"
-                      (click)="goToSearchResult(e)"
-                      class="block w-full rounded-[calc(var(--radius-md)-4px)] px-3 py-2 text-left hover:bg-gray-50"
-                    >
-                      <span class="block truncate text-sm font-medium text-gray-800">{{ e.title || tr.t('common.untitled') }}</span>
-                      <span class="block truncate text-xs text-gray-500">{{ resultDateLabel(e) }}</span>
-                    </button>
-                  }
-                }
-              </div>
-            }
-          </div>
-
-          <!-- Chuông thông báo lời mời (Đồng ý/Từ chối ngay trong app) -->
-          <app-invitation-bell />
+        <!-- flex-wrap: cụm này gom tiêu đề + bánh răng + bộ chọn view + avatar. Không cho xuống
+             dòng thì trên máy hẹp (≤360px) nó tràn ra ngoài mép phải và avatar bị cắt. -->
+        <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <!-- Tiêu đề tháng/năm đặt ở BÊN PHẢI, ngay trước cụm công cụ.
+               Header có flex-wrap nên màn hình hẹp sẽ tự xuống dòng, không bị chèn ép. -->
+          <h1 class="whitespace-nowrap text-lg font-medium text-gray-800 sm:text-xl">{{ headerLabel() }}</h1>
+          <div class="h-5 w-px bg-gray-300"></div>
 
           <!-- Nút bật sáng/tối đã chuyển vào Cài đặt → Giao diện cho gọn header. -->
 
@@ -195,11 +204,11 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
               <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-30 mt-1.5 w-52 py-1">
-                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="download" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.export') }}
+                <button type="button" (click)="formatMenuOpen.set('ics'); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="notes" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.formatIcs') }}
                 </button>
-                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="upload" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.import') }}
+                <button type="button" (click)="formatMenuOpen.set('pdf'); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="notes" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.formatPdf') }}
                 </button>
                 <div class="my-1 border-t border-gray-200"></div>
                 <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
@@ -225,7 +234,9 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
                 </a>
               </div>
             }
-            <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
+            <!-- multiple: chọn được NHIỀU file một lần, sự kiện của các file được gom lại rồi nhập chung -->
+            <input #fileInput type="file" multiple accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
+            <input #fileInputPdf type="file" multiple accept=".pdf,application/pdf" class="hidden" (change)="onImportPdfFile($event); settingsMenuOpen.set(false)" />
           </div>
 
           <!-- Bộ chọn view dạng segmented (thay <select> gốc) — vẫn gọi đúng state.setViewMode(),
@@ -308,17 +319,18 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
 
             @if (createMenuOpen()) {
               <div class="surface-panel popup-in absolute left-0 top-full z-30 mt-1.5 w-44 py-1">
-                <button type="button" (click)="openCreate('event')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <span class="h-2 w-2 rounded-full bg-sky-500"></span>{{ tr.t('kind.event') }}
-                </button>
-                <button type="button" (click)="openCreate('task')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <span class="h-2 w-2 rounded-full bg-emerald-500"></span>{{ tr.t('kind.task') }}
-                </button>
-                <button type="button" (click)="openCreate('appointment')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <span class="h-2 w-2 rounded-full bg-violet-500"></span>{{ tr.t('kind.appointment') }}
-                </button>
+                <button type="button" (click)="openCreate('event')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.event') }}</button>
+                <button type="button" (click)="openCreate('task')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.task') }}</button>
+                <button type="button" (click)="openCreate('appointment')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.appointment') }}</button>
               </div>
             }
+          </div>
+
+          <!-- Nhóm lên lịch cùng nhau — đặt NGAY DƯỚI nút "+ Tạo" cho dễ thấy, khỏi cuộn
+               xuống cuối sidebar. (Mobile: dùng nút nổi riêng ở góc phải, xem bên dưới.) -->
+          <div class="mb-5 hidden border-b border-gray-200 pb-4 md:block">
+            <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Nhóm</p>
+            <app-groups-section />
           </div>
 
           <app-mini-calendar [viewedDate]="state.viewedDate()" (dateSelected)="onMiniCalendarPick($event)" />
@@ -326,34 +338,26 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
           <div class="mt-6 border-t border-gray-200 pt-4">
             <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ tr.t('nav.show') }}</p>
             <ul class="space-y-0.5 text-sm text-gray-700">
+              <!-- Không còn chấm màu cố định theo loại: màu giờ do người tạo tự chọn cho từng sự kiện. -->
               <li>
                 <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
-                  <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="h-3.5 w-3.5 accent-sky-600" />
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500"></span>
+                  <input type="checkbox" [checked]="state.visibleKinds().event" (change)="state.toggleKind('event')" class="h-3.5 w-3.5 accent-blue-600" />
                   {{ tr.t('kind.event') }}
                 </label>
               </li>
               <li>
                 <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
-                  <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="h-3.5 w-3.5 accent-emerald-600" />
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500"></span>
+                  <input type="checkbox" [checked]="state.visibleKinds().task" (change)="state.toggleKind('task')" class="h-3.5 w-3.5 accent-blue-600" />
                   {{ tr.t('kind.task') }}
                 </label>
               </li>
               <li>
                 <label class="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-gray-100">
-                  <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="h-3.5 w-3.5 accent-violet-600" />
-                  <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500"></span>
+                  <input type="checkbox" [checked]="state.visibleKinds().appointment" (change)="state.toggleKind('appointment')" class="h-3.5 w-3.5 accent-blue-600" />
                   {{ tr.t('kind.appointment') }}
                 </label>
               </li>
             </ul>
-          </div>
-
-          <!-- Nhóm lên lịch cùng nhau (mobile: dùng nút nổi riêng ở góc phải, xem dưới) -->
-          <div class="mt-6 hidden border-t border-gray-200 pt-4 md:block">
-            <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Nhóm</p>
-            <app-groups-section />
           </div>
 
         </aside>
@@ -392,6 +396,7 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
                     [events]="mergedEvents()"
                     (dateClicked)="onMonthDateClicked($event)"
                     (eventClicked)="onEventClicked($event)"
+                    (rangeSelected)="onMonthRangeSelected($event)"
                   />
                 }
                 @case ('year') {
@@ -412,6 +417,35 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
     }
     @if (state.isTrashOpen()) {
       <app-trash-modal />
+    }
+
+    <!-- Chọn Nhập/Xuất cho 1 định dạng (ICS hoặc PDF) — gộp 4 mục menu cũ thành 2, bấm vào
+         mới hỏi rõ Nhập hay Xuất để đỡ rối, hiện giữa màn hình để không lẫn với menu thả xuống. -->
+    @if (formatMenuOpen(); as fmt) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" (click)="formatMenuOpen.set(null)">
+        <div class="surface-panel popup-in w-full max-w-xs !rounded-[var(--radius-lg)] p-5 !shadow-[var(--shadow-lg)]" (click)="$event.stopPropagation()">
+          <div class="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h3 class="text-base font-semibold text-gray-900">{{ fmt === 'ics' ? tr.t('nav.formatIcs') : tr.t('nav.formatPdf') }}</h3>
+              <p class="mt-0.5 text-xs text-gray-500">{{ tr.t('nav.formatPickHint') }} {{ fmt === 'ics' ? tr.t('nav.formatIcs') : tr.t('nav.formatPdf') }}</p>
+            </div>
+            <button type="button" (click)="formatMenuOpen.set(null)" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+          </div>
+          <div class="flex flex-col gap-2">
+            <button type="button" (click)="fmt === 'ics' ? onExport() : onExportPdf(); formatMenuOpen.set(null)" class="tap btn btn-secondary w-full !justify-start gap-2.5">
+              <app-icon name="download" class="h-4 w-4" /> {{ tr.t('nav.exportAction') }}
+            </button>
+            <button
+              type="button"
+              [disabled]="fmt === 'pdf' && pdfBusy()"
+              (click)="(fmt === 'ics' ? fileInput : fileInputPdf).click(); formatMenuOpen.set(null)"
+              class="tap btn btn-secondary w-full !justify-start gap-2.5 disabled:opacity-50"
+            >
+              <app-icon name="upload" class="h-4 w-4" /> {{ fmt === 'pdf' && pdfBusy() ? tr.t('nav.importPdfBusy') : tr.t('nav.importAction') }}
+            </button>
+          </div>
+        </div>
+      </div>
     }
 
     @if (settings.settings().ai_settings.enabled) {
@@ -470,6 +504,8 @@ export class CalendarPageComponent implements OnInit {
   protected readonly settings = inject(SettingsService);
   protected readonly tr = inject(TranslateService);
   private readonly ics = inject(IcsService);
+  private readonly pdf = inject(PdfService);
+  private readonly aiApi = inject(AiApiService);
   /** Danh sách view cho bộ chọn dạng segmented ở header (desktop). */
   protected readonly viewOptions: { value: ViewMode; key: string }[] = [
     { value: 'day', key: 'view.day' },
@@ -488,6 +524,8 @@ export class CalendarPageComponent implements OnInit {
   protected readonly groupsMobileOpen = signal(false);
   protected readonly settingsMenuOpen = signal(false);
   protected readonly accountMenuOpen = signal(false);
+  /** Popup giữa màn hình hỏi Nhập/Xuất cho 1 định dạng — null = đang đóng. */
+  protected readonly formatMenuOpen = signal<'ics' | 'pdf' | null>(null);
   /** Hướng chuyển view gần nhất — quyết định animation trượt vào từ trái (back) hay phải (fwd). */
   protected readonly slideDir = signal<'fwd' | 'back'>('fwd');
   goPrev(): void {
@@ -499,6 +537,8 @@ export class CalendarPageComponent implements OnInit {
     this.state.goNext();
   }
   protected readonly importMsg = signal('');
+  /** true khi đang trích chữ từ PDF + chờ AI nhận diện sự kiện (Nhập PDF) — thao tác này chậm hơn .ics nhiều. */
+  protected readonly pdfBusy = signal(false);
 
   /** Sự kiện hiển thị trên lịch = sự kiện cá nhân (đã lọc) + sự kiện của các nhóm đang hiện */
   protected readonly mergedEvents = computed<CalendarEvent[]>(() => [
@@ -520,18 +560,6 @@ export class CalendarPageComponent implements OnInit {
     }
   }
 
-  /** Tên class màu cho chấm tròn của nhóm ở sidebar */
-  groupDot(groupId: string): string {
-    const map: Record<string, string> = {
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-      sky: 'bg-sky-600',
-    };
-    return map[this.groupsState.colorFor(groupId)] ?? 'bg-violet-600';
-  }
-
   // (Danh sách nhóm / tạo nhóm / tham gia bằng mã đã chuyển sang GroupsSectionComponent
   //  để dùng chung cho sidebar desktop và panel nổi trên mobile.)
 
@@ -539,52 +567,142 @@ export class CalendarPageComponent implements OnInit {
     this.ics.exportToFile(this.state.events());
   }
 
-  onImportFile(event: Event): void {
+  async onExportPdf(): Promise<void> {
+    try {
+      await this.pdf.exportToFile(this.state.events());
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : '';
+      this.importMsg.set(detail ? `Xuất PDF thất bại: ${detail}` : 'Xuất PDF thất bại.');
+    }
+  }
+
+  /** Nhập .ics — chọn được NHIỀU file, gom sự kiện của tất cả rồi nhập một lượt. */
+  async onImportFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    const files = Array.from(input.files ?? []);
+    input.value = ''; // cho phép chọn lại đúng những file đó lần sau
+    if (files.length === 0) return;
+
+    const all: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string }[] = [];
+    const failed: string[] = [];
+
+    for (const file of files) {
       try {
-        const imported = this.ics.parse(String(reader.result));
-        if (imported.length === 0) {
-          this.importMsg.set('Không tìm thấy sự kiện nào trong file.');
-          return;
-        }
-        // Thu thập id các sự kiện MỚI tạo để tô nổi bật sau khi lưu xong.
-        const newIds: string[] = [];
-        for (const ev of imported) {
-          this.state.saveEvent(
-            {
-              kind: 'event',
-              title: ev.title,
-              description: ev.description,
-              location: ev.location,
-              start: ev.start,
-              end: ev.end,
-              isAllDay: ev.isAllDay,
-              guests: [],
-              color: 'sky',
-            },
-            undefined,
-            // afterSave: gom id; khi gom đủ -> nhảy tới ngày sớm nhất + highlight.
-            (saved) => {
-              newIds.push(saved.id);
-              if (newIds.length === imported.length) {
-                const earliest = imported.reduce((a, b) => (a.start < b.start ? a : b)).start;
-                this.state.viewedDate.set(earliest);
-                this.state.highlightEvents(newIds);
-              }
-            },
-          );
-        }
-        this.importMsg.set(`Đã nhập ${imported.length} sự kiện.`);
+        const text = await file.text();
+        all.push(...this.ics.parse(text));
       } catch {
-        this.importMsg.set('File .ics không hợp lệ.');
+        // 1 file hỏng KHÔNG làm hỏng cả mẻ — ghi tên lại để báo, các file khác vẫn nhập.
+        failed.push(file.name);
       }
-      input.value = ''; // cho phép chọn lại cùng file
-    };
-    reader.readAsText(file);
+    }
+
+    if (failed.length > 0 && all.length === 0) {
+      this.importMsg.set(`File .ics không hợp lệ: ${failed.join(', ')}`);
+      return;
+    }
+    this.applyImportedEvents(all, 'File .ics không hợp lệ.');
+    if (failed.length > 0) {
+      this.importMsg.update((m) => `${m} (bỏ qua file lỗi: ${failed.join(', ')})`);
+    }
+  }
+
+  /** Nhập từ file PDF bất kỳ: trích chữ (pdfjs) -> AI nhận diện sự kiện -> lưu như luồng nhập .ics. */
+  async onImportPdfFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (files.length === 0) return;
+
+    this.pdfBusy.set(true);
+    const all: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string }[] = [];
+    const failed: string[] = [];
+    let lastReply = '';
+
+    // Xử lý TUẦN TỰ chứ không song song: mỗi file là 1 lượt gọi AI, bắn cùng lúc dễ bị
+    // giới hạn tần suất và làm máy yếu đứng hình khi trích chữ nhiều PDF.
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      this.importMsg.set(
+        files.length > 1
+          ? `Đang đọc PDF ${i + 1}/${files.length} (${file.name}) và nhờ AI nhận diện sự kiện...`
+          : 'Đang đọc PDF và nhờ AI nhận diện sự kiện...',
+      );
+      try {
+        const text = await this.pdf.extractText(file);
+        if (!text.trim()) {
+          failed.push(file.name);
+          continue;
+        }
+        const result = await new Promise<{ events: { title: string; startTime: string; endTime: string; isAllDay?: boolean; location?: string; description?: string }[]; reply: string }>(
+          (resolve, reject) => this.aiApi.extractEvents(text).subscribe({ next: resolve, error: reject }),
+        );
+        lastReply = result.reply || lastReply;
+        all.push(
+          ...result.events.map((e) => ({
+            title: e.title,
+            start: new Date(e.startTime),
+            end: new Date(e.endTime),
+            isAllDay: !!e.isAllDay,
+            description: e.description,
+            location: e.location,
+          })),
+        );
+      } catch {
+        failed.push(file.name); // file này hỏng thì bỏ qua, các file còn lại vẫn chạy tiếp
+      }
+    }
+
+    this.pdfBusy.set(false);
+
+    if (all.length === 0) {
+      this.importMsg.set(
+        failed.length ? `Không xử lý được: ${failed.join(', ')}` : lastReply || 'Không tìm thấy sự kiện nào trong file.',
+      );
+      return;
+    }
+    this.applyImportedEvents(all, 'Nhập PDF thất bại.');
+    if (failed.length > 0) {
+      this.importMsg.update((m) => `${m} (bỏ qua file lỗi: ${failed.join(', ')})`);
+    }
+  }
+
+  /** Dùng chung cho luồng Nhập .ics và Nhập PDF: tạo từng event, tô nổi bật sau khi lưu xong. */
+  private applyImportedEvents(
+    imported: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string }[],
+    emptyMsg: string,
+  ): void {
+    if (imported.length === 0) {
+      this.importMsg.set(emptyMsg);
+      return;
+    }
+    // Thu thập id các sự kiện MỚI tạo để tô nổi bật sau khi lưu xong.
+    const newIds: string[] = [];
+    for (const ev of imported) {
+      this.state.saveEvent(
+        {
+          kind: 'event',
+          title: ev.title,
+          description: ev.description,
+          location: ev.location,
+          start: ev.start,
+          end: ev.end,
+          isAllDay: ev.isAllDay,
+          guests: [],
+          color: 'sky',
+        },
+        undefined,
+        // afterSave: gom id; khi gom đủ -> nhảy tới ngày sớm nhất + highlight.
+        (saved) => {
+          newIds.push(saved.id);
+          if (newIds.length === imported.length) {
+            const earliest = imported.reduce((a, b) => (a.start < b.start ? a : b)).start;
+            this.state.viewedDate.set(earliest);
+            this.state.highlightEvents(newIds);
+          }
+        },
+      );
+    }
+    this.importMsg.set(`Đã nhập ${imported.length} sự kiện.`);
   }
 
   // ----- Tìm kiếm sự kiện -----
@@ -663,10 +781,22 @@ export class CalendarPageComponent implements OnInit {
     return typeof window !== 'undefined' && window.innerWidth < 768;
   }
 
+  /**
+   * Bấm vào chỗ TRỐNG của một ô ngày ở lịch Tháng -> mở luôn form tạo sự kiện cho đúng
+   * ngày đó, KHÔNG nhảy sang view Ngày/Tuần nữa. Muốn sửa sự kiện có sẵn thì bấm thẳng
+   * vào chip sự kiện (đã có onEventClicked lo).
+   * Ô ngày mang mốc 00:00 -> đặt giờ mặc định 08:00 cho hợp lý.
+   */
   onMonthDateClicked(date: Date): void {
-    // Mobile: Tháng -> Tuần (rồi mới tới Ngày). Desktop: vào thẳng Ngày như cũ.
     this.state.selectDate(date, false);
-    this.state.viewMode.set(this.isMobile() ? 'week' : 'day');
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
+    this.state.openCreateForm('event', start);
+  }
+
+  /** Kéo chọn nhiều ô ngày ở lịch Tháng -> mở form tạo với sự kiện "Cả ngày" trải đúng khoảng đã kéo. */
+  onMonthRangeSelected(range: { start: Date; end: Date }): void {
+    this.state.selectDate(range.start, false);
+    this.state.openCreateForm('event', range.start, range.end);
   }
 
   /** Bấm ngày ở header lưới giờ -> chuyển sang view Ngày của ngày đó */

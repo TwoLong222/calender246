@@ -20,21 +20,21 @@ import { GroupMessage } from './groups.types';
 import { ConfirmService } from '../shared/confirm.service';
 import { TranslateService } from '../i18n/translate.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { IconComponent } from '../shared/icon.component';
 
 @Component({
   selector: 'app-group-panel',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (group(); as g) {
-      <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-16" (click)="state.closePanel()">
+      <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-16" (click)="state.closePanel()">
         <div class="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
           <!-- Header -->
           <div class="mb-3 flex shrink-0 items-start justify-between gap-3">
             <div>
               <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full" [class]="dotClass()"></span>
                 <h2 class="text-lg font-medium text-gray-900">{{ g.name }}</h2>
               </div>
               <p class="mt-0.5 text-xs text-gray-500">
@@ -48,8 +48,8 @@ import { SupabaseService } from '../auth/supabase.service';
           <!-- Mã & link tham gia -->
           <div class="mb-4 shrink-0 rounded-lg bg-gray-50 p-3">
             <p class="mb-1 text-xs font-medium text-gray-600">Mời bằng mã / link</p>
-            <div class="flex items-center gap-2">
-              <code class="flex-1 rounded border border-gray-200 bg-white px-2 py-1 text-sm">{{ g.join_code }}</code>
+            <div class="flex flex-wrap items-center gap-2">
+              <code class="min-w-0 flex-1 truncate rounded border border-gray-200 bg-white px-2 py-1 text-sm">{{ g.join_code }}</code>
               <button type="button" (click)="copyCode(g.join_code)" class="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300">
                 {{ copied() ? 'Đã copy ✓' : 'Copy mã' }}
               </button>
@@ -86,7 +86,22 @@ import { SupabaseService } from '../auth/supabase.service';
                 <span class="rounded-full bg-red-600 px-1.5 text-xs font-medium text-white">{{ unreadCount() }}</span>
               }
             </button>
+
+            <!-- Tắt/bật thông báo riêng nhóm này (lưu trên máy, không ảnh hưởng người khác) -->
+            <button
+              type="button"
+              (click)="chat.toggleMuted(g.id)"
+              class="ml-auto -mb-px px-2 py-1.5 text-gray-400 hover:text-gray-700"
+              [title]="chat.isMuted(g.id) ? 'Bật lại thông báo nhóm này' : 'Tắt thông báo nhóm này'"
+            >{{ chat.isMuted(g.id) ? '🔕' : '🔔' }}</button>
           </div>
+
+          @if (tab() === 'chat' && chat.isMuted(g.id)) {
+            <p class="mb-2 shrink-0 rounded bg-gray-100 px-2 py-1 text-[11px] text-gray-500">
+              🔕 Đã tắt thông báo nhóm này — vẫn đếm tin chưa đọc, chỉ không hiện thông báo.
+            </p>
+          }
+
 
           @if (tab() === 'events') {
           <div class="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
@@ -118,7 +133,7 @@ import { SupabaseService } from '../auth/supabase.service';
               <div class="mt-2 flex gap-2">
                 <input
                   type="email"
-                  [(ngModel)]="inviteEmail"
+                  [(ngModel)]="inviteEmail" maxlength="254"
                   (keydown.enter)="doInvite(g.id)"
                   placeholder="Mời bằng email"
                   class="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
@@ -144,7 +159,7 @@ import { SupabaseService } from '../auth/supabase.service';
                     @if (editEventId() === e.id) {
                       <!-- FORM SỬA sự kiện nhóm (đầy đủ như sự kiện thường) -->
                       <div class="space-y-2 rounded-lg bg-blue-50 p-2">
-                        <input type="text" [(ngModel)]="eTitle" placeholder="Tiêu đề sự kiện" class="w-full rounded border border-gray-300 px-2 py-1" />
+                        <input type="text" [(ngModel)]="eTitle" (keydown.enter)="saveEventEdit(g.id)" maxlength="200" placeholder="Tiêu đề sự kiện" class="w-full rounded border border-gray-300 px-2 py-1" />
                         <div class="flex flex-wrap items-center gap-2">
                           <input type="date" [(ngModel)]="eDate" class="rounded border border-gray-300 px-2 py-1" />
                           <input type="time" [(ngModel)]="eStart" [disabled]="eAllDay()" class="rounded border border-gray-300 px-2 py-1 disabled:bg-gray-100 disabled:text-gray-400" />
@@ -154,16 +169,11 @@ import { SupabaseService } from '../auth/supabase.service';
                         <label class="flex items-center gap-2 text-gray-600">
                           <input type="checkbox" [(ngModel)]="eAllDay" /> Cả ngày
                         </label>
-                        <input type="text" [(ngModel)]="eLocation" placeholder="📍 Địa điểm" class="w-full rounded border border-gray-300 px-2 py-1" />
-                        <textarea [(ngModel)]="eDescription" rows="2" placeholder="Mô tả" class="w-full resize-none rounded border border-gray-300 px-2 py-1"></textarea>
-                        <div class="flex items-center gap-1.5">
-                          @for (c of eventColors; track c) {
-                            <button type="button" (click)="eColor.set(c)"
-                              class="h-5 w-5 rounded-full ring-offset-1"
-                              [class]="colorDot(c) + (eColor() === c ? ' ring-2 ring-gray-500' : '')"
-                              [attr.aria-label]="c"></button>
-                          }
-                        </div>
+                        <input type="text" [(ngModel)]="eLocation" (keydown.enter)="saveEventEdit(g.id)" maxlength="200" placeholder="📍 Địa điểm" class="w-full rounded border border-gray-300 px-2 py-1" />
+                        <textarea [(ngModel)]="eDescription" maxlength="200" rows="2" placeholder="Mô tả" class="w-full resize-none rounded border border-gray-300 px-2 py-1"></textarea>
+                        <!-- Đã bỏ hàng chọn màu ở đây: nhóm không còn màu riêng.
+                             eColor vẫn giữ nguyên màu cũ của sự kiện khi lưu, và muốn đổi màu
+                             thì mở sự kiện từ lịch chính (ở đó có ô tự chọn màu bất kỳ). -->
                         <div class="flex justify-end gap-2 pt-1">
                           <button type="button" (click)="cancelEventEdit()" class="rounded px-3 py-1 text-gray-600 hover:bg-gray-200">Hủy</button>
                           <button type="button" (click)="saveEventEdit(g.id)" class="rounded bg-blue-700 px-3 py-1 text-white hover:bg-blue-800">Lưu</button>
@@ -182,7 +192,14 @@ import { SupabaseService } from '../auth/supabase.service';
                               <button type="button" (click)="state.removeMeetForEvent(g.id, e.id)" class="text-gray-400 hover:text-red-600" title="Gỡ Google Meet" aria-label="Gỡ Meet">✕</button>
                             }
                           } @else if (canModifyEvent(e)) {
-                            <button type="button" (click)="state.createMeetForEvent(g.id, e.id)" class="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100" title="Tạo phòng họp Google Meet">📹 Tạo Meet</button>
+                            <!-- Khoá nút khi đang tạo: bấm 2 lần liên tiếp sẽ tạo 2 phòng Meet thừa -->
+                            <button
+                              type="button"
+                              [disabled]="state.isMeetBusy(e.id)"
+                              (click)="state.createMeetForEvent(g.id, e.id)"
+                              class="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                              title="Tạo phòng họp Google Meet"
+                            >{{ state.isMeetBusy(e.id) ? '📹 Đang tạo…' : '📹 Tạo Meet' }}</button>
                           }
                           @if (canModifyEvent(e)) {
                             <button type="button" (click)="startEventEdit(e)" class="text-gray-400 hover:text-blue-600" title="Sửa sự kiện" aria-label="Sửa">✏️</button>
@@ -200,7 +217,7 @@ import { SupabaseService } from '../auth/supabase.service';
 
             <!-- Form thêm nhanh -->
             <div class="mt-3 space-y-2 rounded-lg bg-gray-50 p-3">
-              <input type="text" [(ngModel)]="title" placeholder="Tiêu đề sự kiện" class="w-full rounded border border-gray-300 px-2 py-1 text-sm" />
+              <input type="text" [(ngModel)]="title" (keydown.enter)="addEvent(g.id)" maxlength="200" placeholder="Tiêu đề sự kiện" class="w-full rounded border border-gray-300 px-2 py-1 text-sm" />
               <div class="flex flex-wrap items-center gap-2 text-sm">
                 <input type="date" [(ngModel)]="date" class="rounded border border-gray-300 px-2 py-1" />
                 <input type="time" [(ngModel)]="startTime" class="rounded border border-gray-300 px-2 py-1" />
@@ -248,22 +265,48 @@ import { SupabaseService } from '../auth/supabase.service';
                     } @else if (editingId() === msg.id) {
                       <input
                         type="text"
-                        [(ngModel)]="editText"
+                        [(ngModel)]="editText" maxlength="2000"
                         (keydown.enter)="saveEdit(g.id, msg.id)"
                         (keydown.escape)="cancelEdit()"
-                        class="w-56 rounded border border-gray-300 px-2 py-0.5 text-sm text-gray-800"
+                        class="w-full min-w-[8rem] rounded border border-gray-300 px-2 py-0.5 text-sm text-gray-800"
                       />
                       <div class="mt-1 flex gap-2 text-xs">
                         <button type="button" (click)="saveEdit(g.id, msg.id)" class="underline">Lưu</button>
                         <button type="button" (click)="cancelEdit()" class="underline">Hủy</button>
                       </div>
                     } @else {
-                      <span class="whitespace-pre-wrap break-words">{{ msg.content }}</span>
+                      <!-- Trích dẫn tin đang trả lời -->
+                      @if (chat.parentOf(g.id, msg); as parent) {
+                        <div class="mb-1 border-l-2 border-current/40 pl-2 text-[11px] opacity-70">
+                          <span class="block font-medium">{{ senderLabel(parent) }}</span>
+                          <span class="line-clamp-2 break-words">{{ parent.deleted_at ? '(tin đã thu hồi)' : (parent.content || '[tệp đính kèm]') }}</span>
+                        </div>
+                      }
+
+
+                      <!-- Tin dài -> thu gọn còn 6 dòng, bấm "Xem thêm" mới bung hết.
+                           Một tin dài không được phép chiếm trọn khung chat. -->
+                      @if (msg.content) {
+                        <span
+                          class="block whitespace-pre-wrap break-words"
+                          [class.line-clamp-6]="isLong(msg) && !expandedMsgs().has(msg.id)"
+                        >{{ msg.content }}</span>
+                        @if (isLong(msg)) {
+                          <button
+                            type="button"
+                            (click)="toggleExpanded(msg.id)"
+                            class="mt-0.5 text-[11px] underline opacity-80 hover:opacity-100"
+                          >{{ expandedMsgs().has(msg.id) ? 'Thu gọn' : 'Xem thêm' }}</button>
+                        }
+                      }
                     }
                   </div>
-                  <div class="mt-0.5 flex items-center gap-2 px-1 text-[10px] text-gray-400">
+                  <div class="mt-0.5 flex flex-wrap items-center gap-2 px-1 text-[10px] text-gray-400">
                     <span>{{ timeLabel(msg) }}</span>
                     @if (msg.edited_at && !msg.deleted_at) { <span>(đã sửa)</span> }
+                    @if (!msg.deleted_at && editingId() !== msg.id) {
+                      <button type="button" (click)="startReply(msg)" class="hover:text-blue-600">Trả lời</button>
+                    }
                     @if (chat.isMine(msg) && !msg.deleted_at && editingId() !== msg.id) {
                       <button type="button" (click)="startEdit(msg)" class="hover:text-blue-600">Sửa</button>
                       <button type="button" (click)="chat.remove(g.id, msg.id)" class="hover:text-red-600">Thu hồi</button>
@@ -280,24 +323,39 @@ import { SupabaseService } from '../auth/supabase.service';
               <p class="mt-1 px-1 text-xs italic text-gray-500">{{ typingLabel() }}</p>
             }
 
+            <!-- Đang trả lời tin nào -->
+            @if (replyTo(); as r) {
+              <div class="mt-2 flex shrink-0 items-start gap-2 rounded-lg border-l-2 border-blue-600 bg-blue-50 px-2 py-1.5 text-xs">
+                <div class="min-w-0 flex-1">
+                  <span class="block font-medium text-blue-800">Trả lời {{ senderLabel(r) }}</span>
+                  <span class="block truncate text-gray-600">{{ r.content || '[tệp đính kèm]' }}</span>
+                </div>
+                <button type="button" (click)="replyTo.set(null)" class="shrink-0 text-gray-400 hover:text-red-600" aria-label="Bỏ trả lời">✕</button>
+              </div>
+            }
+
             <!-- Ô nhập tin -->
-            <div class="mt-2 flex shrink-0 gap-2">
+            <div class="mt-2 flex shrink-0 items-center gap-2">
               <input
                 type="text"
-                [(ngModel)]="draft"
+                [(ngModel)]="draft" maxlength="2000"
                 (ngModelChange)="onDraftChange(g.id)"
                 (keydown.enter)="sendMessage(g.id)"
                 placeholder="Nhập tin nhắn…"
-                class="flex-1 rounded-full border border-gray-300 px-4 py-1.5 text-sm"
+                class="min-w-0 flex-1 rounded-full border border-gray-300 px-4 py-1.5 text-sm"
               />
-              <button type="button" (click)="sendMessage(g.id)" class="rounded-full bg-blue-700 px-4 py-1.5 text-sm text-white hover:bg-blue-800">Gửi</button>
+              <button type="button" (click)="sendMessage(g.id)" class="shrink-0 rounded-full bg-blue-700 px-4 py-1.5 text-sm text-white hover:bg-blue-800">Gửi</button>
             </div>
           </div>
           }
 
-          @if (isOwner()) {
-            <div class="mt-2 shrink-0 border-t border-gray-100 pt-3 text-right">
-              <button type="button" (click)="confirmDelete(g.id, g.name)" class="text-sm text-red-600">Giải tán nhóm</button>
+          <!-- Giải tán nhóm CHỈ hiện ở tab Sự kiện. Trước đây nó nằm ngoài cả 2 tab nên khi
+               đang chat, nút xoá vĩnh viễn nằm ngay dưới ô nhập tin — quá dễ bấm nhầm. -->
+          @if (isOwner() && tab() === 'events') {
+            <div class="mt-2 shrink-0 border-t border-gray-100 pt-3">
+              <button type="button" (click)="confirmDelete(g.id, g.name)" class="tap btn btn-danger w-full gap-1.5">
+                <app-icon name="trash" class="h-4 w-4" /> Giải tán nhóm
+              </button>
             </div>
           }
         </div>
@@ -389,7 +447,6 @@ export class GroupPanelComponent implements OnDestroy {
   endTime = signal('10:00');
 
   // ---------- Form SỬA sự kiện nhóm (đầy đủ như sự kiện thường) ----------
-  readonly eventColors = ['sky', 'violet', 'emerald', 'rose', 'amber'] as const;
   readonly editEventId = signal<string | null>(null);
   eTitle = signal('');
   eDate = signal(this.todayStr());
@@ -398,16 +455,8 @@ export class GroupPanelComponent implements OnDestroy {
   eAllDay = signal(false);
   eLocation = signal('');
   eDescription = signal('');
-  eColor = signal<string>('violet');
-
-  /** Class chấm màu cho nút chọn màu. */
-  protected colorDot(c: string): string {
-    const map: Record<string, string> = {
-      sky: 'bg-sky-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500',
-      rose: 'bg-rose-500', amber: 'bg-amber-500',
-    };
-    return map[c] ?? 'bg-sky-500';
-  }
+  /** Giữ nguyên màu sẵn có của sự kiện khi lưu (không còn ô chọn màu trong panel nhóm). */
+  eColor = signal<string>('sky');
 
   /** Mở form sửa, nạp dữ liệu sự kiện hiện tại. */
   protected startEventEdit(e: CalendarEvent): void {
@@ -419,7 +468,7 @@ export class GroupPanelComponent implements OnDestroy {
     this.eAllDay.set(e.isAllDay);
     this.eLocation.set(e.location ?? '');
     this.eDescription.set(e.description ?? '');
-    this.eColor.set(e.color ?? 'violet');
+    this.eColor.set(e.color ?? 'sky');
   }
 
   protected cancelEventEdit(): void {
@@ -463,19 +512,6 @@ export class GroupPanelComponent implements OnDestroy {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
-  dotClass(): string {
-    const g = this.group();
-    const color = g ? this.state.colorFor(g.id) : 'violet';
-    const map: Record<string, string> = {
-      violet: 'bg-violet-600',
-      emerald: 'bg-emerald-600',
-      rose: 'bg-rose-600',
-      amber: 'bg-amber-600',
-      sky: 'bg-sky-600',
-    };
-    return map[color] ?? 'bg-violet-600';
-  }
-
   isOnline(email: string): boolean {
     const g = this.group();
     return !!g && this.state.onlineEmails(g.id).includes(email);
@@ -500,11 +536,39 @@ export class GroupPanelComponent implements OnDestroy {
   }
 
   // ---------- Chat ----------
+  // ----- Thu gọn tin dài / thanh ghim -----
+  /** Các tin đang được bấm "Xem thêm". */
+  protected readonly expandedMsgs = signal<Set<string>>(new Set());
+
+  /** Tin coi là DÀI khi vượt ~6 dòng hoặc quá 320 ký tự. */
+  protected isLong(msg: GroupMessage): boolean {
+    const c = msg.content ?? '';
+    return c.length > 320 || c.split('\n').length > 6;
+  }
+
+  protected toggleExpanded(id: string): void {
+    this.expandedMsgs.update((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // ----- Trả lời tin -----
+  /** Tin đang được trả lời (null = gửi tin thường). */
+  protected readonly replyTo = signal<GroupMessage | null>(null);
+
+  protected startReply(msg: GroupMessage): void {
+    this.replyTo.set(msg);
+  }
+
   sendMessage(groupId: string): void {
     const text = this.draft.trim();
     if (!text) return;
-    this.chat.send(groupId, text);
+    this.chat.send(groupId, text, { replyToId: this.replyTo()?.id });
     this.draft = '';
+    this.replyTo.set(null);
     this.scrollToBottom();
   }
 
@@ -557,7 +621,8 @@ export class GroupPanelComponent implements OnDestroy {
       end,
       isAllDay: false,
       guests: [],
-      color: this.state.colorFor(groupId),
+      // Nhóm không còn màu riêng -> dùng màu mặc định như sự kiện cá nhân.
+      color: 'sky',
     });
     this.title.set('');
   }

@@ -25,6 +25,20 @@ export interface AiParseResult {
   reply: string;
 }
 
+export interface ExtractedEventItem {
+  title: string;
+  startTime: string;
+  endTime: string;
+  isAllDay?: boolean;
+  location?: string;
+  description?: string;
+}
+
+export interface AiExtractResult {
+  events: ExtractedEventItem[];
+  reply: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AiApiService {
   private readonly http = inject(HttpClient);
@@ -32,5 +46,10 @@ export class AiApiService {
 
   chat(message: string, history?: { role: 'user' | 'assistant'; text: string }[]): Observable<AiParseResult> {
     return this.http.post<AiParseResult>(`${this.base}/ai/chat`, { message, history });
+  }
+
+  /** Nhờ AI tìm sự kiện trong 1 đoạn text (đọc từ file PDF ở phía client bằng pdfjs). */
+  extractEvents(text: string): Observable<AiExtractResult> {
+    return this.http.post<AiExtractResult>(`${this.base}/ai/extract-events`, { text });
   }
 }

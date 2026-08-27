@@ -6,7 +6,7 @@ import { CalendarEvent } from '../calendar/calendar.types';
 import { GroupsApiService } from './groups-api.service';
 import { GoogleMeetService } from './google-meet.service';
 import { GroupRealtimeService, GroupEventMessage } from './realtime.service';
-import { GROUP_COLORS, Group, PendingGroupInvite } from './groups.types';
+import { Group, PendingGroupInvite } from './groups.types';
 
 @Injectable({ providedIn: 'root' })
 export class GroupsStateService {
@@ -37,17 +37,6 @@ export class GroupsStateService {
 
   private started = false;
 
-  /** Map groupId -> tên màu (xoay vòng theo thứ tự nhóm) */
-  private readonly colorMap = computed<Record<string, string>>(() => {
-    const m: Record<string, string> = {};
-    this.groups().forEach((g, i) => (m[g.id] = GROUP_COLORS[i % GROUP_COLORS.length]));
-    return m;
-  });
-
-  colorFor(groupId: string): string {
-    return this.colorMap()[groupId] ?? 'violet';
-  }
-
   /** Số người đang online trong 1 nhóm (từ presence realtime) */
   onlineCount(groupId: string): number {
     return this.realtime.presence()[groupId]?.length ?? 0;
@@ -58,15 +47,17 @@ export class GroupsStateService {
     return this.realtime.presence()[groupId] ?? [];
   }
 
-  /** Sự kiện của các nhóm ĐANG HIỆN, đã gán màu — calendar-page gộp cái này vào lịch */
+  /**
+   * Sự kiện của các nhóm ĐANG HIỆN — calendar-page gộp cái này vào lịch.
+   * Không còn ép màu theo nhóm nữa: mỗi sự kiện giữ đúng màu do người tạo chọn.
+   */
   readonly visibleGroupEvents = computed<CalendarEvent[]>(() => {
     const vis = this.visibleGroupIds();
     const map = this.groupEvents();
     const out: CalendarEvent[] = [];
     for (const id of Object.keys(map)) {
       if (!vis.has(id)) continue;
-      const color = this.colorFor(id);
-      for (const e of map[id]) out.push({ ...e, color, groupId: id });
+      for (const e of map[id]) out.push({ ...e, groupId: id });
     }
     return out;
   });
@@ -296,9 +287,43 @@ export class GroupsStateService {
     });
   }
 
-  /** Tạo phòng Google Meet cho 1 sự kiện nhóm rồi lưu link (mọi thành viên thấy nút "Tham gia Meet"). */
+  /** Các sự kiện đang trong lúc tạo Meet — để khoá nút, tránh bấm 2 lần tạo 2 phòng. */
+  private readonly meetBusyIds = signal<Set<string>>(new Set());
+
+  /** Sự kiện này có đang tạo Meet không (panel dùng để disable nút). */
+  isMeetBusy(eventId: string): boolean {
+    return this.meetBusyIds().has(eventId);
+  }
+
+  private setMeetBusy(eventId: string, busy: boolean): void {
+    this.meetBusyIds.update((s) => {
+      const next = new Set(s);
+      if (busy) next.add(eventId);
+      else next.delete(eventId);
+      return next;
+    });
+  }
+
+  /**
+   * Tạo phòng Google Meet cho 1 sự kiện nhóm rồi lưu link (mọi thành viên thấy nút "Tham gia Meet").
+   *
+   * Mỗi sự kiện chỉ giữ ĐÚNG 1 phòng Meet: nếu đã có link thì dùng lại, không gọi Google
+   * tạo phòng mới (trước đây bấm lại là sinh thêm phòng thừa, bỏ không). Đồng thời khoá nút
+   * trong lúc đang tạo để bấm nhanh 2 lần không tạo ra 2 phòng.
+   */
   async createMeetForEvent(groupId: string, eventId: string): Promise<void> {
     this.error.set(null);
+    if (this.isMeetBusy(eventId)) return;
+
+    // Đã có sẵn link -> giữ nguyên, khỏi tạo mới.
+    const existing = this.eventsOf(groupId).find((e) => e.id === eventId);
+    if (existing?.meetLink) {
+      this.flash.set('Sự kiện này đã có phòng Meet rồi.');
+      this.autoClearFlash();
+      return;
+    }
+
+    this.setMeetBusy(eventId, true);
     try {
       const link = await this.meet.createSpace(); // gọi Google Meet API (cần quyền + token Google)
       this.api.setMeetLink(groupId, eventId, link).subscribe({
@@ -306,10 +331,15 @@ export class GroupsStateService {
           this.upsertEvent(groupId, saved);
           this.flash.set('Đã tạo Google Meet cho sự kiện.');
           this.autoClearFlash();
+          this.setMeetBusy(eventId, false);
         },
-        error: () => this.error.set('Lưu link Meet thất bại.'),
+        error: () => {
+          this.error.set('Lưu link Meet thất bại.');
+          this.setMeetBusy(eventId, false);
+        },
       });
     } catch (e: any) {
+      this.setMeetBusy(eventId, false);
       // Chưa cấp quyền Meet -> chuyển sang Google xin quyền, xong quay lại bấm "Tạo Meet" lần nữa.
       if (e?.code === 'NEED_CONSENT') {
         await this.meet.requestAccess();
