@@ -20,7 +20,7 @@ import { SupabaseService } from './supabase.service';
   template: `
     <div class="login-scene auth-fade-in flex min-h-screen">
       <!-- Dải gradient thương hiệu (đúng màu logo: tím -> chàm -> ngọc) nối liền 2 nửa -->
-      <div class="fixed inset-x-0 top-0 z-30 h-[3px]" style="background: linear-gradient(90deg, #4338ca, #7c3aed 45%, #22d3ee)" aria-hidden="true"></div>
+      <div class="fixed inset-x-0 top-0 z-30 h-[3px]" style="background: linear-gradient(90deg, #22407D, #3B62A6 45%, #5A86C8)" aria-hidden="true"></div>
 
       <!-- ================= NỬA TRÁI — thương hiệu (chỉ hiện lg+) ================= -->
       <div class="relative hidden w-full max-w-xl shrink-0 flex-col justify-between overflow-hidden bg-[#0b0c10] p-10 lg:flex xl:max-w-2xl xl:p-14">
@@ -40,19 +40,7 @@ import { SupabaseService } from './supabase.service';
         ></div>
 
         <a href="/landing/index.html" class="relative z-10 flex w-fit items-center gap-2 text-white/70 transition-colors hover:text-white">
-          <svg width="22" height="22" viewBox="0 0 96 96" aria-hidden="true">
-            <defs>
-              <linearGradient id="fsGradLeft" x1="8" y1="88" x2="90" y2="6" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#a5b4fc" />
-                <stop offset=".55" stop-color="#c4b5fd" />
-                <stop offset="1" stop-color="#67e8f9" />
-              </linearGradient>
-            </defs>
-            <path d="M58 20 L58 82 M58 54 L24 54 L52 18" fill="none" stroke="url(#fsGradLeft)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z" fill="url(#fsGradLeft)" />
-            <circle cx="80" cy="19" r="7" fill="#0b0c10" />
-            <circle cx="83" cy="16" r="1.8" fill="#fff" opacity=".9" />
-          </svg>
+          <svg width="26" height="22" viewBox="209.20 79.40 186.70 159.70" aria-hidden="true"><defs><linearGradient id="fsGradLeft" x1="209.20" y1="239.10" x2="395.90" y2="79.40" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3E68AC"/><stop offset=".5" stop-color="#4E78BC"/><stop offset="1" stop-color="#5E86C4"/></linearGradient></defs><g transform="translate(0,327) scale(0.1,-0.1)" fill="url(#fsGradLeft)" stroke="none"><path d="M3203 2421 c-141 -38 -224 -94 -373 -247 -64 -66 -192 -198 -286 -294 -93 -96 -224 -231 -291 -300 l-121 -125 2 -60 1 -60 333 0 332 0 0 -207 0 -208 80 0 80 0 2 208 3 207 45 0 45 0 0 70 0 70 -47 -2 -48 -3 -2 288 -3 287 -77 -82 -78 -82 0 -203 0 -203 -230 0 c-127 -1 -230 1 -230 4 0 3 46 52 103 110 56 59 206 213 332 344 300 311 375 362 561 374 133 9 259 -40 391 -153 84 -72 84 -77 21 -141 -198 -202 -417 -247 -673 -138 -18 8 -19 7 -6 -9 66 -81 303 -135 454 -103 l37 8 0 -346 c0 -332 -1 -346 -20 -365 -19 -19 -33 -20 -270 -20 l-250 0 0 -37 c0 -21 -3 -48 -6 -61 l-7 -23 286 3 c414 4 381 -38 385 499 l3 399 37 19 c59 31 152 111 201 174 55 71 54 75 -79 207 -156 155 -270 210 -455 216 -87 3 -125 0 -182 -15z"/><path d="M2539 2334 c-7 -9 -13 -35 -14 -57 l-1 -42 -81 -5 c-148 -9 -163 -39 -163 -332 l0 -212 60 59 60 59 0 73 0 73 66 0 66 0 133 138 132 137 -78 3 -79 3 0 44 c0 67 -63 104 -101 59z"/><path d="M3282 2213 c-147 -72 -88 -298 78 -298 109 0 182 95 156 201 l-7 28 -22 -27 c-33 -39 -78 -40 -103 -2 -21 32 -11 72 21 87 13 6 22 15 19 19 -9 15 -107 9 -142 -8z"/><path d="M3314 1667 c-3 -8 -4 -39 -2 -68 l3 -54 67 -3 c77 -3 82 3 76 89 l-3 44 -68 3 c-51 2 -69 -1 -73 -11z m106 -35 c0 -20 -46 -52 -58 -40 -16 16 -15 29 1 22 8 -3 20 2 27 11 13 16 30 20 30 7z"/><path d="M3112 1613 l3 -58 55 0 55 0 3 58 3 57 -61 0 -61 0 3 -57z"/><path d="M2563 1636 c-46 -39 -9 -107 50 -92 52 13 59 83 11 105 -32 14 -28 15 -61 -13z"/><path d="M3110 1405 l0 -55 60 0 60 0 0 55 0 55 -60 0 -60 0 0 -55z"/><path d="M3328 1418 c-7 -63 -3 -68 58 -68 l54 0 0 55 0 55 -54 0 -54 0 -4 -42z"/><path d="M2282 1151 c3 -141 10 -159 72 -205 25 -19 44 -21 212 -24 l184 -3 0 60 0 61 -153 0 c-198 0 -191 -5 -192 132 l0 103 -63 3 -64 3 4 -130z"/><path d="M2575 1248 c-58 -33 -39 -108 28 -108 57 0 74 84 22 108 -30 14 -25 14 -50 0z"/><path d="M3114 1247 c-3 -8 -4 -34 -2 -58 l3 -44 58 -3 58 -3 -3 58 -3 58 -53 3 c-38 2 -54 -1 -58 -11z"/><path d="M3350 1242 c-43 -35 -23 -102 31 -102 56 0 82 73 37 104 -29 20 -41 20 -68 -2z"/></g></svg>
           <span class="text-[15px] font-semibold tracking-tight">Foresight</span>
         </a>
 
@@ -114,24 +102,12 @@ import { SupabaseService } from './supabase.service';
         <div class="auth-rise-in w-full max-w-sm" style="animation-delay: .1s">
           <!-- Logo nhỏ — chỉ hiện khi nửa trái bị ẩn (màn hình hẹp) -->
           <a href="/landing/index.html" class="mb-6 flex items-center justify-center gap-2 lg:hidden">
-            <svg width="26" height="26" viewBox="0 0 96 96" aria-hidden="true">
-              <defs>
-                <linearGradient id="fsGradMobile" x1="8" y1="88" x2="90" y2="6" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stop-color="#3a2d6d" />
-                  <stop offset=".55" stop-color="#3f5aa6" />
-                  <stop offset="1" stop-color="#2bb6c4" />
-                </linearGradient>
-              </defs>
-              <path d="M58 20 L58 82 M58 54 L24 54 L52 18" fill="none" stroke="url(#fsGradMobile)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M52 18 C62 4 88 4 94 18 C88 30 62 30 52 18 Z" fill="url(#fsGradMobile)" />
-              <circle cx="80" cy="19" r="7" fill="#14131c" />
-              <circle cx="83" cy="16" r="1.8" fill="#fff" opacity=".9" />
-            </svg>
+            <svg width="30" height="26" viewBox="209.20 79.40 186.70 159.70" aria-hidden="true"><defs><linearGradient id="fsGradMobile" x1="209.20" y1="239.10" x2="395.90" y2="79.40" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3E68AC"/><stop offset=".5" stop-color="#4E78BC"/><stop offset="1" stop-color="#5E86C4"/></linearGradient></defs><g transform="translate(0,327) scale(0.1,-0.1)" fill="url(#fsGradMobile)" stroke="none"><path d="M3203 2421 c-141 -38 -224 -94 -373 -247 -64 -66 -192 -198 -286 -294 -93 -96 -224 -231 -291 -300 l-121 -125 2 -60 1 -60 333 0 332 0 0 -207 0 -208 80 0 80 0 2 208 3 207 45 0 45 0 0 70 0 70 -47 -2 -48 -3 -2 288 -3 287 -77 -82 -78 -82 0 -203 0 -203 -230 0 c-127 -1 -230 1 -230 4 0 3 46 52 103 110 56 59 206 213 332 344 300 311 375 362 561 374 133 9 259 -40 391 -153 84 -72 84 -77 21 -141 -198 -202 -417 -247 -673 -138 -18 8 -19 7 -6 -9 66 -81 303 -135 454 -103 l37 8 0 -346 c0 -332 -1 -346 -20 -365 -19 -19 -33 -20 -270 -20 l-250 0 0 -37 c0 -21 -3 -48 -6 -61 l-7 -23 286 3 c414 4 381 -38 385 499 l3 399 37 19 c59 31 152 111 201 174 55 71 54 75 -79 207 -156 155 -270 210 -455 216 -87 3 -125 0 -182 -15z"/><path d="M2539 2334 c-7 -9 -13 -35 -14 -57 l-1 -42 -81 -5 c-148 -9 -163 -39 -163 -332 l0 -212 60 59 60 59 0 73 0 73 66 0 66 0 133 138 132 137 -78 3 -79 3 0 44 c0 67 -63 104 -101 59z"/><path d="M3282 2213 c-147 -72 -88 -298 78 -298 109 0 182 95 156 201 l-7 28 -22 -27 c-33 -39 -78 -40 -103 -2 -21 32 -11 72 21 87 13 6 22 15 19 19 -9 15 -107 9 -142 -8z"/><path d="M3314 1667 c-3 -8 -4 -39 -2 -68 l3 -54 67 -3 c77 -3 82 3 76 89 l-3 44 -68 3 c-51 2 -69 -1 -73 -11z m106 -35 c0 -20 -46 -52 -58 -40 -16 16 -15 29 1 22 8 -3 20 2 27 11 13 16 30 20 30 7z"/><path d="M3112 1613 l3 -58 55 0 55 0 3 58 3 57 -61 0 -61 0 3 -57z"/><path d="M2563 1636 c-46 -39 -9 -107 50 -92 52 13 59 83 11 105 -32 14 -28 15 -61 -13z"/><path d="M3110 1405 l0 -55 60 0 60 0 0 55 0 55 -60 0 -60 0 0 -55z"/><path d="M3328 1418 c-7 -63 -3 -68 58 -68 l54 0 0 55 0 55 -54 0 -54 0 -4 -42z"/><path d="M2282 1151 c3 -141 10 -159 72 -205 25 -19 44 -21 212 -24 l184 -3 0 60 0 61 -153 0 c-198 0 -191 -5 -192 132 l0 103 -63 3 -64 3 4 -130z"/><path d="M2575 1248 c-58 -33 -39 -108 28 -108 57 0 74 84 22 108 -30 14 -25 14 -50 0z"/><path d="M3114 1247 c-3 -8 -4 -34 -2 -58 l3 -44 58 -3 58 -3 -3 58 -3 58 -53 3 c-38 2 -54 -1 -58 -11z"/><path d="M3350 1242 c-43 -35 -23 -102 31 -102 56 0 82 73 37 104 -29 20 -41 20 -68 -2z"/></g></svg>
             <span class="text-[15px] font-semibold tracking-tight text-gray-900">Foresight</span>
           </a>
 
           <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white text-center shadow-sm">
-            <div class="h-[3px] w-full" style="background: linear-gradient(90deg, #4338ca, #7c3aed 45%, #22d3ee)" aria-hidden="true"></div>
+            <div class="h-[3px] w-full" style="background: linear-gradient(90deg, #22407D, #3B62A6 45%, #5A86C8)" aria-hidden="true"></div>
             <div class="p-8">
             <h1 class="text-[24px] font-semibold tracking-tight text-gray-900">Chào mừng trở lại</h1>
             <p class="mx-auto mt-2 max-w-[260px] text-[14px] leading-relaxed text-gray-500">

@@ -11,7 +11,7 @@ type Lang = 'vi' | 'en';
 const DICT: Record<Lang, Record<string, string>> = {
   vi: {
     // Nav / calendar chrome
-    'nav.calendar': 'Lịch', 'nav.today': 'Hôm nay', 'nav.create': 'Tạo',
+    'nav.calendar': 'Foresight', 'nav.today': 'Hôm nay', 'nav.create': 'Tạo',
     'nav.show': 'Hiển thị', 'nav.settings': 'Cài đặt', 'nav.trash': 'Thùng rác',
     'nav.export': 'Xuất lịch (.ics)', 'nav.import': 'Nhập lịch (.ics)',
     'nav.exportPdf': 'Xuất lịch (PDF)', 'nav.importPdf': 'Nhập lịch (PDF)', 'nav.importPdfBusy': 'Đang xử lý PDF...',
@@ -231,7 +231,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ai.settingValue.vi': 'Tiếng Việt', 'ai.settingValue.en': 'Tiếng Anh',
   },
   en: {
-    'nav.calendar': 'Calendar', 'nav.today': 'Today', 'nav.create': 'Create',
+    'nav.calendar': 'Foresight', 'nav.today': 'Today', 'nav.create': 'Create',
     'nav.show': 'Show', 'nav.settings': 'Settings', 'nav.trash': 'Trash',
     'nav.export': 'Export calendar (.ics)', 'nav.import': 'Import calendar (.ics)',
     'nav.exportPdf': 'Export calendar (PDF)', 'nav.importPdf': 'Import calendar (PDF)', 'nav.importPdfBusy': 'Processing PDF...',

@@ -69,6 +69,11 @@ export class GroupsApiService {
     return this.http.delete<{ ok: boolean }>(`${this.base}/${id}/members`, { params: { email } });
   }
 
+  /** Tự rời nhóm. Chủ nhóm không rời được — phải giải tán (dùng remove()). */
+  leave(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`${this.base}/${id}/leave`);
+  }
+
   remove(id: string): Observable<{ ok: boolean }> {
     return this.http.delete<{ ok: boolean }>(`${this.base}/${id}`);
   }

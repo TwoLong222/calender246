@@ -8,7 +8,8 @@ import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
-import { CalendarEvent, EventKind } from '../calendar/calendar.types';
+import { GroupChatService } from '../groups/chat.service';
+import { AttendeeStatus, CalendarEvent, EventKind } from '../calendar/calendar.types';
 import { SupabaseService } from '../auth/supabase.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
@@ -62,7 +63,19 @@ type Pending =
   | { kind: 'joinGroup'; code: string }
   | { kind: 'inviteGroupMember'; group: Group; emails: string[] }
   | { kind: 'createGroupEvent'; group: Group; title: string; start: Date; end: Date; withMeet: boolean }
-  | { kind: 'changeSetting'; settingKey: 'theme_mode' | 'language' | 'accent_color'; settingValue: string; label: string };
+  | { kind: 'changeSetting'; settingKey: string; settingValue: string; label: string }
+  // ----- Mở rộng: sự kiện lặp -----
+  | { kind: 'stopRepeat'; event: CalendarEvent; from: string }
+  | { kind: 'deleteRepeatRange'; event: CalendarEvent; from: string; to: string }
+  // ----- Mở rộng: lời mời + thùng rác -----
+  | { kind: 'respondInvite'; event: CalendarEvent; status: AttendeeStatus }
+  | { kind: 'respondGroupInvite'; groupId: string; groupName: string; accept: boolean }
+  | { kind: 'restoreEvent'; event: CalendarEvent }
+  // ----- Mở rộng: nhóm nâng cao + chat -----
+  | { kind: 'leaveGroup'; group: Group }
+  | { kind: 'deleteGroup'; group: Group }
+  | { kind: 'removeGroupMember'; group: Group; email: string }
+  | { kind: 'sendGroupMessage'; group: Group; text: string };
 
 @Component({
   selector: 'app-ai-assistant',
@@ -140,7 +153,7 @@ type Pending =
           @if (pending(); as p) {
             <div
               class="mr-auto w-full rounded-lg border px-3 py-2 text-sm"
-              [class]="p.kind === 'delete' || p.kind === 'deleteNote' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'"
+              [class]="isDestructive(p) ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'"
             >
               @switch (p.kind) {
                 @case ('create') {
@@ -214,6 +227,49 @@ type Pending =
                   <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.changeSetting') }}</p>
                   <p class="text-gray-700">⚙️ {{ tr.t('ai.settingKey.' + p.settingKey) }} → {{ p.label }}</p>
                 }
+                @case ('stopRepeat') {
+                  <p class="mb-1 font-medium text-gray-800">Ngắt lặp</p>
+                  <p class="text-gray-700">🔁 {{ p.event.title }}</p>
+                  <p class="text-gray-700">Dừng từ {{ p.from }} trở đi (các lần trước vẫn giữ)</p>
+                }
+                @case ('deleteRepeatRange') {
+                  <p class="mb-1 font-medium text-gray-800">Xoá lần lặp theo khoảng ngày</p>
+                  <p class="text-gray-700">🔁 {{ p.event.title }}</p>
+                  <p class="text-gray-700">Từ {{ p.from }} đến {{ p.to }}</p>
+                }
+                @case ('respondInvite') {
+                  <p class="mb-1 font-medium text-gray-800">Trả lời lời mời</p>
+                  <p class="text-gray-700">📌 {{ p.event.title }}</p>
+                  <p class="text-gray-700">{{ p.status === 'accepted' ? '✅ Đồng ý' : p.status === 'declined' ? '❌ Từ chối' : '❔ Có thể' }}</p>
+                }
+                @case ('respondGroupInvite') {
+                  <p class="mb-1 font-medium text-gray-800">Lời mời nhóm</p>
+                  <p class="text-gray-700">👥 {{ p.groupName }}</p>
+                  <p class="text-gray-700">{{ p.accept ? '✅ Đồng ý vào nhóm' : '❌ Từ chối' }}</p>
+                }
+                @case ('restoreEvent') {
+                  <p class="mb-1 font-medium text-gray-800">Khôi phục từ thùng rác</p>
+                  <p class="text-gray-700">♻️ {{ p.event.title }}</p>
+                }
+                @case ('leaveGroup') {
+                  <p class="mb-1 font-medium text-gray-800">Rời nhóm</p>
+                  <p class="text-gray-700">👥 {{ p.group.name }}</p>
+                }
+                @case ('deleteGroup') {
+                  <p class="mb-1 font-medium text-gray-800">Giải tán nhóm</p>
+                  <p class="text-gray-700">👥 {{ p.group.name }}</p>
+                  <p class="text-red-700">⚠️ Xoá nhóm cho TẤT CẢ thành viên, không hoàn tác được.</p>
+                }
+                @case ('removeGroupMember') {
+                  <p class="mb-1 font-medium text-gray-800">Xoá thành viên</p>
+                  <p class="text-gray-700">👥 {{ p.group.name }}</p>
+                  <p class="text-gray-700">👤 {{ p.email }}</p>
+                }
+                @case ('sendGroupMessage') {
+                  <p class="mb-1 font-medium text-gray-800">Gửi tin nhắn vào nhóm</p>
+                  <p class="text-gray-700">👥 {{ p.group.name }}</p>
+                  <p class="break-words text-gray-700">💬 {{ p.text }}</p>
+                }
               }
               <div class="mt-2 flex gap-2">
                 <button
@@ -266,6 +322,7 @@ export class AiAssistantComponent {
   private readonly ai = inject(AiApiService);
   private readonly state = inject(CalendarStateService);
   private readonly groupsState = inject(GroupsStateService);
+  private readonly chat = inject(GroupChatService);
   private readonly supabase = inject(SupabaseService);
   protected readonly tr = inject(TranslateService);
   private readonly confirmSvc = inject(ConfirmService);
@@ -889,6 +946,130 @@ export class AiAssistantComponent {
           return;
         }
 
+        // ---------- Sự kiện lặp ----------
+        if (res.intent === 'stop_repeat' || res.intent === 'delete_repeat_range') {
+          const found = this.findEvents(res.query);
+          const ev = this.pickOne(found, res.query);
+          if (!ev) return;
+          if (!ev.seriesId) {
+            this.push(`"${ev.title}" không phải sự kiện lặp nên không có gì để ngắt.`);
+            return;
+          }
+          if (!res.repeatFrom) {
+            this.push('Bạn muốn áp dụng từ ngày nào? (vd: từ 01/10/2026)');
+            return;
+          }
+          this.push(res.reply);
+          if (res.intent === 'stop_repeat') {
+            this.pending.set({ kind: 'stopRepeat', event: ev, from: res.repeatFrom });
+          } else {
+            if (!res.repeatTo) {
+              this.push('Xoá từ ngày nào đến ngày nào? Bạn nói rõ giúp mình.');
+              return;
+            }
+            this.pending.set({ kind: 'deleteRepeatRange', event: ev, from: res.repeatFrom, to: res.repeatTo });
+          }
+          return;
+        }
+
+        // ---------- Lời mời sự kiện ----------
+        if (res.intent === 'respond_invite') {
+          if (!res.rsvpStatus) {
+            this.push('Bạn muốn Đồng ý, Từ chối hay Có thể?');
+            return;
+          }
+          const ev = this.pickOne(this.findEvents(res.query), res.query);
+          if (!ev) return;
+          this.push(res.reply);
+          this.pending.set({ kind: 'respondInvite', event: ev, status: res.rsvpStatus });
+          return;
+        }
+
+        // ---------- Lời mời nhóm ----------
+        if (res.intent === 'respond_group_invite') {
+          if (!res.rsvpStatus) {
+            this.push('Bạn muốn đồng ý hay từ chối lời mời nhóm này?');
+            return;
+          }
+          const gq = (res.groupQuery ?? '').trim().toLowerCase();
+          const invites = this.groupsState.pendingInvites();
+          const match = gq ? invites.filter((i) => i.name.toLowerCase().includes(gq)) : invites;
+          if (match.length === 0) {
+            this.push(gq ? `Không có lời mời nhóm nào tên "${res.groupQuery}".` : 'Bạn không có lời mời nhóm nào đang chờ.');
+            return;
+          }
+          if (match.length > 1) {
+            this.push(`Có ${match.length} lời mời khớp: ${match.map((i) => i.name).join(', ')}. Bạn nói rõ hơn nhé.`);
+            return;
+          }
+          this.push(res.reply);
+          this.pending.set({
+            kind: 'respondGroupInvite',
+            groupId: match[0].group_id,
+            groupName: match[0].name,
+            accept: res.rsvpStatus === 'accepted',
+          });
+          return;
+        }
+
+        // ---------- Thùng rác ----------
+        if (res.intent === 'restore_event') {
+          const q = (res.query ?? '').trim().toLowerCase();
+          // Thùng rác tải riêng (không nằm trong state.events()) nên phải nạp trước khi tìm.
+          this.state.loadTrash();
+          setTimeout(() => {
+            const trashed = this.state.trashedEvents();
+            const found = q ? trashed.filter((e) => e.title.toLowerCase().includes(q)) : trashed;
+            if (found.length === 0) {
+              this.push(q ? `Không thấy "${res.query}" trong thùng rác.` : 'Thùng rác đang trống.');
+              return;
+            }
+            if (found.length > 1) {
+              this.push(`Có ${found.length} mục khớp: ${found.map((e) => e.title).join(', ')}. Bạn nói rõ hơn nhé.`);
+              return;
+            }
+            this.push(res.reply);
+            this.pending.set({ kind: 'restoreEvent', event: found[0] });
+          }, 600);
+          return;
+        }
+
+        // ---------- Nhóm nâng cao + chat ----------
+        if (
+          res.intent === 'leave_group' ||
+          res.intent === 'delete_group' ||
+          res.intent === 'remove_group_member' ||
+          res.intent === 'mute_group' ||
+          res.intent === 'send_group_message'
+        ) {
+          const g = this.pickGroup(res.groupQuery);
+          if (!g) return;
+
+          if (res.intent === 'mute_group') {
+            // Chỉ lưu trên máy, không đụng dữ liệu chung -> làm luôn, khỏi xác nhận.
+            const want = res.muted !== false;
+            if (this.chat.isMuted(g.id) !== want) this.chat.toggleMuted(g.id);
+            this.push(`${want ? 'Đã tắt' : 'Đã bật lại'} thông báo nhóm "${g.name}" ✅`);
+            return;
+          }
+          if (res.intent === 'remove_group_member' && !res.memberEmail) {
+            this.push('Bạn muốn xoá thành viên nào? Cho mình email nhé.');
+            return;
+          }
+          if (res.intent === 'send_group_message' && !res.messageText?.trim()) {
+            this.push('Bạn muốn nhắn nội dung gì vào nhóm?');
+            return;
+          }
+
+          this.push(res.reply);
+          if (res.intent === 'leave_group') this.pending.set({ kind: 'leaveGroup', group: g });
+          else if (res.intent === 'delete_group') this.pending.set({ kind: 'deleteGroup', group: g });
+          else if (res.intent === 'remove_group_member')
+            this.pending.set({ kind: 'removeGroupMember', group: g, email: res.memberEmail! });
+          else this.pending.set({ kind: 'sendGroupMessage', group: g, text: res.messageText!.trim() });
+          return;
+        }
+
         if (res.intent === 'export_calendar') {
           if (res.exportFormat !== 'pdf' && res.exportFormat !== 'ics') {
             this.push(res.reply || 'Bạn muốn xuất định dạng PDF hay ICS?');
@@ -1017,8 +1198,85 @@ export class AiAssistantComponent {
         this.themeBuilder.setPreset(p.settingValue);
       }
       this.push(`${this.tr.t('ai.msg.settingChanged')}: ${this.tr.t(`ai.settingKey.${p.settingKey}`)} → ${p.label} ✅`);
+    } else if (p.kind === 'stopRepeat') {
+      this.state.deleteEvent(p.event.id, 'from', { from: p.from });
+      this.push(`Đã ngắt lặp "${p.event.title}" từ ${p.from} trở đi ✅`);
+    } else if (p.kind === 'deleteRepeatRange') {
+      this.state.deleteEvent(p.event.id, 'range', { from: p.from, to: p.to });
+      this.push(`Đã xoá các lần lặp của "${p.event.title}" từ ${p.from} đến ${p.to} ✅`);
+    } else if (p.kind === 'respondInvite') {
+      this.state.rsvp(p.event.id, p.status);
+      const label = p.status === 'accepted' ? 'Đồng ý' : p.status === 'declined' ? 'Từ chối' : 'Có thể';
+      this.push(`Đã trả lời "${p.event.title}": ${label} ✅`);
+    } else if (p.kind === 'respondGroupInvite') {
+      if (p.accept) this.groupsState.acceptInvite(p.groupId);
+      else this.groupsState.declineInvite(p.groupId);
+      this.push(`Đã ${p.accept ? 'đồng ý vào' : 'từ chối'} nhóm "${p.groupName}" ✅`);
+    } else if (p.kind === 'restoreEvent') {
+      this.state.restoreFromTrash(p.event.id);
+      this.push(`Đã khôi phục "${p.event.title}" ✅`);
+    } else if (p.kind === 'leaveGroup') {
+      this.groupsState.leaveGroup(p.group.id);
+      this.push(`Đã rời nhóm "${p.group.name}" ✅`);
+    } else if (p.kind === 'deleteGroup') {
+      this.groupsState.deleteGroup(p.group.id);
+      this.push(`Đã giải tán nhóm "${p.group.name}" ✅`);
+    } else if (p.kind === 'removeGroupMember') {
+      this.groupsState.removeMember(p.group.id, p.email);
+      this.push(`Đã xoá ${p.email} khỏi nhóm "${p.group.name}" ✅`);
+    } else if (p.kind === 'sendGroupMessage') {
+      this.chat.send(p.group.id, p.text);
+      this.push(`Đã gửi tin nhắn vào nhóm "${p.group.name}" ✅`);
     }
     this.pending.set(null);
+  }
+
+  /**
+   * Chọn ĐÚNG 1 sự kiện từ kết quả tìm. Không có hoặc có nhiều thì hỏi lại thay vì đoán
+   * bừa — đoán sai ở đây là xoá/sửa nhầm sự kiện của người ta.
+   */
+  private pickOne(found: CalendarEvent[], query?: string): CalendarEvent | null {
+    if (found.length === 0) {
+      this.push(query ? `Không tìm thấy sự kiện "${query}".` : 'Bạn muốn thao tác với sự kiện nào?');
+      return null;
+    }
+    if (found.length > 1) {
+      this.push(`Có ${found.length} sự kiện khớp: ${found.slice(0, 5).map((e) => e.title).join(', ')}. Bạn nói rõ hơn nhé.`);
+      return null;
+    }
+    return found[0];
+  }
+
+  /** Chọn đúng 1 nhóm theo tên; không rõ thì hỏi lại. */
+  private pickGroup(groupQuery?: string): Group | null {
+    const gq = (groupQuery ?? '').trim().toLowerCase();
+    if (!gq) {
+      this.push('Bạn muốn thao tác với nhóm nào?');
+      return null;
+    }
+    const groups = this.groupsState.groups().filter((g) => g.name.toLowerCase().includes(gq));
+    if (groups.length === 0) {
+      this.push(`Không tìm thấy nhóm "${groupQuery}".`);
+      return null;
+    }
+    if (groups.length > 1) {
+      this.push(`Có ${groups.length} nhóm khớp: ${groups.map((g) => g.name).join(', ')}. Bạn nói rõ hơn nhé.`);
+      return null;
+    }
+    return groups[0];
+  }
+
+  /** Việc đang chờ có làm MẤT dữ liệu không -> tô đỏ khung xem trước cho dễ nhận ra. */
+  protected isDestructive(p: Pending): boolean {
+    return (
+      p.kind === 'delete' ||
+      p.kind === 'deleteNote' ||
+      p.kind === 'stopRepeat' ||
+      p.kind === 'deleteRepeatRange' ||
+      p.kind === 'leaveGroup' ||
+      p.kind === 'deleteGroup' ||
+      p.kind === 'removeGroupMember'
+    );
   }
 
   cancel(): void {

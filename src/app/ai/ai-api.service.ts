@@ -21,6 +21,17 @@ export interface AiParseResult {
     | 'create_group_event'
     | 'change_setting'
     | 'export_calendar'
+    // Mở rộng: lặp / lời mời / thùng rác / nhóm nâng cao
+    | 'stop_repeat'
+    | 'delete_repeat_range'
+    | 'respond_invite'
+    | 'respond_group_invite'
+    | 'restore_event'
+    | 'leave_group'
+    | 'delete_group'
+    | 'remove_group_member'
+    | 'mute_group'
+    | 'send_group_message'
     | 'unclear';
   title?: string;
   startTime?: string;
@@ -46,9 +57,22 @@ export interface AiParseResult {
   groupName?: string;
   groupCode?: string;
   groupQuery?: string;
-  settingKey?: 'theme_mode' | 'language' | 'accent_color';
+  settingKey?: string;
   settingValue?: string;
   exportFormat?: 'pdf' | 'ics';
+  // Sự kiện lặp
+  repeatFrom?: string;
+  repeatTo?: string;
+  recurrenceFreq?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrenceInterval?: number;
+  recurrenceCount?: number;
+  recurrenceUntil?: string;
+  // Lời mời
+  rsvpStatus?: 'accepted' | 'declined' | 'tentative';
+  // Nhóm nâng cao
+  memberEmail?: string;
+  muted?: boolean;
+  messageText?: string;
   reply: string;
 }
 
