@@ -101,7 +101,7 @@ import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/no
                   @if (n.body) { <p class="text-xs text-gray-500">{{ n.body }}</p> }
                 </button>
                 <button type="button" (click)="notify.dismissReminder(n.id)"
-                  class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+                  class="btn-icon !p-1 shrink-0 text-gray-400" [attr.aria-label]="tr.t('common.close')">
                   <app-icon name="x" class="h-3.5 w-3.5" />
                 </button>
               </div>

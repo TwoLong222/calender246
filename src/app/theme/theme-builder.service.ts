@@ -149,15 +149,43 @@ export class ThemeBuilderService {
 
 function paletteFromBase(hex: string): AccentPalette {
   const { h, s, l } = hexToHsl(hex);
-  // Màu gốc coi như sắc 600; các sắc khác chỉnh độ sáng (L) quanh nó.
+  // Màu gốc coi như sắc 600; các sắc khác chỉnh độ sáng (L) quanh nó. 600/700/800 được dùng
+  // làm NỀN cho chữ TRẮNG (nút chính, huy hiệu "hôm nay"...) -> nếu người dùng chọn màu quá
+  // sáng/nhạt, phải ép tối lại đủ để chữ trắng còn đọc được (WCAG AA ~4.5:1), không thì cả
+  // app nhìn mờ/khó đọc ở đúng những chỗ quan trọng nhất.
+  const l600 = darkenForWhiteText(h, s, l);
+  const l700 = darkenForWhiteText(h, s, clamp(l600 - 9, 8, 100));
+  const l800 = darkenForWhiteText(h, s, clamp(l600 - 17, 6, 100));
   return {
     50: hslToHex(h, Math.min(s, 55), 96),
     100: hslToHex(h, Math.min(s, 60), 91),
-    500: hslToHex(h, s, clamp(l + 8, 0, 92)),
-    600: hslToHex(h, s, l),
-    700: hslToHex(h, s, clamp(l - 9, 8, 100)),
-    800: hslToHex(h, s, clamp(l - 17, 6, 100)),
+    500: hslToHex(h, s, clamp(l600 + 8, 0, 92)),
+    600: hslToHex(h, s, l600),
+    700: hslToHex(h, s, l700),
+    800: hslToHex(h, s, l800),
   };
+}
+
+/** Giảm dần độ sáng (L) tới khi nền đủ tối để chữ trắng đọc được (tỉ lệ tương phản tối thiểu
+ *  4.5:1 theo WCAG AA) — chặn ĐÁY 5% để không bao giờ ép về đen tuyệt đối dù màu gốc rất sáng. */
+function darkenForWhiteText(h: number, s: number, l: number, minRatio = 4.5): number {
+  let cur = l;
+  while (cur > 5 && contrastWithWhite(h, s, cur) < minRatio) cur -= 2;
+  return cur;
+}
+
+function contrastWithWhite(h: number, s: number, l: number): number {
+  const [r, g, b] = hslToRgb(h, s, l);
+  const lum = relLuminance(r, g, b);
+  return 1.05 / (lum + 0.05); // luminance của trắng = 1
+}
+
+function relLuminance(r: number, g: number, b: number): number {
+  const f = (c: number) => {
+    c /= 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -189,7 +217,7 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
   return { h, s: s * 100, l: l * 100 };
 }
 
-function hslToHex(h: number, s: number, l: number): string {
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   s /= 100;
   l /= 100;
   const c = (1 - Math.abs(2 * l - 1)) * s;
@@ -202,7 +230,12 @@ function hslToHex(h: number, s: number, l: number): string {
   else if (h < 240) { g = x; b = c; }
   else if (h < 300) { r = x; b = c; }
   else { r = c; b = x; }
-  const to = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const [r, g, b] = hslToRgb(h, s, l);
+  const to = (v: number) => Math.round(v).toString(16).padStart(2, '0');
   return `#${to(r)}${to(g)}${to(b)}`;
 }
 

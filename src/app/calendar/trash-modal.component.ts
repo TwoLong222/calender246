@@ -27,7 +27,7 @@ import { TranslateService } from '../i18n/translate.service';
           <h2 class="flex items-center gap-2 text-lg font-medium text-gray-800">
             <app-icon name="trash" class="h-5 w-5 text-gray-600" /> {{ tr.t('nav.trash') }}
           </h2>
-          <button type="button" (click)="state.closeTrash()" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+          <button type="button" (click)="state.closeTrash()" class="btn-icon !p-1.5 text-gray-500" [attr.aria-label]="tr.t('common.close')">
             <app-icon name="x" class="h-5 w-5" />
           </button>
         </header>

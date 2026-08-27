@@ -66,7 +66,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop-in fixed inset-0 z-40 flex items-start justify-center bg-black/40 px-4 pt-10 sm:pt-20" (click)="close()">
-      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col !rounded-[var(--radius-lg)] bg-white p-4 !shadow-[var(--shadow-lg)] sm:p-6" (click)="$event.stopPropagation()">
+      <div class="modal-card-in flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden !rounded-[var(--radius-lg)] bg-white p-4 !shadow-[var(--shadow-lg)] sm:p-6" (click)="$event.stopPropagation()">
         <div class="mb-4 flex items-start justify-between gap-4">
           <input
             type="text"
@@ -97,7 +97,10 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
         </div>
 
         <!-- Vùng nội dung CUỘN được (tiêu đề + tabs + nút Lưu/Huỷ vẫn cố định) -->
-        <div class="-mx-6 flex-1 overflow-y-auto px-6">
+        <!-- pt-1: chừa chỗ cho viền sáng (focus ring, tràn ~3px quanh field) của hàng đầu
+             tiên — không có đệm này thì khung cuộn cắt mất phần viền phía trên khi field đó
+             được focus (viền/box-shadow không "tràn ra ngoài" vùng cuộn được, luôn bị kẹp lại). -->
+        <div class="-mx-4 flex-1 overflow-y-auto px-4 pt-1 sm:-mx-6 sm:px-6">
 
         <!-- Tab: Sự kiện -->
         @if (tab() === 'event') {

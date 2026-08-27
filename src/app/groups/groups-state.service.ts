@@ -234,6 +234,23 @@ export class GroupsStateService {
     });
   }
 
+  /** Tự rời nhóm (không phải chủ nhóm). Dọn state y như khi bị xoá khỏi nhóm. */
+  leaveGroup(groupId: string): void {
+    this.api.leave(groupId).subscribe({
+      next: () => {
+        this.groups.update((list) => list.filter((g) => g.id !== groupId));
+        this.groupEvents.update((m) => {
+          const next = { ...m };
+          delete next[groupId];
+          return next;
+        });
+        this.realtime.leaveGroup(groupId);
+        this.closePanel();
+      },
+      error: () => this.error.set('Rời nhóm thất bại. Nếu bạn là chủ nhóm thì phải giải tán nhóm.'),
+    });
+  }
+
   deleteGroup(groupId: string): void {
     this.api.remove(groupId).subscribe({
       next: () => {
