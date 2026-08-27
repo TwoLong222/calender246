@@ -7,6 +7,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, effect, i
 import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
+import { GroupsStateService } from '../groups/groups-state.service';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { SupabaseService } from '../auth/supabase.service';
 import { IconComponent } from '../shared/icon.component';
@@ -173,8 +174,23 @@ type Pending =
           }
         </div>
 
+        <!-- Gợi ý câu hỏi bấm nhanh — người dùng không phải tự nghĩ ra câu lệnh.
+             Ẩn khi đang có việc chờ xác nhận để không che mất nút Xác nhận/Huỷ. -->
+        @if (!pending() && !loading()) {
+          <div class="flex shrink-0 flex-wrap gap-1.5 border-t border-gray-100 px-3 pt-2.5">
+            @for (s of suggestions(); track s.text) {
+              <button
+                type="button"
+                (click)="useSuggestion(s)"
+                class="tap rounded-full border border-gray-300 px-2.5 py-1 text-[11px] text-gray-600 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700"
+              >{{ s.label }}</button>
+            }
+          </div>
+        }
+
         <div class="flex gap-2 border-t border-gray-100 p-3">
           <input
+            #chatInput
             [(ngModel)]="input"
             (keydown.enter)="send()"
             [disabled]="loading()"
@@ -195,6 +211,7 @@ type Pending =
 export class AiAssistantComponent {
   private readonly ai = inject(AiApiService);
   private readonly state = inject(CalendarStateService);
+  private readonly groupsState = inject(GroupsStateService);
   private readonly supabase = inject(SupabaseService);
   protected readonly tr = inject(TranslateService);
   private readonly confirmSvc = inject(ConfirmService);
@@ -210,8 +227,58 @@ export class AiAssistantComponent {
   }
 
   open = signal(false);
+  readonly chatInput = viewChild<ElementRef<HTMLInputElement>>('chatInput');
   input = signal('');
   loading = signal(false);
+
+  /**
+   * Câu hỏi gợi ý bấm nhanh.
+   *
+   * Gợi ý gửi đi NGÀY ĐẦY ĐỦ (dd/mm/yyyy) chứ không phải "hôm nay"/"ngày 26" — nói mơ hồ
+   * thì AI phải tự đoán tháng/năm, dễ tra nhầm.
+   *
+   * `send`:
+   *  - true  : loại chỉ ĐỌC (hỏi lịch) -> bấm là gửi luôn, không hại gì.
+   *  - false : loại TẠO/SỬA lịch -> chỉ điền sẵn mẫu vào ô nhập rồi để con trỏ ở đó.
+   *    Không tự gửi, vì tên sự kiện và giờ giấc là do NGƯỜI DÙNG quyết, không phải tôi
+   *    viết cứng sẵn trong nút.
+   */
+  protected suggestions(): { label: string; text: string; send: boolean }[] {
+    const d = (offset: number) => {
+      const x = new Date();
+      x.setDate(x.getDate() + offset);
+      return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`;
+    };
+    return [
+      { label: 'Hôm nay có gì?', text: `Ngày ${d(0)} có sự kiện gì?`, send: true },
+      { label: 'Ngày mai có gì?', text: `Ngày ${d(1)} có sự kiện gì?`, send: true },
+      { label: '7 ngày tới', text: `Liệt kê sự kiện từ ngày ${d(0)} đến ngày ${d(7)}`, send: true },
+      { label: 'Tìm chỗ trống…', text: `Xếp giúp tôi 1 buổi họp 60 phút từ ngày ${d(0)} đến ngày ${d(7)}`, send: false },
+      { label: 'Tạo sự kiện…', text: `Tạo sự kiện  ngày ${d(1)} lúc 14:00 trong 1 tiếng`, send: false },
+    ];
+  }
+
+  /**
+   * Bấm 1 gợi ý. Loại chỉ đọc thì gửi luôn; loại tạo/sửa thì chỉ điền mẫu vào ô nhập và
+   * focus để người dùng sửa tên + giờ trước khi bấm Gửi.
+   */
+  protected useSuggestion(s: { text: string; send: boolean }): void {
+    if (this.loading()) return;
+    this.input.set(s.text);
+    if (s.send) {
+      this.send();
+      return;
+    }
+    // Đặt con trỏ vào đúng chỗ cần điền (2 dấu cách sau "Tạo sự kiện") nếu có, không thì cuối câu.
+    setTimeout(() => {
+      const el = this.chatInput()?.nativeElement;
+      if (!el) return;
+      el.focus();
+      const gap = s.text.indexOf('  ');
+      const pos = gap >= 0 ? gap + 1 : s.text.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }
   pending = signal<Pending | null>(null);
   /** Danh sách cuộc trò chuyện (mới nhất lên đầu) + cuộc đang mở. */
   protected readonly conversations = signal<Conversation[]>(this.loadConversations());
@@ -345,21 +412,32 @@ export class AiAssistantComponent {
     if (!this.open()) this.unread.set(true);
   }
 
+  /**
+   * Tập sự kiện trợ lý được phép tìm — phải GIỐNG HỆT cái đang vẽ trên lịch.
+   *
+   * Trước đây chỉ lấy state.events() (lịch CÁ NHÂN) nên mọi sự kiện của NHÓM đều bị bỏ sót:
+   * hỏi "ngày 26 có gì" thì màn hình có 3 sự kiện mà trợ lý chỉ kể 1.
+   */
+  private searchableEvents(): CalendarEvent[] {
+    return [...this.state.visibleEvents(), ...this.groupsState.visibleGroupEvents()];
+  }
+
   /** Tìm event thật từ dữ liệu đã tải (đúng quyền), theo từ khóa + khoảng thời gian */
   private findEvents(query?: string, rangeStart?: string, rangeEnd?: string): CalendarEvent[] {
     const q = (query ?? '').trim().toLowerCase();
     const rs = rangeStart ? new Date(rangeStart).getTime() : null;
     const re = rangeEnd ? new Date(rangeEnd).getTime() : null;
-    return this.state
-      .events()
+    return this.searchableEvents()
       .filter((e) => {
         const matchQ =
           !q ||
           e.title.toLowerCase().includes(q) ||
           (e.description ?? '').toLowerCase().includes(q) ||
           (e.location ?? '').toLowerCase().includes(q);
-        const t = e.start.getTime();
-        const matchRange = (rs === null || t >= rs) && (re === null || t <= re);
+        // So khớp theo GIAO NHAU của 2 khoảng, không chỉ theo giờ bắt đầu: sự kiện bắt đầu
+        // hôm trước mà kéo dài sang ngày đang hỏi (hoặc sự kiện cả ngày) vẫn phải được kể.
+        const matchRange =
+          (rs === null || e.end.getTime() >= rs) && (re === null || e.start.getTime() <= re);
         return matchQ && matchRange;
       })
       .sort((a, b) => a.start.getTime() - b.start.getTime());

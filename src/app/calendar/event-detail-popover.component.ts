@@ -60,15 +60,26 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             }
           </div>
 
+          <!-- Sự kiện lặp: cho biết lặp bao nhiêu lần và kéo dài tới ngày nào -->
+          @if (seriesInfo(); as s) {
+            <p class="mb-2 text-sm text-gray-600">
+              🔁 {{ tr.t('detail.repeats') }}:
+              <span class="font-medium">{{ s.count }} {{ tr.t('detail.times') }}</span>
+              · {{ s.first }} → {{ s.last }}
+            </p>
+          }
+
           @if (e.creatorEmail) {
-            <p class="mb-2 text-sm text-gray-600">👤 {{ tr.t('detail.creator') }}: {{ e.creatorEmail }}</p>
+            <p class="mb-2 break-all text-sm text-gray-600">👤 {{ tr.t('detail.creator') }}: {{ e.creatorEmail }}</p>
           }
 
           @if (e.location) {
-            <p class="mb-2 text-sm text-gray-600">📍 {{ e.location }}</p>
+            <!-- break-words: địa điểm/mô tả có thể chứa chuỗi dài không dấu cách (vd link dán vào).
+                 Popover đang overflow-x-hidden nên không ngắt từ là chữ bị CẮT MẤT, không cuộn được. -->
+            <p class="mb-2 break-words text-sm text-gray-600">📍 {{ e.location }}</p>
           }
           @if (e.description) {
-            <p class="mb-2 flex items-start gap-2 text-sm text-gray-600"><app-icon name="notes" class="mt-0.5 h-4 w-4 shrink-0" /><span>{{ e.description }}</span></p>
+            <p class="mb-2 flex items-start gap-2 text-sm text-gray-600"><app-icon name="notes" class="mt-0.5 h-4 w-4 shrink-0" /><span class="min-w-0 break-words">{{ e.description }}</span></p>
           }
 
           @if (e.guests.length > 0) {
@@ -90,7 +101,11 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             </div>
           }
 
-          <div class="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3 text-sm">
+          <!-- CHỈ hiện khi mình THỰC SỰ nằm trong danh sách khách mời. Trước đây khối này
+               không có điều kiện nên ai mở sự kiện cũng thấy "Tham dự?", kể cả người không
+               được mời và cả chính người tạo sự kiện không có khách nào. -->
+          @if (isInvited()) {
+          <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 text-sm">
             <span class="text-gray-500">{{ tr.t('detail.attend') }}</span>
             <button
               type="button"
@@ -117,6 +132,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
               {{ tr.t('rsvp.maybe') }}
             </button>
           </div>
+          }
 
           <!-- Tài liệu đính kèm -->
           <div class="mt-4 border-t border-gray-100 pt-3">
@@ -199,7 +215,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
                     <span class="shrink-0 text-[10px] text-gray-400">{{ commentTime(c.createdAt) }}</span>
                   </div>
                   @if (editingId() === c.id) {
-                    <textarea [(ngModel)]="editText" rows="2" class="field mt-1 w-full text-sm"></textarea>
+                    <textarea [(ngModel)]="editText" maxlength="2000" rows="2" class="field mt-1 w-full text-sm"></textarea>
                     <div class="mt-1 flex gap-3">
                       <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700">{{ tr.t('form.save') }}</button>
                       <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
@@ -231,7 +247,7 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
 
             <div class="flex gap-2">
               <textarea
-                [(ngModel)]="newComment"
+                [(ngModel)]="newComment" maxlength="2000"
                 rows="1"
                 [placeholder]="tr.t('detail.writeComment')"
                 class="field flex-1 resize-none text-sm"
@@ -249,6 +265,47 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
           </div>
 
           <!-- Xác nhận xóa đã chuyển sang popup dùng chung (ConfirmService) — xem askDelete(). -->
+        </div>
+      </div>
+    }
+
+    <!-- Chọn khoảng ngày cần xoá trong chuỗi lặp (mở từ nút "Xoá theo khoảng ngày…") -->
+    @if (rangeDeleteOpen()) {
+      <div class="modal-backdrop-in fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4" (click)="rangeDeleteOpen.set(false)">
+        <div class="modal-card-in w-full max-w-sm !rounded-[var(--radius-lg)] bg-white p-5 !shadow-[var(--shadow-lg)]" (click)="$event.stopPropagation()">
+          <p class="text-base font-semibold text-gray-900">{{ tr.t('detail.deleteRangeTitle') }}</p>
+          <p class="mt-1 text-sm text-gray-500">{{ tr.t('detail.deleteRangeHint') }}</p>
+
+          <div class="mt-4 space-y-3">
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-gray-600">{{ tr.t('detail.rangeFrom') }}</span>
+              <input type="date" [value]="rangeFrom()" (input)="rangeFrom.set($any($event.target).value)" class="field w-full" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-gray-600">{{ tr.t('detail.rangeTo') }}</span>
+              <input type="date" [value]="rangeTo()" (input)="rangeTo.set($any($event.target).value)" class="field w-full" />
+            </label>
+          </div>
+
+          @if (rangeError(); as err) {
+            <p class="mt-2 text-xs text-red-600">{{ err }}</p>
+          }
+
+          <div class="mt-5 flex justify-end gap-2">
+            <button type="button" (click)="rangeDeleteOpen.set(false)" class="btn btn-secondary">{{ tr.t('del.cancel') }}</button>
+            <button type="button" (click)="confirmRangeDelete()" class="btn text-white !bg-red-600 hover:!bg-red-700">{{ tr.t('detail.deleteRangeBtn') }}</button>
+          </div>
+
+          <!-- NGẮT LẶP: dừng hẳn chuỗi từ "Từ ngày" trở đi — không cần biết chuỗi kết thúc
+               ngày nào, nên để riêng chứ không nhét chung nút xoá khoảng ở trên. -->
+          <div class="mt-4 border-t border-gray-200 pt-3">
+            <p class="mb-2 text-xs text-gray-500">{{ tr.t('detail.stopRepeatHint') }}</p>
+            <button
+              type="button"
+              (click)="confirmStopRepeat()"
+              class="btn btn-secondary w-full !justify-center"
+            >{{ tr.t('detail.stopRepeat') }} {{ rangeFrom() || '…' }}</button>
+          </div>
         </div>
       </div>
     }
@@ -454,6 +511,18 @@ export class EventDetailPopoverComponent implements OnDestroy {
     this.deletingId.set(null);
   }
 
+  /**
+   * Mình có nằm trong danh sách khách mời của sự kiện này không.
+   * Dùng để quyết định có hiện khối "Tham dự? Có/Không/Có thể" hay không — người không
+   * được mời (kể cả chủ sự kiện khi không mời ai) thì không có gì để trả lời.
+   */
+  protected readonly isInvited = computed<boolean>(() => {
+    const email = this.supabase.user()?.email?.toLowerCase();
+    const e = this.event();
+    if (!email || !e) return false;
+    return e.guests.some((g) => g.email.toLowerCase() === email);
+  });
+
   /** Trạng thái tham dự của CHÍNH user hiện tại cho event này (để tô đậm nút đang chọn) */
   myStatus = computed<AttendeeStatus | null>(() => {
     const email = this.supabase.user()?.email?.toLowerCase();
@@ -571,7 +640,10 @@ export class EventDetailPopoverComponent implements OnDestroy {
     });
   }
 
-  /** Hỏi xác nhận bằng popup dùng chung; sự kiện lặp có thêm lựa chọn "Xóa cả chuỗi". */
+  /**
+   * Hỏi xác nhận bằng popup dùng chung. Sự kiện lặp có thêm 2 lựa chọn:
+   * "Xóa cả chuỗi" và "Xoá theo khoảng ngày…" (mở modal chọn từ ngày → đến ngày).
+   */
   async askDelete(): Promise<void> {
     const e = this.event();
     if (!e) return;
@@ -580,8 +652,79 @@ export class EventDetailPopoverComponent implements OnDestroy {
       detail: e.title || this.tr.t('common.untitled'),
       confirmText: e.seriesId ? this.tr.t('detail.deleteThis') : this.tr.t('detail.delete'),
       secondaryText: e.seriesId ? this.tr.t('detail.deleteSeries') : undefined,
+      tertiaryText: e.seriesId ? this.tr.t('detail.deleteRange') : undefined,
     });
     if (r === 'no') return;
+    if (r === 'tertiary') {
+      // Mặc định gợi ý đúng ngày của sự kiện đang mở, người dùng chỉnh lại tuỳ ý.
+      const d = this.toDateInput(e.start);
+      this.rangeFrom.set(d);
+      this.rangeTo.set(d);
+      this.rangeError.set('');
+      this.rangeDeleteOpen.set(true);
+      return;
+    }
     this.state.deleteEvent(e.id, r === 'secondary' ? 'series' : undefined);
+  }
+
+  /**
+   * Tóm tắt chuỗi lặp của sự kiện đang mở: lặp mấy lần, từ ngày nào tới ngày nào.
+   * Tính từ chính danh sách sự kiện đã tải (backend sinh sẵn mọi lần lặp), nên không
+   * cần gọi thêm API. null nếu sự kiện không thuộc chuỗi lặp nào.
+   */
+  protected readonly seriesInfo = computed<{ count: number; first: string; last: string } | null>(() => {
+    const e = this.event();
+    if (!e?.seriesId) return null;
+    const all = this.state
+      .events()
+      .filter((x) => x.seriesId === e.seriesId)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+    if (all.length === 0) return null;
+    return {
+      count: all.length,
+      first: this.settings.formatDate(all[0].start),
+      last: this.settings.formatDate(all[all.length - 1].start),
+    };
+  });
+
+  // ----- Xoá chuỗi lặp theo khoảng ngày -----
+  protected readonly rangeDeleteOpen = signal(false);
+  protected readonly rangeFrom = signal('');
+  protected readonly rangeTo = signal('');
+  protected readonly rangeError = signal('');
+
+  /** Date -> 'YYYY-MM-DD' theo giờ ĐỊA PHƯƠNG (không dùng toISOString vì nó đổi sang UTC). */
+  private toDateInput(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  protected confirmRangeDelete(): void {
+    const e = this.event();
+    const from = this.rangeFrom();
+    const to = this.rangeTo();
+    if (!e) return;
+    if (!from || !to) {
+      this.rangeError.set(this.tr.t('detail.rangeMissing'));
+      return;
+    }
+    if (from > to) {
+      this.rangeError.set(this.tr.t('detail.rangeInvalid'));
+      return;
+    }
+    this.rangeDeleteOpen.set(false);
+    this.state.deleteEvent(e.id, 'range', { from, to });
+  }
+
+  /** Ngắt lặp: dừng chuỗi từ ô "Từ ngày" trở đi, các lần trước đó giữ nguyên. */
+  protected confirmStopRepeat(): void {
+    const e = this.event();
+    const from = this.rangeFrom();
+    if (!e) return;
+    if (!from) {
+      this.rangeError.set(this.tr.t('detail.rangeMissingFrom'));
+      return;
+    }
+    this.rangeDeleteOpen.set(false);
+    this.state.deleteEvent(e.id, 'from', { from });
   }
 }

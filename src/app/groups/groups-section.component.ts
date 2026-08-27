@@ -9,8 +9,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, output, signal } 
 import { GroupsStateService } from './groups-state.service';
 import { GroupChatService } from './chat.service';
 
-/** Số nhóm hiện sẵn; phần dư nằm trong khu "xem thêm". */
-const COLLAPSED_LIMIT = 3;
+/** Số nhóm hiện sẵn ở sidebar; phần dư nằm trong khu "xem thêm". */
+const COLLAPSED_LIMIT = 2;
 
 @Component({
   selector: 'app-groups-section',
@@ -94,12 +94,12 @@ const COLLAPSED_LIMIT = 3;
 
     <!-- Tạo nhóm -->
     <div class="mt-2 flex gap-1">
-      <input #gname type="text" placeholder="Tên nhóm mới" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="createGroup(gname.value); gname.value=''" />
+      <input #gname type="text" placeholder="Tên nhóm mới" maxlength="100" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="createGroup(gname.value); gname.value=''" />
       <button type="button" (click)="createGroup(gname.value); gname.value=''" class="shrink-0 rounded bg-blue-700 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Tạo</button>
     </div>
     <!-- Tham gia bằng mã -->
     <div class="mt-1 flex gap-1">
-      <input #gcode type="text" placeholder="Nhập mã tham gia" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
+      <input #gcode type="text" placeholder="Nhập mã tham gia" maxlength="40" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
       <button type="button" (click)="joinGroup(gcode.value); gcode.value=''" class="shrink-0 rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">Vào</button>
     </div>
     @if (groupsState.error(); as err) {

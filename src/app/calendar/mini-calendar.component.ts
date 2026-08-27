@@ -22,14 +22,17 @@ interface DayCell {
         <span class="font-medium text-gray-700">
           {{ tr.monthLong(displayMonth().getMonth()) }}, {{ displayMonth().getFullYear() }}
         </span>
-        <!-- Mũi tên đổi tháng: có viền + nền để nhìn là biết bấm được -->
+        <!-- Mũi tên đổi tháng: có viền + nền để nhìn là biết bấm được.
+             SVG dùng fill-current + text-gray-700 trên NÚT, KHÔNG dùng fill-gray-700: styles.css
+             chỉ vá màu cho text-* ở chế độ tối, không vá fill-* — để fill cứng thì mũi tên giữ
+             nguyên xám đậm trên nền tối và gần như biến mất. -->
         <div class="flex items-center overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
-          <button type="button" (click)="prevMonth()" class="flex h-7 w-7 items-center justify-center transition-colors hover:bg-blue-50" aria-label="Tháng trước" title="Tháng trước">
-            <svg viewBox="0 0 20 20" class="h-4 w-4 fill-gray-700"><path d="M12.5 15 7 10l5.5-5 1 1-4.5 4 4.5 4z" /></svg>
+          <button type="button" (click)="prevMonth()" class="flex h-7 w-7 items-center justify-center text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700" aria-label="Tháng trước" title="Tháng trước">
+            <svg viewBox="0 0 20 20" class="h-4 w-4 fill-current"><path d="M12.5 15 7 10l5.5-5 1 1-4.5 4 4.5 4z" /></svg>
           </button>
           <div class="h-4 w-px bg-gray-300"></div>
-          <button type="button" (click)="nextMonth()" class="flex h-7 w-7 items-center justify-center transition-colors hover:bg-blue-50" aria-label="Tháng sau" title="Tháng sau">
-            <svg viewBox="0 0 20 20" class="h-4 w-4 fill-gray-700"><path d="M7.5 15 13 10 7.5 5l-1 1 4.5 4-4.5 4z" /></svg>
+          <button type="button" (click)="nextMonth()" class="flex h-7 w-7 items-center justify-center text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700" aria-label="Tháng sau" title="Tháng sau">
+            <svg viewBox="0 0 20 20" class="h-4 w-4 fill-current"><path d="M7.5 15 13 10 7.5 5l-1 1 4.5 4-4.5 4z" /></svg>
           </button>
         </div>
       </div>

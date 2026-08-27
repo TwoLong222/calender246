@@ -54,7 +54,7 @@ const BANNER_TOP = 34;
 
       <div class="relative min-h-0 flex-1">
       <div
-        class="grid h-full grid-cols-7 grid-rows-6"
+        class="grid h-full select-none grid-cols-7 grid-rows-6"
         (pointermove)="onGridPointerMove($event)"
         (pointerup)="onGridPointerUp($event)"
         (pointercancel)="onGridPointerUp($event)"

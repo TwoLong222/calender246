@@ -138,7 +138,7 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
               (focus)="searchFocused.set(true)"
               (blur)="onSearchBlur()"
               (keydown.escape)="clearSearch()"
-              [placeholder]="tr.t('nav.search')"
+              maxlength="100" [placeholder]="tr.t('nav.search')"
               class="field w-40 pl-8 sm:w-56"
             />
           </div>
@@ -179,7 +179,9 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
           </span>
         }
 
-        <div class="ml-auto flex items-center gap-2">
+        <!-- flex-wrap: cụm này gom tiêu đề + bánh răng + bộ chọn view + avatar. Không cho xuống
+             dòng thì trên máy hẹp (≤360px) nó tràn ra ngoài mép phải và avatar bị cắt. -->
+        <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
           <!-- Tiêu đề tháng/năm đặt ở BÊN PHẢI, ngay trước cụm công cụ.
                Header có flex-wrap nên màn hình hẹp sẽ tự xuống dòng, không bị chèn ép. -->
           <h1 class="whitespace-nowrap text-lg font-medium text-gray-800 sm:text-xl">{{ headerLabel() }}</h1>
@@ -232,8 +234,9 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
                 </a>
               </div>
             }
-            <input #fileInput type="file" accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
-            <input #fileInputPdf type="file" accept=".pdf,application/pdf" class="hidden" (change)="onImportPdfFile($event); settingsMenuOpen.set(false)" />
+            <!-- multiple: chọn được NHIỀU file một lần, sự kiện của các file được gom lại rồi nhập chung -->
+            <input #fileInput type="file" multiple accept=".ics,text/calendar" class="hidden" (change)="onImportFile($event); settingsMenuOpen.set(false)" />
+            <input #fileInputPdf type="file" multiple accept=".pdf,application/pdf" class="hidden" (change)="onImportPdfFile($event); settingsMenuOpen.set(false)" />
           </div>
 
           <!-- Bộ chọn view dạng segmented (thay <select> gốc) — vẫn gọi đúng state.setViewMode(),
@@ -573,57 +576,93 @@ export class CalendarPageComponent implements OnInit {
     }
   }
 
-  onImportFile(event: Event): void {
+  /** Nhập .ics — chọn được NHIỀU file, gom sự kiện của tất cả rồi nhập một lượt. */
+  async onImportFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    const files = Array.from(input.files ?? []);
+    input.value = ''; // cho phép chọn lại đúng những file đó lần sau
+    if (files.length === 0) return;
+
+    const all: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string }[] = [];
+    const failed: string[] = [];
+
+    for (const file of files) {
       try {
-        const imported = this.ics.parse(String(reader.result));
-        this.applyImportedEvents(imported, 'File .ics không hợp lệ.');
+        const text = await file.text();
+        all.push(...this.ics.parse(text));
       } catch {
-        this.importMsg.set('File .ics không hợp lệ.');
+        // 1 file hỏng KHÔNG làm hỏng cả mẻ — ghi tên lại để báo, các file khác vẫn nhập.
+        failed.push(file.name);
       }
-      input.value = ''; // cho phép chọn lại cùng file
-    };
-    reader.readAsText(file);
+    }
+
+    if (failed.length > 0 && all.length === 0) {
+      this.importMsg.set(`File .ics không hợp lệ: ${failed.join(', ')}`);
+      return;
+    }
+    this.applyImportedEvents(all, 'File .ics không hợp lệ.');
+    if (failed.length > 0) {
+      this.importMsg.update((m) => `${m} (bỏ qua file lỗi: ${failed.join(', ')})`);
+    }
   }
 
   /** Nhập từ file PDF bất kỳ: trích chữ (pdfjs) -> AI nhận diện sự kiện -> lưu như luồng nhập .ics. */
   async onImportPdfFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (files.length === 0) return;
+
     this.pdfBusy.set(true);
-    this.importMsg.set('Đang đọc PDF và nhờ AI nhận diện sự kiện...');
-    try {
-      const text = await this.pdf.extractText(file);
-      if (!text.trim()) {
-        this.importMsg.set('Không đọc được chữ nào từ file PDF này.');
-        return;
-      }
-      const result = await new Promise<{ events: { title: string; startTime: string; endTime: string; isAllDay?: boolean; location?: string; description?: string }[]; reply: string }>(
-        (resolve, reject) => this.aiApi.extractEvents(text).subscribe({ next: resolve, error: reject }),
+    const all: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string }[] = [];
+    const failed: string[] = [];
+    let lastReply = '';
+
+    // Xử lý TUẦN TỰ chứ không song song: mỗi file là 1 lượt gọi AI, bắn cùng lúc dễ bị
+    // giới hạn tần suất và làm máy yếu đứng hình khi trích chữ nhiều PDF.
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      this.importMsg.set(
+        files.length > 1
+          ? `Đang đọc PDF ${i + 1}/${files.length} (${file.name}) và nhờ AI nhận diện sự kiện...`
+          : 'Đang đọc PDF và nhờ AI nhận diện sự kiện...',
       );
-      const imported = result.events.map((e) => ({
-        title: e.title,
-        start: new Date(e.startTime),
-        end: new Date(e.endTime),
-        isAllDay: !!e.isAllDay,
-        description: e.description,
-        location: e.location,
-      }));
-      if (imported.length === 0) {
-        this.importMsg.set(result.reply || 'Không tìm thấy sự kiện nào trong file.');
-        return;
+      try {
+        const text = await this.pdf.extractText(file);
+        if (!text.trim()) {
+          failed.push(file.name);
+          continue;
+        }
+        const result = await new Promise<{ events: { title: string; startTime: string; endTime: string; isAllDay?: boolean; location?: string; description?: string }[]; reply: string }>(
+          (resolve, reject) => this.aiApi.extractEvents(text).subscribe({ next: resolve, error: reject }),
+        );
+        lastReply = result.reply || lastReply;
+        all.push(
+          ...result.events.map((e) => ({
+            title: e.title,
+            start: new Date(e.startTime),
+            end: new Date(e.endTime),
+            isAllDay: !!e.isAllDay,
+            description: e.description,
+            location: e.location,
+          })),
+        );
+      } catch {
+        failed.push(file.name); // file này hỏng thì bỏ qua, các file còn lại vẫn chạy tiếp
       }
-      this.applyImportedEvents(imported, 'Nhập PDF thất bại.');
-    } catch {
-      this.importMsg.set('Xử lý file PDF thất bại. Thử lại nhé.');
-    } finally {
-      this.pdfBusy.set(false);
-      input.value = '';
+    }
+
+    this.pdfBusy.set(false);
+
+    if (all.length === 0) {
+      this.importMsg.set(
+        failed.length ? `Không xử lý được: ${failed.join(', ')}` : lastReply || 'Không tìm thấy sự kiện nào trong file.',
+      );
+      return;
+    }
+    this.applyImportedEvents(all, 'Nhập PDF thất bại.');
+    if (failed.length > 0) {
+      this.importMsg.update((m) => `${m} (bỏ qua file lỗi: ${failed.join(', ')})`);
     }
   }
 
