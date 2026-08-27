@@ -30,7 +30,7 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
               <app-icon [name]="iconName(t.kind)" class="h-3 w-3" />
               {{ catLabel(t.kind) }}
             </span>
-            <button type="button" (click)="notify.dismiss(t.id)" class="rounded-full p-0.5 text-gray-400 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+            <button type="button" (click)="notify.dismiss(t.id)" class="btn-icon !p-0.5 text-gray-400" [attr.aria-label]="tr.t('common.close')">
               <app-icon name="x" class="h-3.5 w-3.5" />
             </button>
           </div>

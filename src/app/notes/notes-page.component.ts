@@ -40,11 +40,15 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
 
       <div class="mx-auto max-w-3xl p-4">
         <!-- Ô soạn ghi chú mới -->
-        <div class="mx-auto mb-6 max-w-xl rounded-xl border border-gray-200 bg-white p-3 shadow-sm" [style.background-color]="bg(newColor())">
+        <!-- Thẻ luôn nền pastel SÁNG (kiểu Google Keep) nên chữ phải luôn TỐI, kể cả dark
+             mode -> ép màu chữ bằng style trực tiếp, không dùng class text-gray-900 (bị đổi
+             thành gần-trắng ở dark mode cho những chỗ khác nền tối -> ở đây thành trắng-trên-trắng). -->
+        <div class="mx-auto mb-6 max-w-xl rounded-xl border border-gray-200 bg-white p-3 shadow-sm" style="color:#111827;" [style.background-color]="bg(newColor())">
           <input
             [(ngModel)]="newTitle"
             maxlength="1000"
             [placeholder]="tr.t('notes.titlePlaceholder')"
+            style="color:#111827;"
             class="w-full bg-transparent text-sm font-medium outline-none placeholder:text-gray-500"
           />
           <textarea
@@ -52,6 +56,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
             maxlength="1000"
             [placeholder]="tr.t('notes.contentPlaceholder')"
             rows="2"
+            style="color:#111827;"
             class="mt-1 w-full resize-none bg-transparent text-sm outline-none placeholder:text-gray-500"
           ></textarea>
           <div class="mt-2 flex items-center justify-between">
@@ -98,7 +103,8 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
           <div class="[column-gap:0.75rem] sm:columns-2 lg:columns-3">
             @for (n of notes(); track n.id) {
               <div
-                class="mb-3 inline-block w-full break-inside-avoid rounded-xl border border-black/10 p-3 text-gray-900 shadow-sm"
+                class="mb-3 inline-block w-full break-inside-avoid rounded-xl border border-black/10 p-3 shadow-sm"
+                style="color:#111827;"
                 [style.background-color]="bg(n.color)"
               >
                 <div class="flex items-start justify-between gap-2">
@@ -108,9 +114,10 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
                     (blur)="save(n)"
                     maxlength="1000"
                     [placeholder]="tr.t('notes.titlePlaceholder')"
+                    style="color:#111827;"
                     class="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-gray-500"
                   />
-                  <button type="button" (click)="togglePin(n)" [title]="tr.t('notes.pin')" class="shrink-0 text-gray-600 hover:text-gray-900">
+                  <button type="button" (click)="togglePin(n)" [title]="tr.t('notes.pin')" class="shrink-0" style="color:#4b5563;">
                     <app-icon name="target" class="h-4 w-4" [class.text-amber-600]="n.pinned" />
                   </button>
                 </div>
@@ -121,6 +128,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
                   maxlength="1000"
                   [placeholder]="tr.t('notes.contentPlaceholder')"
                   rows="3"
+                  style="color:#111827;"
                   class="mt-1 w-full resize-none bg-transparent text-sm outline-none placeholder:text-gray-500"
                 ></textarea>
                 <div class="mt-2 flex items-center justify-between">
@@ -137,7 +145,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
                       ></button>
                     }
                   </div>
-                  <button type="button" (click)="remove(n)" [title]="tr.t('notes.delete')" class="text-gray-600 hover:text-red-600">
+                  <button type="button" (click)="remove(n)" [title]="tr.t('notes.delete')" class="hover:text-red-600" style="color:#4b5563;">
                     <app-icon name="trash" class="h-4 w-4" />
                   </button>
                 </div>

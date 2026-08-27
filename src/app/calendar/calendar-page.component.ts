@@ -315,6 +315,10 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
             </button>
 
             @if (createMenuOpen()) {
+              <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu (khớp mẫu settingsMenuOpen/
+                   accountMenuOpen) — thiếu lớp này khiến menu có thể còn mở ngầm phía sau khi
+                   bấm thẳng sang mở panel khác (vd 1 nhóm), tràn lên trên panel đó. -->
+              <div class="fixed inset-0 z-20" (click)="createMenuOpen.set(false)"></div>
               <div class="surface-panel popup-in absolute left-0 top-full z-30 mt-1.5 w-44 py-1">
                 <button type="button" (click)="openCreate('event')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.event') }}</button>
                 <button type="button" (click)="openCreate('task')" class="flex w-full items-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">{{ tr.t('kind.task') }}</button>

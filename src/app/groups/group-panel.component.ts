@@ -42,7 +42,7 @@ import { IconComponent } from '../shared/icon.component';
                 <span class="text-emerald-600">{{ state.onlineCount(g.id) }} đang online</span>
               </p>
             </div>
-            <button type="button" (click)="state.closePanel()" class="rounded-full p-1 text-gray-400 hover:bg-gray-100" aria-label="Đóng">✕</button>
+            <button type="button" (click)="state.closePanel()" class="btn-icon !p-1.5 text-gray-400" aria-label="Đóng"><app-icon name="x" class="h-4 w-4" /></button>
           </div>
 
           <!-- Mã & link tham gia -->

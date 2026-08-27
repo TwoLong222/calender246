@@ -83,7 +83,7 @@ type Pending =
             <button type="button" (click)="showList.set(!showList())" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [class.bg-gray-100]="showList()" [attr.aria-label]="tr.t('ai.history')" [title]="tr.t('ai.history')">
               <app-icon name="menu" class="h-4 w-4" />
             </button>
-            <button type="button" (click)="open.set(false)" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')">
+            <button type="button" (click)="open.set(false)" class="btn-icon !p-1.5 text-gray-500" [attr.aria-label]="tr.t('common.close')">
               <app-icon name="x" class="h-4 w-4" />
             </button>
           </div>
@@ -96,7 +96,7 @@ type Pending =
               <span class="font-medium text-gray-800">{{ tr.t('ai.history') }}</span>
               <div class="flex items-center gap-1">
                 <button type="button" (click)="newConversation()" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [title]="tr.t('ai.newChat')"><app-icon name="plus" class="h-4 w-4" /></button>
-                <button type="button" (click)="showList.set(false)" class="rounded-full p-1.5 text-gray-500 hover:bg-gray-100" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+                <button type="button" (click)="showList.set(false)" class="btn-icon !p-1.5 text-gray-500" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
               </div>
             </div>
             <div class="flex-1 overflow-y-auto py-1">

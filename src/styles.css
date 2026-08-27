@@ -410,9 +410,12 @@ input[type='radio'] {
 .dark .text-gray-900 { color: #f1f5f9; }
 .dark .text-gray-800 { color: #e2e8f0; }
 .dark .text-gray-700 { color: #cbd5e1; }
+/* SVG thô dùng fill-* (không phải text-* hay bg-*) -> hệ thống ghi đè ở trên không tự áp
+   dụng, phải khai riêng. Mũi tên đổi tháng ở mini-calendar dùng class này. */
+.dark .fill-gray-700 { fill: #cbd5e1; }
 .dark .text-gray-600 { color: #b4c0d3; }
 .dark .text-gray-500 { color: #94a3b8; }
-.dark .text-gray-400 { color: #6b7a90; }
+.dark .text-gray-400 { color: #8a99b3; }
 /* Chữ/link màu nhấn (accent): navy gốc quá tối trên nền tối -> làm sáng để đọc được
    (vd tên tài liệu đính kèm, các link text-blue-700 trong popover chi tiết sự kiện). */
 .dark .text-blue-600, .dark .text-blue-700 { color: #8ab0f0; }
@@ -451,7 +454,11 @@ input[type='radio'] {
 .dark .bg-amber-50 { background-color: #3a2c10; }
 .dark .text-amber-800 { color: #fcd34d; }
 .dark .bg-blue-50 { background-color: #16233f; }
+.dark .bg-blue-100,
+.dark .hover\:bg-blue-100:hover,
+.dark .active\:bg-blue-100:active { background-color: #1c2f52; }
 .dark .bg-green-50 { background-color: #123528; }
+.dark .bg-green-100 { background-color: #123c2a; }
 .dark .text-green-700 { color: #86efac; }
 .dark .border-amber-200 { border-color: #4a3a12; }
 .dark .border-blue-200 { border-color: #1e3a5f; }
