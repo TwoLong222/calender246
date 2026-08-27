@@ -307,6 +307,33 @@ input[type='radio'] {
 }
 
 /* ============================================================
+   SIDEBAR — thanh cuộn chỉ hiện khi thật sự đang cuộn/hover, tránh
+   cảm giác "lúc nào cũng có thanh cuộn" dù nội dung chưa bị cắt.
+   ============================================================ */
+.sidebar-panel {
+  scrollbar-color: transparent transparent;
+}
+.sidebar-panel:hover,
+.sidebar-panel:focus-within {
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+.dark .sidebar-panel:hover,
+.dark .sidebar-panel:focus-within {
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+.sidebar-panel::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+.sidebar-panel:hover::-webkit-scrollbar-thumb,
+.sidebar-panel:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.4);
+}
+.dark .sidebar-panel:hover::-webkit-scrollbar-thumb,
+.dark .sidebar-panel:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.35);
+}
+
+/* ============================================================
    POPUP / DROPDOWN — mờ dần + trượt nhẹ xuống khi hiện ra.
    Dùng cho các menu nhỏ (tìm kiếm, ⚙️ bánh răng, nút Tạo,
    gợi ý email khách...) — cảm giác mượt hơn "đùng cái xuất hiện".

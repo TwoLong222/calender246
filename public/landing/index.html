@@ -465,6 +465,21 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
 .story-frame .sf-points .tick svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 .story-frame .sf-art{display:flex;justify-content:center}
 .story-frame .sf-art svg{width:100%;max-width:540px;height:auto;filter:drop-shadow(0 22px 46px rgba(0,0,0,.34))}
+/* Bước 03: thẻ lời mời to hơn khối chữ, căn phải để lề phải = lề trái của khối chữ (chỉ desktop) */
+@media (min-width:861px){
+  /* Áp dụng biến kích thước cho ảnh (giữ đúng tỉ lệ, vừa trong khung Cao×Rộng) */
+  .story-frame .sf-art svg{max-width:var(--art-w,540px);max-height:var(--art-h,none)}
+
+  /* ============ CHỈNH KÍCH THƯỚC TỪNG HÌNH — SỬA SỐ Ở 3 DÒNG DƯỚI ============ */
+  /* --art-w = CHIỀU RỘNG tối đa | --art-h = CHIỀU CAO tối đa (đặt 'none' = tự tính theo rộng) */
+  .story-frame[data-i="0"] .sf-art svg{ --art-w:420px; --art-h:none; }  /* HÌNH 1 · Bước 01 */
+  .story-frame[data-i="1"] .sf-art svg{ --art-w:420px; --art-h:none; }  /* HÌNH 2 · Bước 02 */
+  .story-frame[data-i="2"] .sf-art svg{ --art-w:560px; --art-h:none; }  /* HÌNH 3 · Bước 03 */
+
+  /* (kiểu bố cục — thường không cần đụng) */
+  .story-frame[data-i="2"] .sf-art{justify-content:flex-end}         /* hình 3 căn phải */
+  .story-frame[data-i="2"] .sf-inner{grid-template-columns:0.9fr 1.1fr}  /* cột chứa hình 3 */
+}
 @media (max-width:1180px){
   .story-frame .sf-inner{max-width:940px;gap:52px}
   .story-frame .sf-art svg{max-width:460px}
@@ -931,20 +946,82 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
             </ul>
           </div>
           <div class="sf-art" aria-hidden="true">
-            <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
-              <rect x="6" y="6" width="388" height="288" rx="18" fill="#ffffff"/>
-              <rect x="6" y="6" width="388" height="288" rx="18" fill="none" stroke="#ece7dd" stroke-width="1.5"/>
-              <text x="30" y="48" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="18" font-weight="700" fill="#1c1b22">Lịch của tôi</text>
-              <g font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="16" fill="#2b2925">
-                <circle cx="38" cy="86" r="7" fill="#3E6DB0"/><text x="56" y="91">Công việc</text>
-                <rect x="332" y="76" width="22" height="22" rx="6" fill="#3E6DB0"/><path d="M337 87 l4 4 l7 -8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="38" cy="130" r="7" fill="#3E8E6E"/><text x="56" y="135">Cá nhân</text>
-                <rect x="332" y="120" width="22" height="22" rx="6" fill="#3E8E6E"/><path d="M337 131 l4 4 l7 -8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="38" cy="174" r="7" fill="#B67A22"/><text x="56" y="179">Gia đình</text>
-                <rect x="332" y="164" width="22" height="22" rx="6" fill="#B67A22"/><path d="M337 175 l4 4 l7 -8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-              </g>
-              <rect x="24" y="214" width="352" height="46" rx="12" fill="#f5f2ea" stroke="#d9d3c6" stroke-width="1.5" stroke-dasharray="6 5"/>
-              <text x="200" y="243" text-anchor="middle" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="16" font-weight="600" fill="#22407D">＋  Lịch mới</text>
+            <svg viewBox="0 0 470 566" xmlns="http://www.w3.org/2000/svg" font-family="'Hanken Grotesk',system-ui,sans-serif">
+              <rect x="8" y="8" width="454" height="550" rx="20" fill="#ffffff"/>
+              <!-- header -->
+              <text x="30" y="47" font-size="21" fill="#9aa0aa">Thêm tiêu đề</text>
+              <path d="M426 35 l14 14 M440 35 l-14 14" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+              <line x1="30" y1="63" x2="440" y2="63" stroke="#e2e4e8" stroke-width="1.5"/>
+              <!-- tabs -->
+              <rect x="28" y="78" width="414" height="42" rx="11" fill="#f1f2f4"/>
+              <rect x="31" y="81" width="138" height="36" rx="9" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+              <text x="100" y="104" text-anchor="middle" font-size="15" font-weight="700" fill="#1c2434">Sự kiện</text>
+              <text x="252" y="104" text-anchor="middle" font-size="15" fill="#6b7280">Việc cần làm</text>
+              <text x="392" y="104" text-anchor="middle" font-size="15" fill="#6b7280">Lịch hẹn</text>
+              <!-- bắt đầu -->
+              <circle cx="41" cy="152" r="9" fill="none" stroke="#6b7280" stroke-width="2"/>
+              <path d="M41 147 v5 l3 2" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="58" y="157" font-size="15" fill="#344054">Bắt đầu</text>
+              <rect x="148" y="136" width="128" height="32" rx="8" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="162" y="157" font-size="13.5" fill="#1c2434">27/08/2026</text>
+              <rect x="248" y="145" width="16" height="15" rx="2.5" fill="none" stroke="#8a90a0" stroke-width="1.4"/><line x1="248" y1="150" x2="264" y2="150" stroke="#8a90a0" stroke-width="1.4"/>
+              <rect x="282" y="136" width="66" height="32" rx="8" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="298" y="157" font-size="13.5" fill="#1c2434">00</text>
+              <path d="M334 149 l4 4 l4 -4" fill="none" stroke="#8a90a0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="356" y="158" font-size="15" fill="#344054">:</text>
+              <rect x="364" y="136" width="66" height="32" rx="8" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="380" y="157" font-size="13.5" fill="#1c2434">00</text>
+              <path d="M416 149 l4 4 l4 -4" fill="none" stroke="#8a90a0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- kết thúc -->
+              <text x="58" y="203" font-size="15" fill="#344054">Kết thúc</text>
+              <rect x="148" y="182" width="128" height="32" rx="8" fill="#f4f5f7" stroke="#e2e4e8" stroke-width="1.3"/>
+              <text x="162" y="203" font-size="13.5" fill="#9aa0aa">27/08/2026</text>
+              <rect x="282" y="182" width="66" height="32" rx="8" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="298" y="203" font-size="13.5" fill="#1c2434">01</text>
+              <path d="M334 195 l4 4 l4 -4" fill="none" stroke="#8a90a0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="356" y="204" font-size="15" fill="#344054">:</text>
+              <rect x="364" y="182" width="66" height="32" rx="8" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="380" y="203" font-size="13.5" fill="#1c2434">00</text>
+              <path d="M416 195 l4 4 l4 -4" fill="none" stroke="#8a90a0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="148" y="234" font-size="12" fill="#9aa0aa">Sự kiện kết thúc trong cùng ngày bắt đầu.</text>
+              <!-- cả ngày -->
+              <rect x="30" y="250" width="17" height="17" rx="4" fill="#ffffff" stroke="#b6bcc6" stroke-width="1.8"/>
+              <text x="56" y="263" font-size="14.5" fill="#344054">Cả ngày</text>
+              <!-- không lặp -->
+              <rect x="28" y="288" width="26" height="26" rx="8" fill="#eef2f8"/>
+              <path d="M38 296 h6 a3 3 0 0 1 3 3 M46 308 h-6 a3 3 0 0 1 -3 -3" fill="none" stroke="#2f6df0" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M45 293 l3 3 l-3 3 M39 311 l-3 -3 l3 -3" fill="none" stroke="#2f6df0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="66" y="285" width="376" height="34" rx="9" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="82" y="307" font-size="14" fill="#344054">Không lặp</text>
+              <path d="M418 299 l5 5 l5 -5" fill="none" stroke="#8a90a0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- khách -->
+              <circle cx="38" cy="345" r="5.5" fill="#7a8291"/><path d="M28 360 a10 9 0 0 1 20 0z" fill="#7a8291"/>
+              <rect x="60" y="336" width="300" height="34" rx="9" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="76" y="358" font-size="14" fill="#9aa0aa">Thêm khách bằng email</text>
+              <rect x="372" y="336" width="70" height="34" rx="9" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="407" y="358" text-anchor="middle" font-size="14" fill="#344054">Thêm</text>
+              <!-- vị trí -->
+              <path d="M38 388 c-6 0 -10 5 -10 10 c0 7 10 16 10 16 c0 0 10 -9 10 -16 c0 -5 -4 -10 -10 -10z" fill="#e5484d"/><circle cx="38" cy="398" r="3.5" fill="#ffffff"/>
+              <rect x="60" y="388" width="382" height="34" rx="9" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="76" y="410" font-size="14" fill="#9aa0aa">Thêm vị trí</text>
+              <!-- mô tả -->
+              <rect x="30" y="440" width="18" height="22" rx="3" fill="none" stroke="#7a8291" stroke-width="1.6"/><line x1="35" y1="447" x2="43" y2="447" stroke="#7a8291" stroke-width="1.6"/><line x1="35" y1="452" x2="43" y2="452" stroke="#7a8291" stroke-width="1.6"/>
+              <rect x="60" y="438" width="382" height="52" rx="9" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="76" y="460" font-size="14" fill="#9aa0aa">Thêm mô tả</text>
+              <!-- màu -->
+              <circle cx="38" cy="512" r="10" fill="none" stroke="#7a8291" stroke-width="1.6"/><circle cx="35" cy="509" r="1.6" fill="#7a8291"/><circle cx="41" cy="509" r="1.6" fill="#7a8291"/><circle cx="34" cy="515" r="1.6" fill="#7a8291"/>
+              <circle cx="80" cy="512" r="15" fill="none" stroke="#2f6df0" stroke-width="2"/><circle cx="80" cy="512" r="10" fill="#2f6df0"/>
+              <circle cx="120" cy="512" r="11" fill="#7c3aed"/>
+              <circle cx="158" cy="512" r="11" fill="#23a24a"/>
+              <circle cx="196" cy="512" r="11" fill="#e5484d"/>
+              <circle cx="234" cy="512" r="11" fill="#d97a1a"/>
+              <line x1="258" y1="500" x2="258" y2="524" stroke="#e2e4e8" stroke-width="1.5"/>
+              <defs><linearGradient id="rbw" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e5484d"/><stop offset=".4" stop-color="#d97a1a"/><stop offset=".6" stop-color="#23a24a"/><stop offset="1" stop-color="#2f6df0"/></linearGradient></defs>
+              <circle cx="290" cy="512" r="11" fill="url(#rbw)"/>
+              <!-- footer -->
+              <text x="378" y="540" text-anchor="end" font-size="14.5" fill="#6b7280">Huỷ</text>
+              <rect x="398" y="522" width="56" height="34" rx="9" fill="#22407D"/>
+              <text x="426" y="544" text-anchor="middle" font-size="14.5" font-weight="600" fill="#ffffff">Lưu</text>
             </svg>
           </div>
         </div>
@@ -962,24 +1039,47 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
             </ul>
           </div>
           <div class="sf-art" aria-hidden="true">
-            <svg viewBox="0 0 400 312" xmlns="http://www.w3.org/2000/svg">
-              <rect x="6" y="6" width="388" height="300" rx="18" fill="#ffffff"/>
-              <rect x="6" y="6" width="388" height="300" rx="18" fill="none" stroke="#ece7dd" stroke-width="1.5"/>
-              <text x="28" y="42" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="18" font-weight="700" fill="#1c1b22">Sự kiện mới</text>
-              <rect x="22" y="54" width="356" height="42" rx="10" fill="#f7f5ef" stroke="#e7e2d7" stroke-width="1.5"/>
-              <text x="38" y="80" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="16" font-weight="600" fill="#1c1b22">Họp nhóm dự án</text>
-              <text x="24" y="124" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="1" fill="#6f6a61">THỜI GIAN</text>
-              <rect x="22" y="134" width="230" height="34" rx="9" fill="#eef2f8"/>
-              <text x="38" y="156" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="14" font-weight="600" fill="#22407D">Hôm nay  14:00 → 15:00</text>
-              <text x="24" y="196" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="1" fill="#6f6a61">NHẮC TRƯỚC KHI BẮT ĐẦU</text>
-              <rect x="22" y="206" width="356" height="50" rx="11" fill="#ffffff" stroke="#22407D" stroke-width="2"/>
-              <rect x="32" y="219" width="44" height="26" rx="7" fill="#22407D"/>
-              <text x="54" y="237" text-anchor="middle" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="15" font-weight="700" fill="#ffffff">10</text>
-              <rect x="84" y="219" width="82" height="26" rx="7" fill="#eef2f8" stroke="#cdd8ea" stroke-width="1.2"/>
-              <text x="125" y="237" text-anchor="middle" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="14" font-weight="600" fill="#22407D">phút ▾</text>
-              <text x="248" y="237" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="14" font-weight="600" fill="#22407D">＋ Thêm nhắc</text>
-              <rect x="270" y="270" width="108" height="30" rx="9" fill="#22407D"/>
-              <text x="324" y="290" text-anchor="middle" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="15" font-weight="600" fill="#ffffff">Lưu</text>
+            <svg viewBox="0 0 440 552" xmlns="http://www.w3.org/2000/svg" font-family="'Hanken Grotesk',system-ui,sans-serif">
+              <rect x="8" y="8" width="424" height="536" rx="20" fill="#ffffff"/>
+              <!-- header -->
+              <rect x="27" y="27" width="26" height="22" rx="7" fill="none" stroke="#2f4bd4" stroke-width="2"/>
+              <line x1="40" y1="27" x2="40" y2="22" stroke="#2f4bd4" stroke-width="1.6"/><circle cx="40" cy="20" r="1.9" fill="#2f4bd4"/>
+              <circle cx="35" cy="37" r="2" fill="#2f4bd4"/><circle cx="45" cy="37" r="2" fill="#2f4bd4"/>
+              <path d="M35 42 q5 4 10 0" fill="none" stroke="#2f4bd4" stroke-width="1.6" stroke-linecap="round"/>
+              <text x="64" y="44" font-size="18" font-weight="700" fill="#1c2434">Trợ lý lịch</text>
+              <path d="M350 40 h14 M357 33 v14" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+              <path d="M380 35 h16 M380 40 h16 M380 45 h16" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+              <path d="M408 34 l14 14 M422 34 l-14 14" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+              <line x1="8" y1="62" x2="432" y2="62" stroke="#eceef1" stroke-width="1.5"/>
+              <!-- assistant bubble 1 -->
+              <rect x="26" y="80" width="312" height="78" rx="14" fill="#f1f2f4"/>
+              <text x="42" y="104" font-size="13" fill="#344054">Mình sẽ lên lịch 'Họp nhóm 1' vào</text>
+              <text x="42" y="124" font-size="13" fill="#344054">15:00 ngày mai (27/08/2026) trong 1</text>
+              <text x="42" y="144" font-size="13" fill="#344054">tiếng nhé.</text>
+              <!-- user bubble -->
+              <rect x="150" y="172" width="264" height="44" rx="14" fill="#22407D"/>
+              <text x="166" y="199" font-size="13.5" font-weight="600" fill="#ffffff">Ngày 27/08/2026 có sự kiện gì?</text>
+              <!-- assistant bubble 2 -->
+              <rect x="26" y="232" width="352" height="150" rx="14" fill="#f1f2f4"/>
+              <text x="42" y="256" font-size="13" fill="#344054">Mình sẽ tìm các sự kiện trong ngày</text>
+              <text x="42" y="276" font-size="13" fill="#344054">27/08/2026 cho bạn nhé.</text>
+              <text x="42" y="302" font-size="13" fill="#344054">• Đặt lịch hẹn — gggggggggggg —</text>
+              <text x="42" y="322" font-size="13" fill="#344054">Thứ 5, 27/8 · 04:30 - 07:29</text>
+              <text x="42" y="348" font-size="13" fill="#344054">• Họp nhóm — Thứ 5, 27/8 · 15:00 -</text>
+              <text x="42" y="368" font-size="13" fill="#344054">16:00</text>
+              <!-- quick chips -->
+              <g font-size="12.5" fill="#344054">
+                <rect x="26" y="400" width="116" height="30" rx="15" fill="#ffffff" stroke="#d5d9e0" stroke-width="1.3"/><text x="84" y="419" text-anchor="middle">Hôm nay có gì?</text>
+                <rect x="150" y="400" width="120" height="30" rx="15" fill="#ffffff" stroke="#d5d9e0" stroke-width="1.3"/><text x="210" y="419" text-anchor="middle">Ngày mai có gì?</text>
+                <rect x="278" y="400" width="86" height="30" rx="15" fill="#ffffff" stroke="#d5d9e0" stroke-width="1.3"/><text x="321" y="419" text-anchor="middle">7 ngày tới</text>
+                <rect x="26" y="438" width="122" height="30" rx="15" fill="#ffffff" stroke="#d5d9e0" stroke-width="1.3"/><text x="87" y="457" text-anchor="middle">Tìm chỗ trống...</text>
+                <rect x="156" y="438" width="112" height="30" rx="15" fill="#ffffff" stroke="#d5d9e0" stroke-width="1.3"/><text x="212" y="457" text-anchor="middle">Tạo sự kiện...</text>
+              </g>
+              <!-- input bar -->
+              <rect x="26" y="484" width="322" height="40" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.3"/>
+              <text x="42" y="509" font-size="13" fill="#9aa0aa">VD: dời họp nhóm sang 4h chiều</text>
+              <rect x="356" y="484" width="58" height="40" rx="12" fill="#aeb6c4"/>
+              <text x="385" y="509" text-anchor="middle" font-size="14" font-weight="600" fill="#ffffff">Gửi</text>
             </svg>
           </div>
         </div>
@@ -990,30 +1090,41 @@ footer{padding:64px 0 40px;border-top:1px solid var(--line);margin-top:104px}
           <div class="sf-copy">
             <span class="num">Bước 03</span>
             <div class="big">Foresight nhắc, bạn chỉ cần đến</div>
-            <p class="sf-lead">Đến đúng thời điểm, bạn được nhắc bằng cả thông báo trong web lẫn email — không phải tự nhớ, không lo bỏ lỡ.</p>
+            <p class="sf-lead">Đến đúng thời điểm, bạn được nhắc bằng cả thông báo trong web lẫn email, luôn được cập nhật.</p>
             <ul class="sf-points">
               <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span><span>Thông báo hiện ngay trong web, luôn giữ bạn đúng với tiến độ</span></li>
               <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span><span>Gửi email nhắc gửi tới bạn và cả những người được mời</span></li>
             </ul>
           </div>
           <div class="sf-art" aria-hidden="true">
-            <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg">
-              <rect x="20" y="24" width="360" height="96" rx="14" fill="#ffffff"/>
-              <rect x="20" y="24" width="360" height="96" rx="14" fill="none" stroke="#ece7dd" stroke-width="1.5"/>
-              <rect x="20" y="24" width="6" height="96" rx="3" fill="#22407D"/>
-              <circle cx="66" cy="72" r="22" fill="#eef2f8"/>
-              <path d="M66 60 a10 10 0 0 1 10 10 c0 7 3 9 3 9 H53 s3 -2 3 -9 a10 10 0 0 1 10 -10 z M62 85 a4 4 0 0 0 8 0" fill="none" stroke="#22407D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="82" cy="56" r="9" fill="#D6482F"/>
-              <text x="82" y="60" text-anchor="middle" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="11" font-weight="700" fill="#ffffff">1</text>
-              <text x="104" y="60" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="1" fill="#6f6a61">NHẮC LỊCH</text>
-              <text x="104" y="82" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="17" font-weight="700" fill="#1c1b22">Họp nhóm dự án</text>
-              <text x="104" y="103" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="14" fill="#5f5a52">Bắt đầu sau 10 phút</text>
-              <rect x="20" y="140" width="360" height="52" rx="12" fill="#eef5ef" stroke="#d3e3d8" stroke-width="1.5"/>
-              <rect x="40" y="158" width="30" height="20" rx="3" fill="none" stroke="#357d5f" stroke-width="2"/>
-              <path d="M40 160 l15 11 l15 -11" fill="none" stroke="#357d5f" stroke-width="2" stroke-linejoin="round"/>
-              <text x="86" y="172" font-family="'Hanken Grotesk',system-ui,sans-serif" font-size="15" font-weight="600" fill="#285442">Email nhắc đã được gửi</text>
-              <circle cx="356" cy="166" r="12" fill="#357d5f"/>
-              <path d="M350 166 l4 4 l8 -8" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg viewBox="0 0 440 348" xmlns="http://www.w3.org/2000/svg" font-family="'Hanken Grotesk',system-ui,sans-serif">
+              <defs><clipPath id="inviteClip"><rect x="6" y="6" width="428" height="336" rx="20"/></clipPath></defs>
+              <rect x="6" y="6" width="428" height="336" rx="20" fill="#ffffff"/>
+              <g clip-path="url(#inviteClip)"><rect x="6" y="6" width="428" height="62" fill="#2f4bd4"/></g>
+              <!-- calendar icon -->
+              <rect x="30" y="24" width="26" height="24" rx="5" fill="#ffffff"/>
+              <rect x="30" y="24" width="26" height="9" rx="5" fill="#e5484d"/>
+              <rect x="30" y="29" width="26" height="4" fill="#e5484d"/>
+              <rect x="35" y="19" width="3.5" height="8" rx="1.75" fill="#c23b40"/>
+              <rect x="47.5" y="19" width="3.5" height="8" rx="1.75" fill="#c23b40"/>
+              <text x="43" y="45" text-anchor="middle" font-size="12" font-weight="700" fill="#1c2434">17</text>
+              <text x="66" y="46" font-size="19" font-weight="700" fill="#ffffff">Lịch</text>
+              <!-- body -->
+              <text x="30" y="106" font-size="14.5" fill="#6b7280">Bạn được mời tham gia sự kiện</text>
+              <text x="30" y="143" font-size="28" font-weight="700" fill="#1c2434">Đi ăn</text>
+              <!-- time pill -->
+              <rect x="28" y="166" width="384" height="46" rx="12" fill="#f4f5f7"/>
+              <circle cx="53" cy="189" r="11" fill="none" stroke="#98a0ae" stroke-width="2"/>
+              <path d="M53 183 v6 l4 3" fill="none" stroke="#98a0ae" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="75" y="195" font-size="15.5" font-weight="600" fill="#344054">04:00  Thứ Sáu, 28/8</text>
+              <!-- buttons -->
+              <rect x="28" y="232" width="196" height="52" rx="12" fill="#23a24a"/>
+              <text x="126" y="264" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">Đồng ý tham gia</text>
+              <rect x="236" y="232" width="176" height="52" rx="12" fill="#ffffff" stroke="#d5d9e0" stroke-width="1.5"/>
+              <text x="324" y="264" text-anchor="middle" font-size="16" font-weight="700" fill="#344054">Từ chối</text>
+              <!-- footer -->
+              <text x="30" y="312" font-size="12.5" fill="#98a0ae">Bấm nút để phản hồi ngay — không cần đăng nhập. Lời mời</text>
+              <text x="30" y="330" font-size="12.5" fill="#98a0ae">hết hạn sau 7 ngày.</text>
             </svg>
           </div>
         </div>
