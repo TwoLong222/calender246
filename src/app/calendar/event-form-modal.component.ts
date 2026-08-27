@@ -299,7 +299,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               </button>
               @if (reminders().length > 0) {
                 <input
-                  type="text" [(ngModel)]="reminderMessage" maxlength="300"
+                  type="text" [(ngModel)]="reminderMessage" (keydown.enter)="onEnterSave()" maxlength="300"
                   [placeholder]="tr.t('notif.messagePlaceholder')"
                   class="ml-6 block w-[calc(100%-1.5rem)] field"
                 />

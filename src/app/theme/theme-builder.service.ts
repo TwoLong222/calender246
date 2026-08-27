@@ -238,3 +238,33 @@ function hslToHex(h: number, s: number, l: number): string {
   const to = (v: number) => Math.round(v).toString(16).padStart(2, '0');
   return `#${to(r)}${to(g)}${to(b)}`;
 }
+
+/**
+ * Độ sáng tương đối (WCAG) của một mã hex — 0 = đen, 1 = trắng.
+ * Dùng để đoán màu nhấn có đọc được trên nền sáng / nền tối hay không.
+ */
+export function relativeLuminance(hex: string): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return 0.5;
+  const n = parseInt(m[1], 16);
+  const srgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+}
+
+/**
+ * Màu nhấn này có hợp với chế độ đang bật không.
+ *
+ * Màu nhấn được dùng làm NỀN nút với chữ trắng, đồng thời làm màu chữ liên kết trên nền trang.
+ *  - Quá tối (lum < 0.06): trên nền TỐI gần như chìm vào nền -> chỉ hợp nền sáng.
+ *  - Quá sáng (lum > 0.45): trên nền SÁNG thì chữ trắng trên nút bị chói khó đọc -> chỉ hợp nền tối.
+ *  - Ở giữa: dùng được cả hai.
+ */
+export function accentFitsTheme(hex600: string, isDark: boolean): boolean {
+  const lum = relativeLuminance(hex600);
+  if (lum < 0.06) return !isDark; // màu rất tối
+  if (lum > 0.45) return isDark; // màu rất sáng
+  return true;
+}

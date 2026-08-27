@@ -410,8 +410,11 @@ input[type='radio'] {
 .dark .text-gray-900 { color: #f1f5f9; }
 .dark .text-gray-800 { color: #e2e8f0; }
 .dark .text-gray-700 { color: #cbd5e1; }
-/* SVG thô dùng fill-* (không phải text-* hay bg-*) -> hệ thống ghi đè ở trên không tự áp
-   dụng, phải khai riêng. Mũi tên đổi tháng ở mini-calendar dùng class này. */
+/* SVG tô bằng fill-* KHÔNG được các rule text-* ở trên chạm tới — thiếu mấy dòng này thì
+   icon giữ nguyên màu xám đậm và biến mất trên nền tối. Cách bền hơn là dùng fill-current
+   rồi đặt màu bằng text-*, nhưng vẫn vá sẵn đây cho code cũ/của người khác. */
+.dark .fill-gray-500 { fill: #94a3b8; }
+.dark .fill-gray-600 { fill: #b6c2d2; }
 .dark .fill-gray-700 { fill: #cbd5e1; }
 .dark .text-gray-600 { color: #b4c0d3; }
 .dark .text-gray-500 { color: #94a3b8; }
@@ -424,6 +427,9 @@ input[type='radio'] {
 /* Viền */
 .dark .border-white { border-color: #111a2e; }
 .dark .border-gray-100 { border-color: #1e293b; }
+/* Chuông thông báo dùng border-gray-50 làm vạch ngăn giữa các dòng; không vá thì ở chế độ
+   tối nó thành vạch trắng chói cắt ngang panel. */
+.dark .border-gray-50 { border-color: #1a2334; }
 .dark .border-gray-200 { border-color: #273244; }
 .dark .border-gray-300 { border-color: #374151; }
 
@@ -454,6 +460,11 @@ input[type='radio'] {
 .dark .bg-amber-50 { background-color: #3a2c10; }
 .dark .text-amber-800 { color: #fcd34d; }
 .dark .bg-blue-50 { background-color: #16233f; }
+/* bg-blue-100 = var(--accent-100), một tông RẤT NHẠT. Thiếu bản vá này thì ở chế độ tối,
+   ô "ngày đang xem" của lịch mini là nền nhạt + chữ text-blue-800 (đã vá thành chữ SÁNG)
+   -> sáng trên sáng, gần như không đọc được. Đậm hơn bg-blue-50 một bậc để vẫn phân biệt.
+   Vá cả hover:/active: vì 2 biến thể này cũng dùng bg-blue-100 (hover ô lịch Năm/Ngày-Tuần,
+   active nút mũi tên header) và Tailwind sinh class RIÊNG cho từng biến thể. */
 .dark .bg-blue-100,
 .dark .hover\:bg-blue-100:hover,
 .dark .active\:bg-blue-100:active { background-color: #1c2f52; }

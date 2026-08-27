@@ -39,6 +39,14 @@ const BANNER_GAP = 2;
 /** Khoảng cách từ đỉnh ô tới banner đầu tiên — đủ chỗ cho hàng số ngày phía trên (số ngày
  *  âm lịch + huy hiệu số ngày dương lịch cao 24px + đệm p-1.5 6px) mà không đè lên. */
 const BANNER_TOP = 34;
+/**
+ * Số dải nhiều ngày TỐI ĐA vẽ trong 1 hàng-tuần.
+ *
+ * Không giới hạn thì một tuần có nhiều sự kiện dài sẽ xếp chồng cao quá chiều cao hàng,
+ * TRÀN xuống hàng dưới và ĐÈ MẤT số ngày (mỗi hàng chỉ cao ~1/6 lưới). Phần dư gộp lại
+ * thành nhãn "+N nữa" ở cuối chồng.
+ */
+const MAX_BANNER_LANES = 3;
 
 @Component({
   selector: 'app-month-view',
@@ -54,7 +62,7 @@ const BANNER_TOP = 34;
 
       <div class="relative min-h-0 flex-1">
       <div
-        class="grid h-full grid-cols-7 grid-rows-6"
+        class="grid h-full select-none grid-cols-7 grid-rows-6"
         (pointermove)="onGridPointerMove($event)"
         (pointerup)="onGridPointerUp($event)"
         (pointercancel)="onGridPointerUp($event)"
@@ -167,6 +175,18 @@ const BANNER_TOP = 34;
           >
             <span class="truncate">{{ b.event.title || tr.t('common.untitled') }}</span>
           </button>
+        }
+
+        <!-- Tuần có nhiều dải hơn số lane cho phép -> gộp phần dư thành 1 nhãn, thay vì để
+             chồng dải cao quá hàng rồi tràn xuống đè mất số ngày của hàng dưới. -->
+        @for (o of overflowRows(); track o.row) {
+          <span
+            class="truncate px-1.5 text-[10px] font-medium text-gray-500"
+            [style.grid-row]="o.row + 1"
+            [style.grid-column]="'1 / 8'"
+            [style.margin-top.px]="bannerTop + maxBannerLanes * bannerStep"
+            [style.height.px]="bannerH"
+          >+{{ o.count }} sự kiện dài nữa</span>
         }
       </div>
       </div>
@@ -316,8 +336,32 @@ export class MonthViewComponent {
         if (eEnd <= weekEnd) laneOf.delete(e.id);
       }
     }
-    return result;
+    // Chỉ giữ các lane nằm trong giới hạn; phần vượt do overflowBanners() lo.
+    return result.filter((b) => b.lane < MAX_BANNER_LANES);
   });
+
+  /** Số dải bị ẩn ở mỗi hàng-tuần (chỉ số hàng -> số lượng), để hiện nhãn "+N nữa". */
+  readonly bannerOverflow = computed<Record<number, number>>(() => {
+    const weeks = this.weeks();
+    const multiDay = this.events().filter((e) => this.isMultiDay(e));
+    const out: Record<number, number> = {};
+    for (let w = 0; w < weeks.length; w++) {
+      const weekStart = this.atMidnight(weeks[w][0]);
+      const weekEnd = this.atMidnight(weeks[w][6]);
+      const active = multiDay.filter(
+        (e) => this.atMidnight(e.start) <= weekEnd && this.atMidnight(e.end) >= weekStart,
+      );
+      if (active.length > MAX_BANNER_LANES) out[w] = active.length - MAX_BANNER_LANES;
+    }
+    return out;
+  });
+
+  /** Các hàng-tuần cần hiện nhãn "+N nữa" (dạng mảng để @for duyệt được). */
+  readonly overflowRows = computed<{ row: number; count: number }[]>(() =>
+    Object.entries(this.bannerOverflow()).map(([row, count]) => ({ row: +row, count })),
+  );
+
+  protected readonly maxBannerLanes = MAX_BANNER_LANES;
 
   /** Chỗ chừa phía trên trong 1 ô ngày cho các banner nhiều ngày đang phủ qua ngày đó, để chip 1-ngày không bị đè lên. */
   bannerReserve(date: Date): number {
@@ -330,7 +374,10 @@ export class MonthViewComponent {
       const t = this.atMidnight(date).getTime();
       if (t >= from && t <= to) maxLane = Math.max(maxLane, b.lane);
     }
-    return maxLane < 0 ? 0 : this.bannerTop + (maxLane + 1) * this.bannerStep - 4;
+    // Kẹp theo MAX_BANNER_LANES: weekBanners() đã lọc bỏ lane vượt ngưỡng nên chỗ chừa
+    // cũng không được tính theo lane không còn được vẽ.
+    const lanes = Math.min(maxLane + 1, MAX_BANNER_LANES);
+    return lanes <= 0 ? 0 : this.bannerTop + lanes * this.bannerStep - 4;
   }
 
   colorClass(color: string): string {

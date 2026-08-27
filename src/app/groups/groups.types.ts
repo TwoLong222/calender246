@@ -49,6 +49,16 @@ export interface GroupMessage {
   /** != null nghĩa là tin đã bị thu hồi (hiển thị "đã thu hồi") */
   deleted_at: string | null;
   created_at: string;
+
+  // ----- Phase 13: trả lời tin -----
+  /** Tin này trả lời tin nào (id trong cùng nhóm); null = tin thường. */
+  reply_to_id?: string | null;
+}
+
+/** Dữ liệu gửi kèm khi tạo 1 tin nhắn mới. */
+export interface SendMessagePayload {
+  content: string;
+  replyToId?: string;
 }
 
 // (Đã bỏ GROUP_COLORS: nhóm không còn màu riêng — sự kiện giữ đúng màu người tạo chọn.)

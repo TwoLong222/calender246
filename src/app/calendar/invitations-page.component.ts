@@ -36,11 +36,11 @@ import { IconComponent } from '../shared/icon.component';
             <div class="rounded-xl border border-gray-200 bg-white p-4">
               <div class="flex items-center gap-2">
                 <span class="h-3 w-3 rounded-full" [class]="dotClass(iv.color)" [style.background-color]="dotStyle(iv.color)"></span>
-                <p class="font-medium">{{ iv.title || tr.t('common.untitled') }}</p>
+                <p class="min-w-0 break-words font-medium">{{ iv.title || tr.t('common.untitled') }}</p>
               </div>
               <p class="mt-1 text-sm text-gray-500">{{ timeLabel(iv) }}</p>
               @if (iv.creatorEmail) {
-                <p class="mt-0.5 text-xs text-gray-400">{{ tr.t('invite.from') }} {{ iv.creatorEmail }}</p>
+                <p class="mt-0.5 break-all text-xs text-gray-400">{{ tr.t('invite.from') }} {{ iv.creatorEmail }}</p>
               }
               <div class="mt-3 flex gap-2">
                 <button type="button" (click)="respond(iv, 'accepted')" [disabled]="busy() === iv.eventId"

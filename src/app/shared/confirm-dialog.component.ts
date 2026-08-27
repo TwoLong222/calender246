@@ -26,6 +26,9 @@ import { TranslateService } from '../i18n/translate.service';
           </div>
           <div class="flex flex-wrap justify-end gap-2">
             <button type="button" (click)="confirm.answer('no')" class="btn btn-secondary">{{ tr.t('del.cancel') }}</button>
+            @if (p.tertiaryText) {
+              <button type="button" (click)="confirm.answer('tertiary')" class="btn btn-secondary">{{ p.tertiaryText }}</button>
+            }
             @if (p.secondaryText) {
               <button type="button" (click)="confirm.answer('secondary')" class="btn btn-danger">{{ p.secondaryText }}</button>
             }

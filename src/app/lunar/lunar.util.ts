@@ -60,13 +60,18 @@ function getNewMoonDay(k: number, timeZone: number): number {
   const M = 359.2242 + 29.10535608 * k - 0.0000333 * T2 - 0.00000347 * T3;
   const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 0.00001236 * T3;
   const F = 21.2964 + 390.67050646 * k - 0.0016528 * T2 - 0.00000239 * T3;
+  // CẢNH BÁO: viết TƯỜNG MINH dấu của TỪNG số hạng. Trước đây các dòng này dùng `-=` với
+  // hai số hạng ("C1 -= a + b"), làm dấu của số hạng thứ hai bị lật thành trừ. Ba số hạng
+  // (0.0161, 0.0004, 0.0006) bị sai dấu -> lệch tới ~0.034 ngày (~49 phút), đủ để đẩy điểm
+  // sóc sang nhầm ngày khi nó rơi sát nửa đêm giờ VN (vd sóc 00:37 ngày 13/8/2026 bị tính
+  // thành 12/8 -> cả tháng 7 âm lịch lệch 1 ngày).
   let C1 = (0.1734 - 0.000393 * T) * Math.sin(M * dr) + 0.0021 * Math.sin(2 * dr * M);
-  C1 -= 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(dr * 2 * Mpr);
-  C1 -= 0.0004 * Math.sin(dr * 3 * Mpr);
-  C1 += 0.0104 * Math.sin(dr * 2 * F) - 0.0051 * Math.sin(dr * (M + Mpr));
-  C1 -= 0.0074 * Math.sin(dr * (M - Mpr)) + 0.0004 * Math.sin(dr * (2 * F + M));
-  C1 -= 0.0004 * Math.sin(dr * (2 * F - M)) - 0.0006 * Math.sin(dr * (2 * F + Mpr));
-  C1 += 0.001 * Math.sin(dr * (2 * F - Mpr)) + 0.0005 * Math.sin(dr * (2 * Mpr + M));
+  C1 = C1 - 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(dr * 2 * Mpr);
+  C1 = C1 - 0.0004 * Math.sin(dr * 3 * Mpr);
+  C1 = C1 + 0.0104 * Math.sin(dr * 2 * F) - 0.0051 * Math.sin(dr * (M + Mpr));
+  C1 = C1 - 0.0074 * Math.sin(dr * (M - Mpr)) + 0.0004 * Math.sin(dr * (2 * F + M));
+  C1 = C1 - 0.0004 * Math.sin(dr * (2 * F - M)) - 0.0006 * Math.sin(dr * (2 * F + Mpr));
+  C1 = C1 + 0.001 * Math.sin(dr * (2 * F - Mpr)) + 0.0005 * Math.sin(dr * (2 * Mpr + M));
   let deltat: number;
   if (T < -11) {
     deltat = 0.001 + 0.000839 * T + 0.0002261 * T2 - 0.00000845 * T3 - 0.000000081 * T * T3;

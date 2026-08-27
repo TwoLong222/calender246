@@ -7,7 +7,10 @@ import { NotificationService } from '../notifications/notification.service';
 import { GroupsApiService } from './groups-api.service';
 import { GroupsStateService } from './groups-state.service';
 import { GroupRealtimeService, ChatMessage } from './realtime.service';
-import { GroupMessage } from './groups.types';
+import { GroupMessage, SendMessagePayload } from './groups.types';
+
+/** Key localStorage lưu danh sách nhóm đã tắt thông báo. */
+const MUTED_KEY = 'group-chat-muted';
 
 const PAGE_SIZE = 30;
 const TYPING_TTL = 4000; // ms — "đang gõ" tự ẩn nếu không có tín hiệu mới
@@ -66,6 +69,40 @@ export class GroupChatService {
 
   unreadOf(groupId: string): number {
     return this.unread()[groupId] ?? 0;
+  }
+
+  // ---------- Tắt thông báo theo từng nhóm ----------
+  // Lưu trên trình duyệt (mỗi máy một kiểu), không đụng database — đây là sở thích cá nhân
+  // chứ không phải dữ liệu chung của nhóm.
+  private readonly muted = signal<Set<string>>(new Set(this.loadMuted()));
+
+  private loadMuted(): string[] {
+    try {
+      const raw = localStorage.getItem(MUTED_KEY);
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return []; // localStorage bị chặn / dữ liệu hỏng -> coi như không tắt nhóm nào
+    }
+  }
+
+  /** Nhóm này có đang tắt thông báo không. */
+  isMuted(groupId: string): boolean {
+    return this.muted().has(groupId);
+  }
+
+  /** Bật/tắt thông báo cho 1 nhóm. */
+  toggleMuted(groupId: string): void {
+    this.muted.update((s) => {
+      const next = new Set(s);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      try {
+        localStorage.setItem(MUTED_KEY, JSON.stringify([...next]));
+      } catch {
+        /* không lưu được thì thôi, phiên này vẫn đúng */
+      }
+      return next;
+    });
   }
 
   typingOf(groupId: string): string[] {
@@ -147,7 +184,10 @@ export class GroupChatService {
   }
 
   // ---------- Gửi / sửa / thu hồi ----------
-  send(groupId: string, content: string): void {
+  /**
+   * Gửi tin. `extra` cho phép kèm tin đang được trả lời.
+   */
+  send(groupId: string, content: string, extra?: Omit<SendMessagePayload, 'content'>): void {
     const text = content.trim();
     if (!text) return;
 
@@ -162,10 +202,11 @@ export class GroupChatService {
       edited_at: null,
       deleted_at: null,
       created_at: new Date().toISOString(),
+      reply_to_id: extra?.replyToId ?? null,
     };
     this.upsert(groupId, temp);
 
-    this.api.sendMessage(groupId, text).subscribe({
+    this.api.sendMessage(groupId, { content: text, ...extra }).subscribe({
       next: (saved) => {
         this.removeById(groupId, tempId);
         this.upsert(groupId, saved); // bản broadcast (nếu tới) trùng id -> không nhân đôi
@@ -175,6 +216,12 @@ export class GroupChatService {
         this.error.set('Không gửi được tin nhắn.');
       },
     });
+  }
+
+  /** Tin gốc của 1 tin trả lời (để hiện phần trích dẫn); null nếu không tìm thấy. */
+  parentOf(groupId: string, msg: GroupMessage): GroupMessage | null {
+    if (!msg.reply_to_id) return null;
+    return this.messagesOf(groupId).find((m) => m.id === msg.reply_to_id) ?? null;
   }
 
   edit(groupId: string, messageId: string, content: string): void {
@@ -227,6 +274,9 @@ export class GroupChatService {
 
   /** Bắn thông báo cho 1 tin nhắn mới ở nhóm mà người dùng KHÔNG đang mở chat. */
   private notifyNewMessage(groupId: string, msg: GroupMessage): void {
+    // Nhóm đã tắt thông báo -> im lặng. Badge số chưa đọc vẫn cộng bình thường để không
+    // mất dấu tin mới, chỉ là không bật toast/thông báo hệ thống nữa.
+    if (this.isMuted(groupId)) return;
     const groupName = this.groupsState.groups().find((g) => g.id === groupId)?.name ?? 'Nhóm';
     const sender = (msg.sender_email ?? '').split('@')[0] || 'Ai đó';
     this.notifications.notifyMessage(`💬 ${groupName}`, `${sender}: ${msg.content}`, groupId);

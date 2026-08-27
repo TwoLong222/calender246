@@ -46,6 +46,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
         <div class="mx-auto mb-6 max-w-xl rounded-xl border border-gray-200 bg-white p-3 shadow-sm" style="color:#111827;" [style.background-color]="bg(newColor())">
           <input
             [(ngModel)]="newTitle"
+            (keydown.enter)="add()"
             maxlength="1000"
             [placeholder]="tr.t('notes.titlePlaceholder')"
             style="color:#111827;"
@@ -111,6 +112,7 @@ const COLOR_ORDER: NoteColor[] = ['default', 'red', 'orange', 'yellow', 'green',
                   <input
                     [ngModel]="n.title"
                     (ngModelChange)="n.title = $event"
+                    (keydown.enter)="save(n)"
                     (blur)="save(n)"
                     maxlength="1000"
                     [placeholder]="tr.t('notes.titlePlaceholder')"

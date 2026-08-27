@@ -26,7 +26,8 @@ import { AttachmentsApiService, EventFileGroup } from '../calendar/attachments-a
 import { COMMON_TIMEZONES } from './settings.types';
 import { TimePickerComponent } from '../shared/time-picker.component';
 import { SelectComponent, SelectOption } from '../shared/select.component';
-import { ACCENT_PRESETS, ThemeBuilderService } from '../theme/theme-builder.service';
+import { ACCENT_PRESETS, ThemeBuilderService, accentFitsTheme } from '../theme/theme-builder.service';
+import { ThemeService } from '../theme.service';
 import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { Toast } from '../notifications/notification.service';
 import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/notif-kind.util';
@@ -88,7 +89,7 @@ type Section =
                 <h2 class="mb-4 text-base font-semibold">{{ tr.t('acc.profile') }}</h2>
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.displayName') }}</label>
                 <div class="mb-4 flex gap-2">
-                  <input [(ngModel)]="displayName" (keydown.enter)="saveProfile()" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  <input [(ngModel)]="displayName" (keydown.enter)="saveProfile()" maxlength="100" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <button type="button" (click)="saveProfile()" class="tap rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">{{ tr.t('acc.save') }}</button>
                 </div>
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.email') }}</label>
@@ -105,8 +106,8 @@ type Section =
               @if (isEmailUser()) {
                 <section class="rounded-lg border border-gray-200 bg-white p-5">
                   <h2 class="mb-4 text-base font-semibold">{{ tr.t('acc.changePw') }}</h2>
-                  <input type="password" [(ngModel)]="curPw" [placeholder]="tr.t('acc.curPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                  <input type="password" [(ngModel)]="newPw" [placeholder]="tr.t('acc.newPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  <input type="password" [(ngModel)]="curPw" (keydown.enter)="changePassword()" [placeholder]="tr.t('acc.curPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                  <input type="password" [(ngModel)]="newPw" (keydown.enter)="changePassword()" [placeholder]="tr.t('acc.newPw')" class="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <input type="password" [(ngModel)]="confirmPw" (keydown.enter)="changePassword()" [placeholder]="tr.t('acc.confirmPw')" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
                   <button type="button" (click)="changePassword()" class="tap rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">{{ tr.t('acc.changePw') }}</button>
                   @if (pwMsg(); as m) { <p class="mt-2 text-xs" [class.text-green-700]="pwOk()" [class.text-red-600]="!pwOk()">{{ m }}</p> }
@@ -265,11 +266,12 @@ type Section =
                     <button
                       type="button"
                       (click)="pickPreset(p.id)"
-                      [title]="p.name"
+                      [title]="fitsTheme(p.palette[600]) ? p.name : p.name + ' — ' + tr.t('theme.notFit')"
                       class="tap relative h-9 w-9 rounded-full border-2 transition"
                       [style.background-color]="p.palette[600]"
                       [class.border-gray-900]="themeBuilder.accentId() === p.id"
                       [class.border-transparent]="themeBuilder.accentId() !== p.id"
+                      [class.opacity-40]="!fitsTheme(p.palette[600])"
                     >
                       @if (themeBuilder.accentId() === p.id) {
                         <span class="absolute inset-0 flex items-center justify-center text-white">
@@ -279,6 +281,15 @@ type Section =
                     </button>
                   }
                 </div>
+
+                <!-- Gợi ý theo chế độ sáng/tối đang bật: màu quá tối chìm vào nền tối, màu quá
+                     sáng làm chữ trắng trên nút bị chói trên nền sáng -> làm mờ để dễ tránh. -->
+                <p class="-mt-1 text-xs text-gray-500">
+                  {{ theme.isDark() ? tr.t('theme.hintDark') : tr.t('theme.hintLight') }}
+                </p>
+                @if (dimmedCount() > 0) {
+                  <p class="-mt-1 text-xs text-amber-600">{{ tr.t('theme.dimmedNote') }}</p>
+                }
 
                 <!-- Màu tùy chỉnh: bấm ô màu để chọn bất kỳ màu nào ngoài các màu có sẵn ở trên -->
                 <label class="flex items-center gap-3 text-sm">
@@ -294,13 +305,28 @@ type Section =
 
                 <!-- Xem trước -->
                 <div class="rounded-lg border border-gray-200 p-3">
-                  <p class="mb-2 text-xs text-gray-500">{{ tr.t('theme.preview') }}</p>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm text-white">21</span>
-                    <button type="button" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">{{ tr.t('form.save') }}</button>
-                    <span class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700">{{ tr.t('theme.accent') }}</span>
-                    <!-- Chỉ là VÍ DỤ minh hoạ kiểu liên kết, không bấm được -->
-                    <a class="text-sm text-blue-600">{{ tr.t('theme.previewLink') }}</a>
+                  <p class="text-xs font-medium text-gray-600">{{ tr.t('theme.preview') }}</p>
+                  <!-- Nói rõ đây chỉ là HÀNG MẪU, không bấm được — trước đây người dùng tưởng
+                       "Liên kết" là một nút thật và không hiểu nó dùng để làm gì. -->
+                  <p class="mb-2 text-xs text-gray-400">{{ tr.t('theme.previewHint') }}</p>
+                  <div class="flex flex-wrap items-center gap-3">
+                    <span class="flex flex-col items-center gap-1">
+                      <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm text-white">21</span>
+                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleToday') }}</span>
+                    </span>
+                    <span class="flex flex-col items-center gap-1">
+                      <span class="pointer-events-none rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white">{{ tr.t('form.save') }}</span>
+                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleButton') }}</span>
+                    </span>
+                    <span class="flex flex-col items-center gap-1">
+                      <span class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700">{{ tr.t('theme.accent') }}</span>
+                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleBadge') }}</span>
+                    </span>
+                    <span class="flex flex-col items-center gap-1">
+                      <!-- Chỉ là VÍ DỤ minh hoạ kiểu liên kết, không bấm được -->
+                      <span class="text-sm text-blue-600 underline">{{ tr.t('theme.previewLink') }}</span>
+                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleLink') }}</span>
+                    </span>
                   </div>
                 </div>
 
@@ -398,7 +424,7 @@ type Section =
                   <p class="mb-1 font-medium">{{ tr.t('share.title') }}</p>
                   <p class="mb-3 text-xs text-gray-400">{{ tr.t('share.desc') }}</p>
                   <div class="flex flex-wrap gap-2">
-                    <input type="email" [ngModel]="shareEmail()" (ngModelChange)="shareEmail.set($event)" [placeholder]="tr.t('share.email')" class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2" />
+                    <input type="email" [ngModel]="shareEmail()" (ngModelChange)="shareEmail.set($event)" (keydown.enter)="addMember()" maxlength="254" [placeholder]="tr.t('share.email')" class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2" />
                     <app-select [options]="guestRoleOptions()" [ngModel]="shareRole()" (ngModelChange)="shareRole.set($any($event))" class="w-32" />
                     <button type="button" (click)="addMember()" class="tap rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">{{ tr.t('share.add') }}</button>
                   </div>
@@ -561,7 +587,7 @@ type Section =
           <div class="modal-card-in w-full max-w-sm rounded-xl bg-white p-5" (click)="$event.stopPropagation()">
             <h3 class="mb-2 text-base font-semibold text-red-700">{{ tr.t('del.title') }}</h3>
             <p class="mb-4 text-sm text-gray-600">{{ tr.t('del.body') }} <b>DELETE</b> {{ tr.t('del.bodyEnd') }}</p>
-            <input [(ngModel)]="deleteConfirmText" placeholder="DELETE" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <input [(ngModel)]="deleteConfirmText" maxlength="10" placeholder="DELETE" class="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
             <div class="flex justify-end gap-2">
               <button type="button" (click)="confirmDelete.set(false)" class="tap rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">{{ tr.t('del.cancel') }}</button>
               <button type="button" [disabled]="deleteConfirmText() !== 'DELETE' || deleting()" (click)="deleteAccount()" class="tap rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">{{ deleting() ? tr.t('del.deleting') : tr.t('del.confirm') }}</button>
@@ -800,6 +826,17 @@ export class SettingsPageComponent {
   protected readonly themes = ['light', 'dark', 'system'] as const;
   protected readonly themeBuilder = inject(ThemeBuilderService);
   protected readonly accentPresets = ACCENT_PRESETS;
+  protected readonly theme = inject(ThemeService);
+
+  /** Màu nhấn này có hợp với chế độ sáng/tối đang bật không (dùng để làm mờ ô không hợp). */
+  protected fitsTheme(hex600: string): boolean {
+    return accentFitsTheme(hex600, this.theme.isDark());
+  }
+
+  /** Số màu dựng sẵn đang bị làm mờ vì không hợp chế độ hiện tại. */
+  protected dimmedCount(): number {
+    return ACCENT_PRESETS.filter((p) => !this.fitsTheme(p.palette[600])).length;
+  }
   protected readonly seasonal = inject(SeasonalThemeService);
   protected readonly seasons = SEASONS;
   /** Xóa lịch sử chat AI (lưu trên máy). */

@@ -7,7 +7,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { CalendarEvent } from '../calendar/calendar.types';
 import { ApiEvent, fromApiEvent, toApiPayload } from '../calendar/events-api.service';
-import { Group, GroupMessage, PendingGroupInvite } from './groups.types';
+import { Group, GroupMessage, PendingGroupInvite, SendMessagePayload } from './groups.types';
 
 interface MutationResponse {
   event: ApiEvent;
@@ -120,8 +120,8 @@ export class GroupsApiService {
     return this.http.get<GroupMessage[]>(`${this.base}/${id}/messages`, { params });
   }
 
-  sendMessage(id: string, content: string): Observable<GroupMessage> {
-    return this.http.post<GroupMessage>(`${this.base}/${id}/messages`, { content });
+  sendMessage(id: string, payload: SendMessagePayload): Observable<GroupMessage> {
+    return this.http.post<GroupMessage>(`${this.base}/${id}/messages`, payload);
   }
 
   editMessage(id: string, messageId: string, content: string): Observable<GroupMessage> {
