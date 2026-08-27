@@ -13,11 +13,11 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
   imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="fixed right-4 top-4 z-50 flex flex-col gap-2">
+    <div class="fixed right-4 top-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col gap-2">
       @for (t of notify.toasts(); track t.id) {
         <!-- Có eventId (nhắc lịch / sự kiện bị sửa...) -> bấm vào toast nhảy tới đúng sự kiện -->
         <div
-          class="toast-in w-72 rounded-lg border bg-white px-4 py-3 shadow-lg"
+          class="toast-in w-72 max-w-full rounded-lg border bg-white px-4 py-3 shadow-lg"
           [class]="borderClass(t.kind) + ((t.eventId || t.groupId) && t.kind !== 'invite' ? ' cursor-pointer hover:shadow-xl' : '')"
           (click)="onToastClick(t)"
         >

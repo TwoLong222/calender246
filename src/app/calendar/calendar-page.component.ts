@@ -202,17 +202,11 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
               <!-- Lớp nền trong suốt: bấm ra ngoài để đóng menu -->
               <div class="fixed inset-0 z-20" (click)="settingsMenuOpen.set(false)"></div>
               <div class="drop-panel surface-panel popup-in absolute right-0 top-full z-30 mt-1.5 w-52 py-1">
-                <button type="button" (click)="onExport(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="download" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.export') }}
+                <button type="button" (click)="formatMenuOpen.set('ics'); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="notes" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.formatIcs') }}
                 </button>
-                <button type="button" (click)="fileInput.click()" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="upload" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.import') }}
-                </button>
-                <button type="button" (click)="onExportPdf(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="download" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.exportPdf') }}
-                </button>
-                <button type="button" [disabled]="pdfBusy()" (click)="fileInputPdf.click()" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50">
-                  <app-icon name="upload" class="h-4 w-4 text-gray-500" /> {{ pdfBusy() ? tr.t('nav.importPdfBusy') : tr.t('nav.importPdf') }}
+                <button type="button" (click)="formatMenuOpen.set('pdf'); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                  <app-icon name="notes" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.formatPdf') }}
                 </button>
                 <div class="my-1 border-t border-gray-200"></div>
                 <button type="button" (click)="state.openTrash(); settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
@@ -399,6 +393,7 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
                     [events]="mergedEvents()"
                     (dateClicked)="onMonthDateClicked($event)"
                     (eventClicked)="onEventClicked($event)"
+                    (rangeSelected)="onMonthRangeSelected($event)"
                   />
                 }
                 @case ('year') {
@@ -419,6 +414,35 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
     }
     @if (state.isTrashOpen()) {
       <app-trash-modal />
+    }
+
+    <!-- Chọn Nhập/Xuất cho 1 định dạng (ICS hoặc PDF) — gộp 4 mục menu cũ thành 2, bấm vào
+         mới hỏi rõ Nhập hay Xuất để đỡ rối, hiện giữa màn hình để không lẫn với menu thả xuống. -->
+    @if (formatMenuOpen(); as fmt) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" (click)="formatMenuOpen.set(null)">
+        <div class="surface-panel popup-in w-full max-w-xs !rounded-[var(--radius-lg)] p-5 !shadow-[var(--shadow-lg)]" (click)="$event.stopPropagation()">
+          <div class="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h3 class="text-base font-semibold text-gray-900">{{ fmt === 'ics' ? tr.t('nav.formatIcs') : tr.t('nav.formatPdf') }}</h3>
+              <p class="mt-0.5 text-xs text-gray-500">{{ tr.t('nav.formatPickHint') }} {{ fmt === 'ics' ? tr.t('nav.formatIcs') : tr.t('nav.formatPdf') }}</p>
+            </div>
+            <button type="button" (click)="formatMenuOpen.set(null)" class="btn-icon !p-1.5" [attr.aria-label]="tr.t('common.close')"><app-icon name="x" class="h-4 w-4" /></button>
+          </div>
+          <div class="flex flex-col gap-2">
+            <button type="button" (click)="fmt === 'ics' ? onExport() : onExportPdf(); formatMenuOpen.set(null)" class="tap btn btn-secondary w-full !justify-start gap-2.5">
+              <app-icon name="download" class="h-4 w-4" /> {{ tr.t('nav.exportAction') }}
+            </button>
+            <button
+              type="button"
+              [disabled]="fmt === 'pdf' && pdfBusy()"
+              (click)="(fmt === 'ics' ? fileInput : fileInputPdf).click(); formatMenuOpen.set(null)"
+              class="tap btn btn-secondary w-full !justify-start gap-2.5 disabled:opacity-50"
+            >
+              <app-icon name="upload" class="h-4 w-4" /> {{ fmt === 'pdf' && pdfBusy() ? tr.t('nav.importPdfBusy') : tr.t('nav.importAction') }}
+            </button>
+          </div>
+        </div>
+      </div>
     }
 
     @if (settings.settings().ai_settings.enabled) {
@@ -497,6 +521,8 @@ export class CalendarPageComponent implements OnInit {
   protected readonly groupsMobileOpen = signal(false);
   protected readonly settingsMenuOpen = signal(false);
   protected readonly accountMenuOpen = signal(false);
+  /** Popup giữa màn hình hỏi Nhập/Xuất cho 1 định dạng — null = đang đóng. */
+  protected readonly formatMenuOpen = signal<'ics' | 'pdf' | null>(null);
   /** Hướng chuyển view gần nhất — quyết định animation trượt vào từ trái (back) hay phải (fwd). */
   protected readonly slideDir = signal<'fwd' | 'back'>('fwd');
   goPrev(): void {
@@ -541,8 +567,9 @@ export class CalendarPageComponent implements OnInit {
   async onExportPdf(): Promise<void> {
     try {
       await this.pdf.exportToFile(this.state.events());
-    } catch {
-      this.importMsg.set('Xuất PDF thất bại.');
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : '';
+      this.importMsg.set(detail ? `Xuất PDF thất bại: ${detail}` : 'Xuất PDF thất bại.');
     }
   }
 
@@ -725,6 +752,12 @@ export class CalendarPageComponent implements OnInit {
     this.state.selectDate(date, false);
     const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
     this.state.openCreateForm('event', start);
+  }
+
+  /** Kéo chọn nhiều ô ngày ở lịch Tháng -> mở form tạo với sự kiện "Cả ngày" trải đúng khoảng đã kéo. */
+  onMonthRangeSelected(range: { start: Date; end: Date }): void {
+    this.state.selectDate(range.start, false);
+    this.state.openCreateForm('event', range.start, range.end);
   }
 
   /** Bấm ngày ở header lưới giờ -> chuyển sang view Ngày của ngày đó */

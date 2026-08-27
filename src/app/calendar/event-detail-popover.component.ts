@@ -1,7 +1,7 @@
 // Popover chi tiết sự kiện — khớp bố cục hình 7: tiêu đề, thời gian, danh sách khách
 // (kèm trạng thái RSVP), nút sửa (✏️)/xóa (🗑️)/đóng (✕).
 
-import { ChangeDetectionStrategy, Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
@@ -24,9 +24,11 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
     @if (event(); as e) {
       <div class="fixed inset-0 z-30" (click)="state.closeDetail()">
         <div
-          class="popup-in surface-panel absolute max-h-[calc(100vh-8rem)] w-80 overflow-y-auto overflow-x-hidden !rounded-[var(--radius-lg)] p-4 !shadow-[var(--shadow-lg)]"
+          #panelEl
+          class="popup-in surface-panel absolute w-80 overflow-y-auto overflow-x-hidden !rounded-[var(--radius-lg)] p-4 !shadow-[var(--shadow-lg)]"
           [style.left.px]="panelPos().left"
           [style.top.px]="panelPos().top"
+          [style.max-height.px]="panelPos().maxHeight"
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">
@@ -266,20 +268,46 @@ export class EventDetailPopoverComponent implements OnDestroy {
    * KHÔNG được tính lại theo con trỏ: nếu tính lại, mỗi lần bấm trong bảng (nút X, nút
    * xoá…) bảng sẽ nhích theo chuột, nút trượt khỏi ngón tay và cú bấm không ăn.
    */
-  protected readonly panelPos = signal<{ left: number; top: number }>({ left: 0, top: 96 });
+  protected readonly panelPos = signal<{ left: number; top: number; maxHeight: number }>({ left: 0, top: 96, maxHeight: 2000 });
+  private readonly panelEl = viewChild<ElementRef<HTMLDivElement>>('panelEl');
+  private adjustRaf: number | null = null;
 
-  /** Tính chỗ đặt bảng từ vị trí vừa bấm, kẹp lại để không tràn khỏi màn hình. */
-  private computePanelPos(): { left: number; top: number } {
+  /**
+   * Tính chỗ đặt bảng (ước lượng ban đầu) từ vị trí vừa bấm, kẹp lại để không tràn
+   * khỏi màn hình. maxHeight ở đây chỉ là giới hạn AN TOÀN tuyệt đối (gần hết chiều
+   * cao màn hình) — vị trí thật để bảng luôn hiện đủ (không bị cắt) do adjustToFit()
+   * đảm nhiệm sau khi bảng đã vẽ xong và biết chiều cao thật.
+   */
+  private computePanelPos(): { left: number; top: number; maxHeight: number } {
     const W = 320; // = w-80
     const M = 12; // chừa mép
     const vw = typeof window === 'undefined' ? 1280 : window.innerWidth;
     const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+    const maxHeight = Math.max(200, vh - 2 * M);
     const p = this.state.lastPointer();
-    if (!p || vw < 768) return { left: Math.max(M, (vw - W) / 2), top: 96 };
+    if (!p || vw < 768) return { left: Math.max(M, (vw - W) / 2), top: 96, maxHeight };
     return {
       left: Math.min(Math.max(p.x - W / 2, M), Math.max(M, vw - W - M)),
       top: Math.min(Math.max(p.y - 24, M), Math.max(M, vh - 360)),
+      maxHeight,
     };
+  }
+
+  /**
+   * Sau khi bảng đã vẽ xong (biết chiều cao THẬT tùy nội dung: đính kèm, bình luận…),
+   * đẩy top lên nếu bảng tràn quá đáy màn hình — để bảng luôn hiện trọn vẹn, không
+   * phải cuộn bên trong, giống cách Google Calendar tự "lật" popup lên trên khi bên
+   * dưới không đủ chỗ.
+   */
+  private adjustToFit(): void {
+    const el = this.panelEl()?.nativeElement;
+    if (!el) return;
+    const M = 12;
+    const vh = window.innerHeight;
+    const h = el.offsetHeight;
+    const maxTop = Math.max(M, vh - h - M);
+    const cur = this.panelPos();
+    if (cur.top > maxTop) this.panelPos.set({ ...cur, top: maxTop });
   }
 
   // ----- Tài liệu đính kèm -----
@@ -336,6 +364,7 @@ export class EventDetailPopoverComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.clearUnlockTimers();
+    if (this.adjustRaf) cancelAnimationFrame(this.adjustRaf);
   }
   protected onFileSelected(evt: Event): void {
     const input = evt.target as HTMLInputElement;
@@ -504,8 +533,25 @@ export class EventDetailPopoverComponent implements OnDestroy {
     // tính vị trí đọc lastPointer mà KHÔNG bị chạy lại mỗi lần con trỏ bấm chỗ mới.
     effect(() => {
       const id = this.state.selectedEventId();
+      if (this.adjustRaf) { cancelAnimationFrame(this.adjustRaf); this.adjustRaf = null; }
       if (!id) return;
       untracked(() => this.panelPos.set(this.computePanelPos()));
+    });
+
+    /**
+     * Bình luận/đính kèm được TẢI BẤT ĐỒNG BỘ (gọi API riêng, xong sau khi bảng đã
+     * mở) nên chiều cao thật của bảng còn tăng thêm SAU lần đo đầu tiên — nếu chỉ
+     * chỉnh vị trí một lần lúc mở, phần vừa tải xong (đính kèm/bình luận) vẫn có thể
+     * bị tràn ra ngoài. Effect này đọc lại các danh sách đó để tự chỉnh lại mỗi khi
+     * chúng thay đổi, đảm bảo bảng luôn hiện trọn vẹn.
+     */
+    effect(() => {
+      const id = this.state.selectedEventId();
+      this.comments.comments();
+      this.attachments();
+      if (!id) return;
+      if (this.adjustRaf) cancelAnimationFrame(this.adjustRaf);
+      this.adjustRaf = requestAnimationFrame(() => { this.adjustRaf = null; this.adjustToFit(); });
     });
 
     // Mở/đổi event -> tải bình luận của event đó; đóng popover -> dọn

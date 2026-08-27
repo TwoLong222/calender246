@@ -20,15 +20,16 @@ import { GroupMessage } from './groups.types';
 import { ConfirmService } from '../shared/confirm.service';
 import { TranslateService } from '../i18n/translate.service';
 import { SupabaseService } from '../auth/supabase.service';
+import { IconComponent } from '../shared/icon.component';
 
 @Component({
   selector: 'app-group-panel',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (group(); as g) {
-      <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-16" (click)="state.closePanel()">
+      <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-16" (click)="state.closePanel()">
         <div class="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white p-5 shadow-2xl" (click)="$event.stopPropagation()">
           <!-- Header -->
           <div class="mb-3 flex shrink-0 items-start justify-between gap-3">
@@ -47,8 +48,8 @@ import { SupabaseService } from '../auth/supabase.service';
           <!-- Mã & link tham gia -->
           <div class="mb-4 shrink-0 rounded-lg bg-gray-50 p-3">
             <p class="mb-1 text-xs font-medium text-gray-600">Mời bằng mã / link</p>
-            <div class="flex items-center gap-2">
-              <code class="flex-1 rounded border border-gray-200 bg-white px-2 py-1 text-sm">{{ g.join_code }}</code>
+            <div class="flex flex-wrap items-center gap-2">
+              <code class="min-w-0 flex-1 truncate rounded border border-gray-200 bg-white px-2 py-1 text-sm">{{ g.join_code }}</code>
               <button type="button" (click)="copyCode(g.join_code)" class="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300">
                 {{ copied() ? 'Đã copy ✓' : 'Copy mã' }}
               </button>
@@ -245,7 +246,7 @@ import { SupabaseService } from '../auth/supabase.service';
                         [(ngModel)]="editText"
                         (keydown.enter)="saveEdit(g.id, msg.id)"
                         (keydown.escape)="cancelEdit()"
-                        class="w-56 rounded border border-gray-300 px-2 py-0.5 text-sm text-gray-800"
+                        class="w-full min-w-[8rem] rounded border border-gray-300 px-2 py-0.5 text-sm text-gray-800"
                       />
                       <div class="mt-1 flex gap-2 text-xs">
                         <button type="button" (click)="saveEdit(g.id, msg.id)" class="underline">Lưu</button>
@@ -290,8 +291,10 @@ import { SupabaseService } from '../auth/supabase.service';
           }
 
           @if (isOwner()) {
-            <div class="mt-2 shrink-0 border-t border-gray-100 pt-3 text-right">
-              <button type="button" (click)="confirmDelete(g.id, g.name)" class="text-sm text-red-600">Giải tán nhóm</button>
+            <div class="mt-2 shrink-0 border-t border-gray-100 pt-3">
+              <button type="button" (click)="confirmDelete(g.id, g.name)" class="tap btn btn-danger w-full gap-1.5">
+                <app-icon name="trash" class="h-4 w-4" /> Giải tán nhóm
+              </button>
             </div>
           }
         </div>

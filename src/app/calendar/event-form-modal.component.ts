@@ -13,6 +13,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { FormsModule } from '@angular/forms';
 import { CalendarEvent, EventKind, Guest } from './calendar.types';
 import { CalendarStateService } from './calendar-state.service';
+import { isSameDay } from './date-utils';
 import { IconComponent } from '../shared/icon.component';
 import { TimePickerComponent } from '../shared/time-picker.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
@@ -109,14 +110,21 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                 <input type="date" [(ngModel)]="startDate" class="field disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" [disabled]="!canEditTime()" />
                 <app-time-picker [(ngModel)]="startTime" [disabled]="isAllDay() || !canEditTime()" />
               </div>
-              <!-- Kết thúc — NGÀY khóa theo ngày bắt đầu (sự kiện gói gọn trong 1 ngày) -->
+              <!-- Kết thúc — sự kiện có giờ cụ thể: NGÀY khóa theo ngày bắt đầu (gói gọn trong 1
+                   ngày). Sự kiện "Cả ngày": cho chọn ngày kết thúc riêng để trải nhiều ngày. -->
               <div class="flex flex-wrap items-center gap-2">
                 <span class="w-5 text-center"></span>
                 <span class="w-16 shrink-0 font-medium text-gray-600">{{ tr.t('form.end') }}</span>
-                <input type="date" [ngModel]="startDate()" [disabled]="true" [title]="tr.t('form.sameDayHint')" class="field disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" />
-                <app-time-picker [(ngModel)]="endTime" [disabled]="isAllDay() || !canEditTime()" />
+                @if (isAllDay()) {
+                  <input type="date" [(ngModel)]="endDate" [min]="startDate()" [disabled]="!canEditTime()" class="field disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" />
+                } @else {
+                  <input type="date" [ngModel]="startDate()" [disabled]="true" [title]="tr.t('form.sameDayHint')" class="field disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" />
+                  <app-time-picker [(ngModel)]="endTime" [disabled]="!canEditTime()" />
+                }
               </div>
-              <p class="pl-[5.75rem] text-xs text-gray-400">{{ tr.t('form.sameDayHint') }}</p>
+              @if (!isAllDay()) {
+                <p class="pl-[5.75rem] text-xs text-gray-400">{{ tr.t('form.sameDayHint') }}</p>
+              }
             </div>
             @if (!canEditTime()) {
               <p class="pl-7 text-xs text-gray-500">🔒 Chỉ người tạo sự kiện mới được đổi giờ bắt đầu/kết thúc.</p>
@@ -881,20 +889,31 @@ export class EventFormModalComponent {
         this.showCustomRecur.set(false);
       } else {
         const start = this.state.formInitialStart();
-        // Kéo chọn khoảng giờ -> dùng đúng giờ kết thúc đã kéo; nếu không thì mặc định +1 tiếng.
         const dragged = this.state.formInitialEnd();
-        let end = dragged ?? new Date(start.getTime() + 60 * 60_000);
-        // Sự kiện gói gọn trong 1 ngày: nếu +1 tiếng tràn sang ngày sau -> kẹp về 23:59 cùng ngày.
-        if (end.getDate() !== start.getDate() || end.getMonth() !== start.getMonth() || end.getFullYear() !== start.getFullYear()) {
-          end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59);
-        }
+        // Kéo qua NHIỀU ô ngày ở lịch Tháng (khác ngày với start) -> sự kiện "Cả ngày" trải
+        // đúng khoảng đã kéo. Phân biệt với kéo chọn GIỜ ở lịch Ngày/Tuần: trường hợp đó start
+        // và dragged luôn cùng 1 ngày (chỉ kéo dọc trong 1 cột), nên không rơi vào nhánh này.
+        const isMultiDayDrag = !!dragged && !isSameDay(start, dragged);
         this.tab.set(this.state.formInitialKind());
         this.title.set('');
         this.startDate.set(toDateInputValue(start));
-        this.startTime.set(toTimeInputValue(start));
-        this.endDate.set(toDateInputValue(end));
-        this.endTime.set(toTimeInputValue(end));
-        this.isAllDay.set(false);
+        if (isMultiDayDrag) {
+          this.startTime.set('00:00');
+          this.endDate.set(toDateInputValue(dragged!));
+          this.endTime.set('23:59');
+          this.isAllDay.set(true);
+        } else {
+          // Kéo chọn khoảng giờ -> dùng đúng giờ kết thúc đã kéo; nếu không thì mặc định +1 tiếng.
+          let end = dragged ?? new Date(start.getTime() + 60 * 60_000);
+          // Sự kiện gói gọn trong 1 ngày: nếu +1 tiếng tràn sang ngày sau -> kẹp về 23:59 cùng ngày.
+          if (end.getDate() !== start.getDate() || end.getMonth() !== start.getMonth() || end.getFullYear() !== start.getFullYear()) {
+            end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59);
+          }
+          this.startTime.set(toTimeInputValue(start));
+          this.endDate.set(toDateInputValue(end));
+          this.endTime.set(toTimeInputValue(end));
+          this.isAllDay.set(false);
+        }
         this.location.set('');
         this.description.set('');
         this.guests.set([]);
@@ -988,12 +1007,14 @@ export class EventFormModalComponent {
     if (this.saving()) return;
 
     const start = this.isAllDay() ? new Date(`${this.startDate()}T00:00`) : this.computedStart();
-    // Kết thúc cùng NGÀY với bắt đầu (không cho sự kiện kéo dài qua ngày).
-    const end = this.isAllDay() ? new Date(`${this.startDate()}T23:59`) : this.computedEnd();
+    // "Cả ngày" dùng đúng ngày kết thúc đã chọn (có thể trải nhiều ngày); ngày trống hoặc
+    // trước ngày bắt đầu -> coi như gói gọn trong 1 ngày (giữ hành vi cũ làm mặc định an toàn).
+    const endDateAllDay = this.endDate() && this.endDate() >= this.startDate() ? this.endDate() : this.startDate();
+    const end = this.isAllDay() ? new Date(`${endDateAllDay}T23:59`) : this.computedEnd();
 
-    // Chặn giờ kết thúc TRƯỚC giờ bắt đầu: DB lưu bằng khoảng thời gian nên sẽ lỗi (500).
+    // Chặn giờ/ngày kết thúc TRƯỚC bắt đầu: DB lưu bằng khoảng thời gian nên sẽ lỗi (500).
     // Báo rõ cho người dùng thay vì để "Lưu thất bại" khó hiểu.
-    if (!this.isAllDay() && end.getTime() < start.getTime()) {
+    if (end.getTime() < start.getTime()) {
       this.formError.set(this.tr.t('form.endBeforeStart'));
       return;
     }
@@ -1013,7 +1034,7 @@ export class EventFormModalComponent {
         return;
       }
     } else {
-      const MAX_ALL_DAY_SPAN_DAYS = 30;
+      const MAX_ALL_DAY_SPAN_DAYS = 31; // đủ chọn cả 1 tháng (kể cả tháng 31 ngày)
       const spanDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
       if (spanDays > MAX_ALL_DAY_SPAN_DAYS) {
         this.formError.set(this.tr.t('form.spanTooLong'));
