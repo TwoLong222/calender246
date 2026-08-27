@@ -8,11 +8,18 @@ import { FormsModule } from '@angular/forms';
 import { AiApiService } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
-import { CalendarEvent } from '../calendar/calendar.types';
+import { CalendarEvent, EventKind } from '../calendar/calendar.types';
 import { SupabaseService } from '../auth/supabase.service';
 import { IconComponent } from '../shared/icon.component';
 import { TranslateService } from '../i18n/translate.service';
 import { ConfirmService } from '../shared/confirm.service';
+import { NotesApiService, Note } from '../notes/notes-api.service';
+import { SettingsService } from '../settings/settings.service';
+import { ThemeService, ThemeMode } from '../theme.service';
+import { ThemeBuilderService, ACCENT_PRESETS } from '../theme/theme-builder.service';
+import { Group } from '../groups/groups.types';
+import { IcsService } from '../calendar/ics.service';
+import { PdfService } from '../calendar/pdf.service';
 
 interface ChatMsg {
   role: 'user' | 'ai';
@@ -43,11 +50,19 @@ interface PlanPreferences {
   allowedWeekdays?: Set<number>;
 }
 type Pending =
-  | { kind: 'create'; title: string; start: Date; end: Date; withMeet: boolean; emails: string[] }
+  | { kind: 'create'; title: string; start: Date; end: Date; withMeet: boolean; emails: string[]; eventKind: EventKind }
   | { kind: 'plan'; title: string; slots: PlannedSlot[]; requestedCount: number }
   | { kind: 'reschedule'; event: CalendarEvent; start: Date; end: Date }
   | { kind: 'delete'; event: CalendarEvent }
-  | { kind: 'invite'; event: CalendarEvent; emails: string[] };
+  | { kind: 'invite'; event: CalendarEvent; emails: string[] }
+  | { kind: 'completeTask'; task: CalendarEvent; completed: boolean }
+  | { kind: 'createNote'; title: string; content: string }
+  | { kind: 'deleteNote'; note: Note }
+  | { kind: 'createGroup'; name: string }
+  | { kind: 'joinGroup'; code: string }
+  | { kind: 'inviteGroupMember'; group: Group; emails: string[] }
+  | { kind: 'createGroupEvent'; group: Group; title: string; start: Date; end: Date; withMeet: boolean }
+  | { kind: 'changeSetting'; settingKey: 'theme_mode' | 'language' | 'accent_color'; settingValue: string; label: string };
 
 @Component({
   selector: 'app-ai-assistant',
@@ -125,11 +140,13 @@ type Pending =
           @if (pending(); as p) {
             <div
               class="mr-auto w-full rounded-lg border px-3 py-2 text-sm"
-              [class]="p.kind === 'delete' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'"
+              [class]="p.kind === 'delete' || p.kind === 'deleteNote' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'"
             >
               @switch (p.kind) {
                 @case ('create') {
-                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.createEvent') }}</p>
+                  <p class="mb-1 font-medium text-gray-800">
+                    {{ p.eventKind === 'task' ? tr.t('ai.createTask') : p.eventKind === 'appointment' ? tr.t('ai.createAppointment') : tr.t('ai.createEvent') }}
+                  </p>
                   <p class="text-gray-700">📌 {{ p.title }}</p>
                   <p class="text-gray-700">🕐 {{ rangeLabel(p.start, p.end) }}</p>
                   @if (p.withMeet) {
@@ -160,13 +177,50 @@ type Pending =
                   <p class="text-gray-700">📌 {{ p.event.title }} — {{ eventLabel(p.event) }}</p>
                   <p class="text-gray-700">👤 {{ p.emails.join(', ') }}</p>
                 }
+                @case ('completeTask') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.completeTask') }}</p>
+                  <p class="text-gray-700">📌 {{ p.task.title }}</p>
+                  <p class="text-gray-700">{{ p.completed ? '✅ ' + tr.t('ai.taskDone') : '↩️ ' + tr.t('ai.taskNotDone') }}</p>
+                }
+                @case ('createNote') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.createNote') }}</p>
+                  @if (p.title) { <p class="text-gray-700">📌 {{ p.title }}</p> }
+                  <p class="text-gray-700">📝 {{ p.content }}</p>
+                }
+                @case ('deleteNote') {
+                  <p class="mb-1 font-medium text-red-800">{{ tr.t('ai.deleteNote') }}</p>
+                  <p class="text-gray-700">📝 {{ p.note.title || p.note.content }}</p>
+                }
+                @case ('createGroup') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.createGroup') }}</p>
+                  <p class="text-gray-700">👥 {{ p.name }}</p>
+                }
+                @case ('joinGroup') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.joinGroup') }}</p>
+                  <p class="text-gray-700">🔑 {{ p.code }}</p>
+                }
+                @case ('inviteGroupMember') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.inviteGroupMember') }}</p>
+                  <p class="text-gray-700">👥 {{ p.group.name }}</p>
+                  <p class="text-gray-700">👤 {{ p.emails.join(', ') }}</p>
+                }
+                @case ('createGroupEvent') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.createGroupEvent') }} {{ p.group.name }}</p>
+                  <p class="text-gray-700">📌 {{ p.title }}</p>
+                  <p class="text-gray-700">🕐 {{ rangeLabel(p.start, p.end) }}</p>
+                  @if (p.withMeet) { <p class="text-gray-700">📹 {{ tr.t('ai.withMeet') }}</p> }
+                }
+                @case ('changeSetting') {
+                  <p class="mb-1 font-medium text-gray-800">{{ tr.t('ai.changeSetting') }}</p>
+                  <p class="text-gray-700">⚙️ {{ tr.t('ai.settingKey.' + p.settingKey) }} → {{ p.label }}</p>
+                }
               }
               <div class="mt-2 flex gap-2">
                 <button
                   type="button"
                   (click)="confirm()"
                   class="rounded px-3 py-1 text-xs font-medium text-white"
-                  [class]="pending()?.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'"
+                  [class]="pending()?.kind === 'delete' || pending()?.kind === 'deleteNote' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'"
                 >{{ tr.t('ai.confirm') }}</button>
                 <button type="button" (click)="cancel()" class="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100">{{ tr.t('del.cancel') }}</button>
               </div>
@@ -216,6 +270,12 @@ export class AiAssistantComponent {
   protected readonly tr = inject(TranslateService);
   private readonly confirmSvc = inject(ConfirmService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly notesApi = inject(NotesApiService);
+  private readonly settingsSvc = inject(SettingsService);
+  private readonly themeSvc = inject(ThemeService);
+  private readonly themeBuilder = inject(ThemeBuilderService);
+  private readonly icsSvc = inject(IcsService);
+  private readonly pdfSvc = inject(PdfService);
 
   /** Bấm ra ngoài panel -> tự đóng chatbox (nút nổi + panel đều nằm trong host nên bấm chúng không bị đóng). */
   @HostListener('document:pointerdown', ['$event'])
@@ -606,7 +666,7 @@ export class AiAssistantComponent {
         if (res.intent === 'create_event' && res.title && res.startTime && res.endTime) {
           const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
           this.push(res.reply);
-          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime), withMeet: !!res.withMeet, emails });
+          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime), withMeet: !!res.withMeet, emails, eventKind: res.kind ?? 'event' });
           return;
         }
 
@@ -699,6 +759,154 @@ export class AiAssistantComponent {
           return;
         }
 
+        if (res.intent === 'complete_task') {
+          const tasks = this.searchableEvents().filter((e) => e.kind === 'task');
+          const q = (res.query ?? '').trim().toLowerCase();
+          const found = q ? tasks.filter((t) => t.title.toLowerCase().includes(q)) : [];
+          if (found.length === 0) {
+            this.push(`Không tìm thấy việc cần làm "${res.query ?? ''}".`);
+            return;
+          }
+          if (found.length > 1) {
+            this.push(`Có ${found.length} việc khớp:\n${this.listMsg(found)}\nBạn nói rõ hơn nhé.`);
+            return;
+          }
+          this.push(res.reply);
+          this.pending.set({ kind: 'completeTask', task: found[0], completed: res.completed ?? true });
+          return;
+        }
+
+        if (res.intent === 'create_note') {
+          if (!res.noteTitle && !res.noteContent) {
+            this.push('Bạn muốn ghi chú nội dung gì?');
+            return;
+          }
+          this.push(res.reply);
+          this.pending.set({ kind: 'createNote', title: res.noteTitle ?? '', content: res.noteContent ?? '' });
+          return;
+        }
+
+        if (res.intent === 'search_notes' || res.intent === 'delete_note') {
+          const q = (res.query ?? '').trim().toLowerCase();
+          this.notesApi.list().subscribe({
+            next: (notes) => {
+              const found = q ? notes.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)) : notes;
+              if (res.intent === 'search_notes') {
+                if (found.length === 0) {
+                  this.push(`${res.reply}\n(Không tìm thấy ghi chú nào.)`);
+                  return;
+                }
+                const list = found.slice(0, 8).map((n) => `• ${n.title || '(không tiêu đề)'} — ${n.content.slice(0, 40)}`).join('\n');
+                this.push(`${res.reply}\n${list}`);
+                return;
+              }
+              // delete_note
+              if (found.length === 0) {
+                this.push(`Không tìm thấy ghi chú "${res.query ?? ''}".`);
+                return;
+              }
+              if (found.length > 1) {
+                this.push(`Có ${found.length} ghi chú khớp, bạn nói rõ hơn nhé.`);
+                return;
+              }
+              this.push(res.reply);
+              this.pending.set({ kind: 'deleteNote', note: found[0] });
+            },
+            error: () => this.push('Không tải được danh sách ghi chú.'),
+          });
+          return;
+        }
+
+        if (res.intent === 'create_group') {
+          if (!res.groupName?.trim()) {
+            this.push('Bạn muốn đặt tên nhóm là gì?');
+            return;
+          }
+          this.push(res.reply);
+          this.pending.set({ kind: 'createGroup', name: res.groupName.trim() });
+          return;
+        }
+
+        if (res.intent === 'join_group') {
+          if (!res.groupCode?.trim()) {
+            this.push('Bạn có mã tham gia nhóm không?');
+            return;
+          }
+          this.push(res.reply);
+          this.pending.set({ kind: 'joinGroup', code: res.groupCode.trim() });
+          return;
+        }
+
+        if (res.intent === 'invite_group_member' || res.intent === 'create_group_event') {
+          const gq = (res.groupQuery ?? '').trim().toLowerCase();
+          const groups = gq ? this.groupsState.groups().filter((g) => g.name.toLowerCase().includes(gq)) : [];
+          if (groups.length === 0) {
+            this.push(`Không tìm thấy nhóm "${res.groupQuery ?? ''}".`);
+            return;
+          }
+          if (groups.length > 1) {
+            this.push(`Có ${groups.length} nhóm khớp: ${groups.map((g) => g.name).join(', ')}. Bạn nói rõ hơn nhé.`);
+            return;
+          }
+          const g = groups[0];
+          if (res.intent === 'invite_group_member') {
+            const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
+            if (emails.length === 0) {
+              this.push('Bạn muốn mời email nào vào nhóm?');
+              return;
+            }
+            this.push(res.reply);
+            this.pending.set({ kind: 'inviteGroupMember', group: g, emails });
+          } else {
+            if (!res.title || !res.startTime || !res.endTime) {
+              this.push('Bạn muốn tạo sự kiện gì, lúc mấy giờ?');
+              return;
+            }
+            this.push(res.reply);
+            this.pending.set({ kind: 'createGroupEvent', group: g, title: res.title, start: new Date(res.startTime), end: new Date(res.endTime), withMeet: !!res.withMeet });
+          }
+          return;
+        }
+
+        if (res.intent === 'change_setting') {
+          const key = res.settingKey;
+          const value = res.settingValue?.trim();
+          if (!key || !value) {
+            this.push(res.reply || 'Bạn muốn đổi cài đặt nào?');
+            return;
+          }
+          if (key === 'accent_color' && !ACCENT_PRESETS.some((p) => p.id === value)) {
+            this.push(`App chưa có màu "${value}". Các màu có sẵn: ${ACCENT_PRESETS.map((p) => p.id).join(', ')}.`);
+            return;
+          }
+          if ((key === 'theme_mode' && !['light', 'dark', 'system'].includes(value)) || (key === 'language' && !['vi', 'en'].includes(value))) {
+            this.push(res.reply || 'Mình chưa hiểu giá trị bạn muốn đổi.');
+            return;
+          }
+          const label = key === 'theme_mode' || key === 'language' ? this.tr.t(`ai.settingValue.${value}`) : (ACCENT_PRESETS.find((p) => p.id === value)?.name ?? value);
+          this.push(res.reply);
+          this.pending.set({ kind: 'changeSetting', settingKey: key, settingValue: value, label });
+          return;
+        }
+
+        if (res.intent === 'export_calendar') {
+          if (res.exportFormat !== 'pdf' && res.exportFormat !== 'ics') {
+            this.push(res.reply || 'Bạn muốn xuất định dạng PDF hay ICS?');
+            return;
+          }
+          // Không phá huỷ gì (chỉ tải file về máy) -> thực thi luôn, không cần bấm Xác nhận.
+          this.push(res.reply);
+          if (res.exportFormat === 'ics') {
+            this.icsSvc.exportToFile(this.state.events());
+            this.push(`${this.tr.t('ai.msg.created')} file .ics ✅`);
+          } else {
+            this.pdfSvc.exportToFile(this.state.events())
+              .then(() => this.push(`${this.tr.t('ai.msg.created')} file PDF ✅`))
+              .catch(() => this.push('Xuất PDF thất bại.'));
+          }
+          return;
+        }
+
         this.push(res.reply);
       },
       error: () => {
@@ -714,7 +922,7 @@ export class AiAssistantComponent {
     if (p.kind === 'create') {
       this.state.saveEvent(
         {
-          kind: 'event',
+          kind: p.eventKind,
           title: p.title,
           description: undefined,
           location: undefined,
@@ -762,9 +970,53 @@ export class AiAssistantComponent {
       ];
       this.state.saveEvent({ ...p.event, guests: merged });
       this.push(`${this.tr.t('ai.msg.invited')} ${p.emails.join(', ')} → "${p.event.title}" ✅`);
-    } else {
+    } else if (p.kind === 'delete') {
       this.state.deleteEvent(p.event.id);
       this.push(`${this.tr.t('ai.msg.deleted')} "${p.event.title}" ✅`);
+    } else if (p.kind === 'completeTask') {
+      this.state.setTaskCompleted(p.task.id, p.completed);
+      this.push(`${this.tr.t('ai.msg.taskUpdated')}: "${p.task.title}" ✅`);
+    } else if (p.kind === 'createNote') {
+      this.notesApi.create({ title: p.title, content: p.content }).subscribe({
+        next: () => this.push(`${this.tr.t('ai.msg.created')} "${p.title || p.content}" ✅`),
+        error: () => this.push('Tạo ghi chú thất bại.'),
+      });
+    } else if (p.kind === 'deleteNote') {
+      this.notesApi.remove(p.note.id).subscribe({
+        next: () => this.push(`${this.tr.t('ai.msg.noteDeleted')} "${p.note.title || p.note.content}" ✅`),
+        error: () => this.push('Xóa ghi chú thất bại.'),
+      });
+    } else if (p.kind === 'createGroup') {
+      this.groupsState.createGroup(p.name);
+      this.push(`${this.tr.t('ai.msg.created')} "${p.name}" ✅`);
+    } else if (p.kind === 'joinGroup') {
+      this.groupsState.joinByCode(p.code);
+      this.push(`${this.tr.t('ai.msg.joinedGroup')} ✅`);
+    } else if (p.kind === 'inviteGroupMember') {
+      for (const email of p.emails) this.groupsState.invite(p.group.id, email);
+      this.push(`${this.tr.t('ai.msg.invited')} ${p.emails.join(', ')} → "${p.group.name}" ✅`);
+    } else if (p.kind === 'createGroupEvent') {
+      this.groupsState.createGroupEvent(p.group.id, {
+        kind: 'event',
+        title: p.title,
+        description: undefined,
+        location: undefined,
+        start: p.start,
+        end: p.end,
+        isAllDay: false,
+        guests: [],
+        color: 'sky',
+      });
+      this.push(`${this.tr.t('ai.msg.created')} "${p.title}" (${p.group.name}) ✅`);
+    } else if (p.kind === 'changeSetting') {
+      if (p.settingKey === 'theme_mode') {
+        this.themeSvc.setMode(p.settingValue as ThemeMode);
+      } else if (p.settingKey === 'language') {
+        void this.settingsSvc.update({ language: p.settingValue as 'vi' | 'en' });
+      } else {
+        this.themeBuilder.setPreset(p.settingValue);
+      }
+      this.push(`${this.tr.t('ai.msg.settingChanged')}: ${this.tr.t(`ai.settingKey.${p.settingKey}`)} → ${p.label} ✅`);
     }
     this.pending.set(null);
   }
