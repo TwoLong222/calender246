@@ -774,8 +774,20 @@ export class AiAssistantComponent {
     this.push(this.tr.t('ai.msg.cancelled'));
   }
 
+  /**
+   * Nhãn ngày giờ của 1 sự kiện khi liệt kê trong chat.
+   * Sự kiện CẢ NGÀY thì ghi "Cả ngày" thay vì "00:00 – 00:00" (vô nghĩa với người đọc);
+   * cả ngày mà kéo dài nhiều ngày thì ghi luôn khoảng "ngày đầu → ngày cuối".
+   */
   eventLabel(e: CalendarEvent): string {
-    return this.rangeLabel(e.start, e.end);
+    if (!e.isAllDay) return this.rangeLabel(e.start, e.end);
+    const d = (x: Date) => x.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' });
+    const sameDay =
+      e.start.getFullYear() === e.end.getFullYear() &&
+      e.start.getMonth() === e.end.getMonth() &&
+      e.start.getDate() === e.end.getDate();
+    const when = sameDay ? d(e.start) : `${d(e.start)} → ${d(e.end)}`;
+    return `${when} · ${this.tr.t('common.allDay')}`;
   }
 
   rangeLabel(start: Date, end: Date): string {
