@@ -330,7 +330,7 @@ type Section =
                   </div>
                 </div>
 
-                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700">
+                <button type="button" (click)="resetTheme()" class="btn btn-primary !py-1.5 text-sm">
                   {{ tr.t('theme.reset') }}
                 </button>
               </section>
