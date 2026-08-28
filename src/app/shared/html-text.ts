@@ -41,6 +41,25 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * Với kiểu "Nhãn<https://...>" của Outlook/Teams, phần chữ đứng trước dấu < có thể là CẢ
+ * câu người dùng tự viết ("Tham gia: Microsoft Teams"). Lấy hết làm nhãn thì cả câu biến
+ * thành link. Hàm này trả về vị trí BẮT ĐẦU của nhãn thật — phần đuôi sau dấu ngắt câu
+ * gần nhất — để phần đầu câu vẫn là chữ thường.
+ */
+function labelStartIn(raw: string): number {
+  const sep = /(?:[:;|•]\s*|[.!?]\s+|[–—]\s*)/g;
+  let idx = 0;
+  let m: RegExpExecArray | null;
+  while ((m = sep.exec(raw)) !== null) idx = m.index + m[0].length;
+  // Bỏ nốt khoảng trắng thừa ở đầu nhãn.
+  while (idx < raw.length && /\s/.test(raw[idx])) idx++;
+  return idx;
+}
+
+/** Nhãn quá dài thì gần như chắc chắn đã nuốt nhầm cả đoạn văn -> thà hiện URL. */
+const MAX_LABEL = 100;
+
 /** Dấu câu dính đuôi URL khi người ta viết "vào https://a.com/x." — phải cắt ra. */
 const TRAILING = /[.,;:!?)\]}>'"]+$/;
 
@@ -64,15 +83,28 @@ function linkifyTextNodes(doc: Document): void {
     let last = 0;
     // (1) "Nhãn<https://...>" kiểu Outlook/Teams -> dùng NHÃN làm chữ hiện, ẩn URL thô + ngoặc nhọn.
     // (2) URL trần -> tự thành link (chữ hiện = chính URL).
-    const re = /([^\s<>][^<>\n]*?)<(https?:\/\/[^\s<>]+)>|(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+    const re = /([^<>\n]*?)<(https?:\/\/[^\s<>]+)>|(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(node.data)) !== null) {
       let url: string;
       let label: string;
       let consumeEnd: number;
+      let start = m.index; // chữ TRƯỚC mốc này giữ nguyên là chữ thường
       if (m[2]) {
         url = m[2].replace(TRAILING, '');
-        label = (m[1] || '').trim() || url; // nhãn rỗng thì rơi về hiện URL
+        const raw = m[1] ?? '';
+        const cut = labelStartIn(raw);
+        const cand = raw.slice(cut).trim();
+        if (cand && cand.length <= MAX_LABEL) {
+          label = cand;
+          // Nhãn chỉ là phần ĐUÔI -> phần đầu ("Tham gia: ") phải nằm ngoài thẻ <a>.
+          start = m.index + cut;
+        } else {
+          // Nhãn rỗng hoặc dài bất thường (nuốt nhầm cả đoạn văn) -> hiện URL làm chữ,
+          // và giữ NGUYÊN phần chữ đứng trước: chỉ thay đúng "<url>" thành liên kết.
+          label = url;
+          start = m.index + raw.length;
+        }
         consumeEnd = m.index + m[0].length; // nuốt cả "nhãn<url>"
       } else {
         url = m[3].replace(TRAILING, '');
@@ -80,7 +112,7 @@ function linkifyTextNodes(doc: Document): void {
         label = url;
         consumeEnd = m.index + url.length; // TRAILING cắt bớt -> chỉ nuốt phần URL
       }
-      if (m.index > last) frag.appendChild(doc.createTextNode(node.data.slice(last, m.index)));
+      if (start > last) frag.appendChild(doc.createTextNode(node.data.slice(last, start)));
       const a = doc.createElement('a');
       a.href = url.startsWith('www.') ? `https://${url}` : url;
       a.target = '_blank';
