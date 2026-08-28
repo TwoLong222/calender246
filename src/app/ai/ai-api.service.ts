@@ -30,7 +30,6 @@ export interface AiParseResult {
     | 'leave_group'
     | 'delete_group'
     | 'remove_group_member'
-    | 'mute_group'
     | 'send_group_message'
     | 'unclear';
   title?: string;
@@ -67,11 +66,12 @@ export interface AiParseResult {
   recurrenceInterval?: number;
   recurrenceCount?: number;
   recurrenceUntil?: string;
+  /** Khách được mời có quyền SỬA sự kiện hay chỉ xem (mặc định chỉ xem). */
+  guestsCanEdit?: boolean;
   // Lời mời
   rsvpStatus?: 'accepted' | 'declined' | 'tentative';
   // Nhóm nâng cao
   memberEmail?: string;
-  muted?: boolean;
   messageText?: string;
   reply: string;
 }

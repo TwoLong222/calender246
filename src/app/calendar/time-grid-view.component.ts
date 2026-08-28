@@ -26,6 +26,7 @@ import { TranslateService } from '../i18n/translate.service';
 import { CalendarStateService } from './calendar-state.service';
 import { IconComponent } from '../shared/icon.component';
 import { eventColorClass, eventColorStyle } from './event-color';
+import { solarToLunar } from '../lunar/lunar.util';
 
 /** Chiều cao (px) tương ứng với 1 giờ trong lưới — dùng để tính vị trí sự kiện & vạch đỏ */
 const HOUR_HEIGHT = 56;
@@ -134,6 +135,14 @@ function layoutEventsForDay(events: CalendarEvent[]): LayoutedEvent[] {
             >
               {{ date.getDate() }}
             </span>
+            <!-- Ngày ÂM ngay dưới ngày dương — trước đây chỉ lịch Tháng mới có, xem
+                 Ngày/Tuần là mất hẳn nên phải mở trang âm lịch riêng để tra. -->
+            <span
+              class="text-[10px] leading-none"
+              [class.font-semibold]="isLunarFirst(date)"
+              [class.text-amber-600]="isLunarFirst(date)"
+              [class.text-gray-400]="!isLunarFirst(date)"
+            >{{ lunarLabel(date) }}</span>
           </button>
         }
       </div>
@@ -400,6 +409,17 @@ export class TimeGridViewComponent implements AfterViewInit, OnDestroy {
 
   isToday(d: Date): boolean {
     return isSameDay(d, this.today);
+  }
+
+  /** Nhãn ngày âm: mùng 1 hiện "1/8" cho biết sang tháng mới, ngày khác chỉ hiện số. */
+  lunarLabel(d: Date): string {
+    const l = solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
+    return l.day === 1 ? `${l.day}/${l.month}` : `${l.day}`;
+  }
+
+  /** Mùng 1 âm lịch -> tô đậm cho dễ nhận ra mốc đầu tháng. */
+  isLunarFirst(d: Date): boolean {
+    return solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear()).day === 1;
   }
 
   weekdayLabel(d: Date): string {
