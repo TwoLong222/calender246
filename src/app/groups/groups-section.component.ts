@@ -92,15 +92,20 @@ const COLLAPSED_LIMIT = 2;
       </p>
     }
 
-    <!-- Tạo nhóm -->
+    <!-- Tạo nhóm / vào nhóm: chặn khi đã đủ MAX_GROUPS nhóm (tính cả nhóm được mời vào) -->
     <div class="mt-2 flex gap-1">
-      <input #gname type="text" placeholder="Tên nhóm mới" maxlength="100" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="createGroup(gname.value); gname.value=''" />
-      <button type="button" (click)="createGroup(gname.value); gname.value=''" class="shrink-0 rounded bg-blue-700 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Tạo</button>
+      <input #gname type="text" placeholder="Tên nhóm mới" maxlength="100" [disabled]="atGroupLimit()" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" (keydown.enter)="createGroup(gname.value); gname.value=''" />
+      <button type="button" (click)="createGroup(gname.value); gname.value=''" [disabled]="atGroupLimit()" class="shrink-0 rounded bg-blue-700 px-3 py-1.5 text-sm text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-gray-300">Tạo</button>
     </div>
+    @if (atGroupLimit()) {
+      <p class="mt-1 text-[11px] leading-relaxed text-amber-600">
+        Bạn đang ở {{ groupCount() }} nhóm, đã đủ giới hạn {{ MAX_GROUPS }}. Rời hoặc giải tán bớt một nhóm nếu muốn tạo/vào nhóm mới.
+      </p>
+    }
     <!-- Tham gia bằng mã -->
     <div class="mt-1 flex gap-1">
-      <input #gcode type="text" placeholder="Nhập mã tham gia" maxlength="40" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
-      <button type="button" (click)="joinGroup(gcode.value); gcode.value=''" class="shrink-0 rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">Vào</button>
+      <input #gcode type="text" placeholder="Nhập mã tham gia" maxlength="40" [disabled]="atGroupLimit()" class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" (keydown.enter)="joinGroup(gcode.value); gcode.value=''" />
+      <button type="button" (click)="joinGroup(gcode.value); gcode.value=''" [disabled]="atGroupLimit()" class="shrink-0 rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">Vào</button>
     </div>
     @if (groupsState.error(); as err) {
       <p class="mt-1 text-xs text-red-600">{{ err }}</p>
@@ -124,6 +129,13 @@ export class GroupsSectionComponent {
   protected readonly hiddenCount = computed(() =>
     Math.max(0, this.groupsState.groups().length - COLLAPSED_LIMIT),
   );
+
+  /** Trần TỔNG số nhóm được ở cùng lúc. Phải khớp với GroupsService.MAX_GROUPS ở máy chủ. */
+  protected readonly MAX_GROUPS = 5;
+
+  /** Tổng nhóm đang ở: cả nhóm tự tạo lẫn nhóm được mời vào. */
+  protected readonly groupCount = computed(() => this.groupsState.groups().length);
+  protected readonly atGroupLimit = computed(() => this.groupCount() >= this.MAX_GROUPS);
 
   /** Phát ra khi người dùng mở 1 nhóm — trang cha dùng để đóng panel nổi trên mobile. */
   readonly opened = output<void>();

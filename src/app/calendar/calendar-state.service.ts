@@ -344,6 +344,21 @@ export class CalendarStateService {
     void this.createMeetForEvent(pending);
   }
 
+  /**
+   * Gắn một link phòng họp CÓ SẴN vào sự kiện (dùng khi nhập file .ics đã kèm link).
+   * Khác createMeetForEvent: hàm kia gọi Google tạo phòng MỚI, hàm này chỉ lưu link cũ.
+   */
+  attachMeetLink(eventId: string, meetLink: string): void {
+    this.api.setMeetLink(eventId, meetLink).subscribe({
+      next: (saved) => {
+        this.markLocalChange();
+        this.events.update((list) => list.map((e) => (e.id === saved.id ? saved : e)));
+      },
+      // Link hỏng thì bỏ qua: sự kiện đã tạo xong rồi, không nên báo lỗi cả lượt nhập.
+      error: () => undefined,
+    });
+  }
+
   /** Gỡ link Google Meet khỏi 1 sự kiện. */
   removeMeetForEvent(eventId: string): void {
     this.loadError.set(null);

@@ -27,6 +27,11 @@ export interface Season {
   isActive: (d: Date) => boolean;
 }
 
+/** Khóa ngày 'năm-tháng-ngày' — khóa đổi nghĩa là đã sang ngày mới. */
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 /** Kiểm tra ngày dương d có rơi vào (ngày/tháng âm) trong khoảng không. */
 function lunarBetween(d: Date, month: number, dayFrom: number, dayTo: number): boolean {
   const l = solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
@@ -122,8 +127,13 @@ export class SeasonalThemeService {
   /** Dịp lễ người dùng CHỌN TAY để dùng luôn (null nếu đang dùng màu thường). */
   readonly manualSeasonId = signal<string | null>(this.loadManual());
 
+  /** Ngày hôm nay. Là signal để lịch mở qua đêm vẫn tự đổi sang giao diện dịp lễ
+   *  mà không cần tải lại trang (trước đây new Date() chỉ chạy 1 lần lúc mở app). */
+  private readonly todayKey = signal(dayKey(new Date()));
+
   /** Dịp lễ đang diễn ra hôm nay theo NGÀY THẬT (không xét công tắc). */
   private readonly todaySeason = computed<Season | null>(() => {
+    this.todayKey(); // phụ thuộc: sang ngày mới thì tính lại
     const now = new Date();
     return SEASONS.find((s) => s.isActive(now)) ?? null;
   });
@@ -138,6 +148,13 @@ export class SeasonalThemeService {
   });
 
   constructor() {
+    // Mỗi phút xem đã sang ngày khác chưa. Chỉ khi khóa ngày đổi mới bắn tín hiệu,
+    // nên đúng 00:00 ngày lễ giao diện tự chuyển, không cần F5.
+    setInterval(() => {
+      const k = dayKey(new Date());
+      if (k !== this.todayKey()) this.todayKey.set(k);
+    }, 60_000);
+
     // Áp màu + nền dịp lễ khi có, ngược lại trả về màu người dùng chọn.
     effect(() => {
       const s = this.effectiveSeason();

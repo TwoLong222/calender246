@@ -10,7 +10,6 @@ import { GroupRealtimeService, ChatMessage } from './realtime.service';
 import { GroupMessage, SendMessagePayload } from './groups.types';
 
 /** Key localStorage lưu danh sách nhóm đã tắt thông báo. */
-const MUTED_KEY = 'group-chat-muted';
 
 const PAGE_SIZE = 30;
 const TYPING_TTL = 4000; // ms — "đang gõ" tự ẩn nếu không có tín hiệu mới
@@ -69,40 +68,6 @@ export class GroupChatService {
 
   unreadOf(groupId: string): number {
     return this.unread()[groupId] ?? 0;
-  }
-
-  // ---------- Tắt thông báo theo từng nhóm ----------
-  // Lưu trên trình duyệt (mỗi máy một kiểu), không đụng database — đây là sở thích cá nhân
-  // chứ không phải dữ liệu chung của nhóm.
-  private readonly muted = signal<Set<string>>(new Set(this.loadMuted()));
-
-  private loadMuted(): string[] {
-    try {
-      const raw = localStorage.getItem(MUTED_KEY);
-      return raw ? (JSON.parse(raw) as string[]) : [];
-    } catch {
-      return []; // localStorage bị chặn / dữ liệu hỏng -> coi như không tắt nhóm nào
-    }
-  }
-
-  /** Nhóm này có đang tắt thông báo không. */
-  isMuted(groupId: string): boolean {
-    return this.muted().has(groupId);
-  }
-
-  /** Bật/tắt thông báo cho 1 nhóm. */
-  toggleMuted(groupId: string): void {
-    this.muted.update((s) => {
-      const next = new Set(s);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      try {
-        localStorage.setItem(MUTED_KEY, JSON.stringify([...next]));
-      } catch {
-        /* không lưu được thì thôi, phiên này vẫn đúng */
-      }
-      return next;
-    });
   }
 
   typingOf(groupId: string): string[] {
@@ -274,9 +239,6 @@ export class GroupChatService {
 
   /** Bắn thông báo cho 1 tin nhắn mới ở nhóm mà người dùng KHÔNG đang mở chat. */
   private notifyNewMessage(groupId: string, msg: GroupMessage): void {
-    // Nhóm đã tắt thông báo -> im lặng. Badge số chưa đọc vẫn cộng bình thường để không
-    // mất dấu tin mới, chỉ là không bật toast/thông báo hệ thống nữa.
-    if (this.isMuted(groupId)) return;
     const groupName = this.groupsState.groups().find((g) => g.id === groupId)?.name ?? 'Nhóm';
     const sender = (msg.sender_email ?? '').split('@')[0] || 'Ai đó';
     this.notifications.notifyMessage(`💬 ${groupName}`, `${sender}: ${msg.content}`, groupId);

@@ -11,6 +11,7 @@ import { AttachmentsApiService } from '../calendar/attachments-api.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
+import { htmlToPlain } from '../shared/html-text';
 
 export interface Toast {
   id: string;
@@ -507,7 +508,8 @@ export class NotificationService {
       lines.push(cur.location ? `${this.tr.t('notif.fLocation')} → ${cur.location}` : `${this.tr.t('notif.fLocation')} (đã gỡ)`);
     }
     if (prev.description !== cur.description) {
-      lines.push(cur.description ? `${this.tr.t('notif.fDesc')} → ${cur.description}` : `${this.tr.t('notif.fDesc')} (đã gỡ)`);
+      const desc = htmlToPlain(cur.description);
+      lines.push(desc ? `${this.tr.t('notif.fDesc')} → ${desc}` : `${this.tr.t('notif.fDesc')} (đã gỡ)`);
     }
     return lines;
   }

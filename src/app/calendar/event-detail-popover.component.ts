@@ -14,6 +14,8 @@ import { AttendeeStatus } from './calendar.types';
 import { eventColorClass, eventColorStyle } from './event-color';
 import { IconComponent } from '../shared/icon.component';
 import { DateTimePickerComponent } from '../shared/datetime-picker.component';
+import { descriptionToHtml, htmlToPlain } from '../shared/html-text';
+import { solarToLunar } from '../lunar/lunar.util';
 
 @Component({
   selector: 'app-event-detail-popover',
@@ -32,9 +34,9 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
           (click)="$event.stopPropagation()"
         >
           <div class="mb-2 flex items-start justify-between gap-2">
-            <div class="flex min-w-0 items-center gap-2">
-              <span class="h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)" [style.background-color]="dotStyle(e.color)"></span>
-              <h3 class="truncate font-semibold text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
+            <div class="flex min-w-0 items-start gap-2">
+              <span class="mt-1.5 h-3 w-3 shrink-0 rounded-full" [class]="dotClass(e.color)" [style.background-color]="dotStyle(e.color)"></span>
+              <h3 class="min-w-0 break-words font-semibold text-gray-900">{{ e.title || tr.t('common.untitled') }}</h3>
             </div>
             <div class="flex shrink-0 gap-0.5">
               <!-- Chỉ người TẠO mới sửa/xóa được (khách được mời không thấy 2 nút này) -->
@@ -46,7 +48,10 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
             </div>
           </div>
 
-          <p class="mono mb-2 text-sm text-gray-600">{{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}</p>
+          <p class="mono mb-2 text-sm text-gray-600">
+            {{ dateLabel(e.start) }} · {{ timeLabel(e.start) }} – {{ timeLabel(e.end) }}
+            <span class="text-xs text-amber-600">({{ tr.t('detail.lunarShort') }} {{ lunarLabel(e.start) }})</span>
+          </p>
 
           <!-- Google Meet -->
           <div class="mb-2 flex items-center gap-2">
@@ -76,10 +81,26 @@ import { DateTimePickerComponent } from '../shared/datetime-picker.component';
           @if (e.location) {
             <!-- break-words: địa điểm/mô tả có thể chứa chuỗi dài không dấu cách (vd link dán vào).
                  Popover đang overflow-x-hidden nên không ngắt từ là chữ bị CẮT MẤT, không cuộn được. -->
-            <p class="mb-2 break-words text-sm text-gray-600">📍 {{ e.location }}</p>
+            <p class="rich-text mb-2 break-words text-sm text-gray-600">📍 <span [innerHTML]="locationHtml()"></span></p>
           }
           @if (e.description) {
-            <p class="mb-2 flex items-start gap-2 text-sm text-gray-600"><app-icon name="notes" class="mt-0.5 h-4 w-4 shrink-0" /><span class="min-w-0 break-words">{{ e.description }}</span></p>
+            <!-- Mô tả dài (thư mời Google hay kèm cả khối hướng dẫn gọi điện) chiếm hết popover
+                 nên mặc định thu gọn; chỉ hiện nút khi thật sự dài. -->
+            <div class="mb-2 flex items-start gap-2 text-sm text-gray-600">
+              <app-icon name="notes" class="mt-0.5 h-4 w-4 shrink-0" />
+              <div class="min-w-0 flex-1">
+                <div
+                  class="rich-text break-words"
+                  [class.line-clamp-6]="descLong() && !descExpanded()"
+                  [innerHTML]="descHtml()"
+                ></div>
+                @if (descLong()) {
+                  <button type="button" (click)="descExpanded.set(!descExpanded())" class="tap mt-0.5 text-xs font-medium text-blue-600 hover:underline">
+                    {{ descExpanded() ? tr.t('detail.showLess') : tr.t('detail.showMore') }}
+                  </button>
+                }
+              </div>
+            </div>
           }
 
           @if (e.guests.length > 0) {
@@ -471,6 +492,22 @@ export class EventDetailPopoverComponent implements OnDestroy {
 
   event = computed(() => this.state.selectedEvent());
 
+  /** Mô tả đã dựng thành HTML (giữ xuống dòng + URL trần thành liên kết bấm được).
+   *  Là computed để DOMParser chỉ chạy khi đổi sự kiện, không chạy mỗi lần vẽ lại. */
+  protected readonly descHtml = computed(() => descriptionToHtml(this.event()?.description));
+
+  /** Đang mở hết mô tả hay đang thu gọn. Đổi sang sự kiện khác thì thu gọn lại. */
+  protected readonly descExpanded = signal(false);
+
+  /** Chỉ hiện nút "Xem thêm" khi mô tả đủ dài, không thì nút thừa dưới 1 dòng chữ. */
+  protected readonly descLong = computed(() => {
+    const plain = htmlToPlain(this.event()?.description);
+    return plain.length > 260 || plain.split('\n').length > 6;
+  });
+
+  /** Địa điểm dán nguyên link (Meet/Teams/Zoom) thì cho bấm luôn thay vì chữ chết. */
+  protected readonly locationHtml = computed(() => descriptionToHtml(this.event()?.location));
+
   // ----- Bình luận -----
   newComment = signal('');
   editingId = signal<string | null>(null);
@@ -563,6 +600,12 @@ export class EventDetailPopoverComponent implements OnDestroy {
     return map[status] ?? 'text-gray-400';
   }
 
+  /** Ngày âm tương ứng, vd "16/7" — để khỏi phải mở trang âm lịch riêng để tra. */
+  protected lunarLabel(d: Date): string {
+    const l = solarToLunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
+    return `${l.day}/${l.month}${l.leap ? ' ' + this.tr.t('lunar.leap') : ''}`;
+  }
+
   dateLabel(d: Date): string {
     const loc = this.tr.lang() === 'en' ? 'en-GB' : 'vi-VN';
     return d.toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'numeric' });
@@ -605,6 +648,12 @@ export class EventDetailPopoverComponent implements OnDestroy {
       if (this.adjustRaf) { cancelAnimationFrame(this.adjustRaf); this.adjustRaf = null; }
       if (!id) return;
       untracked(() => this.panelPos.set(this.computePanelPos()));
+    });
+
+    // Đổi sang sự kiện khác -> thu gọn lại mô tả, không thì sự kiện mới mở ra đã bung sẵn.
+    effect(() => {
+      this.state.selectedEventId();
+      untracked(() => this.descExpanded.set(false));
     });
 
     /**

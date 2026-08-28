@@ -22,9 +22,9 @@ import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 import { AttachmentsApiService, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
 import { RecurrenceOptions } from './events-api.service';
-import { eventColorHex, isCustomColor } from './event-color';
 import { SupabaseService } from '../auth/supabase.service';
 import { BookingApiService, BookingPage } from '../booking/booking-api.service';
+import { descriptionToHtml } from '../shared/html-text';
 
 function toDateInputValue(d: Date): string {
   const y = d.getFullYear();
@@ -231,43 +231,24 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               <input type="text" [(ngModel)]="location" (keydown.enter)="onEnterSave()" maxlength="200" [placeholder]="tr.t('form.addLocation')" class="min-w-0 flex-1 field" />
             </div>
 
+            <!-- Mô tả nhận HTML (đậm, gạch đầu dòng, liên kết...). Nút Xem trước vẽ đúng
+                 như lúc mở chi tiết sự kiện để người viết biết mình gõ có đúng không. -->
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="3" maxlength="1000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
-            </div>
-
-            <!-- Chọn màu cho sự kiện: vài màu bấm nhanh + ô tự chọn BẤT KỲ màu nào -->
-            <div class="flex items-center gap-2 text-sm">
-              <app-icon name="palette" class="h-4 w-4 text-gray-500" />
-              <div class="flex flex-wrap items-center gap-2">
-                @for (c of colorOptions; track c.name) {
-                  <button
-                    type="button"
-                    (click)="color.set(c.name)"
-                    [title]="tr.t('color.' + c.name)"
-                    [attr.aria-label]="tr.t('color.' + c.name)"
-                    [class]="c.class + ' tap h-6 w-6 rounded-full transition-transform hover:scale-110 ' + (color() === c.name ? 'ring-2 ring-offset-2 ring-gray-700' : '')"
-                  ></button>
+              <div class="min-w-0 flex-1">
+                @if (descPreview()) {
+                  <div class="rich-text max-h-48 min-h-[3rem] overflow-y-auto break-words rounded-md border border-gray-300 bg-gray-50 px-3 py-2" [innerHTML]="descHtml()"></div>
+                } @else {
+                  <textarea [(ngModel)]="description" rows="3" maxlength="5000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
                 }
-
-                <span class="mx-0.5 h-5 w-px bg-gray-300"></span>
-
-                <!-- Tự chọn màu: bấm vào ô này mở bảng màu của hệ điều hành, chọn màu nào cũng được.
-                     <input type="color"> luôn trả về mã hex nên lưu thẳng vào event.color. -->
-                <label
-                  class="tap relative h-6 w-6 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-110"
-                  [class]="isCustomColor() ? 'ring-2 ring-offset-2 ring-gray-700' : 'ring-1 ring-gray-300'"
-                  [style.background]="isCustomColor() ? color() : 'conic-gradient(#ef4444,#f59e0b,#22c55e,#06b6d4,#3b82f6,#a855f7,#ef4444)'"
-                  [title]="tr.t('color.custom')"
-                >
-                  <input
-                    type="color"
-                    class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                    [value]="colorHex()"
-                    (input)="onCustomColor($event)"
-                    [attr.aria-label]="tr.t('color.custom')"
-                  />
-                </label>
+                <div class="mt-1 flex items-start justify-between gap-2">
+                  <p class="text-xs text-gray-400">{{ tr.t('form.htmlHint') }}</p>
+                  @if (description()) {
+                    <button type="button" (click)="descPreview.set(!descPreview())" class="tap shrink-0 text-xs text-blue-600 hover:underline">
+                      {{ descPreview() ? tr.t('form.htmlEdit') : tr.t('form.htmlPreview') }}
+                    </button>
+                  }
+                </div>
               </div>
             </div>
 
@@ -373,9 +354,25 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               }
             }
 
+            <!-- Mô tả nhận HTML (đậm, gạch đầu dòng, liên kết...). Nút Xem trước vẽ đúng
+                 như lúc mở chi tiết sự kiện để người viết biết mình gõ có đúng không. -->
             <div class="flex items-start gap-2 text-sm">
               <app-icon name="notes" class="mt-1 h-4 w-4 text-gray-500" />
-              <textarea [(ngModel)]="description" rows="3" maxlength="1000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
+              <div class="min-w-0 flex-1">
+                @if (descPreview()) {
+                  <div class="rich-text max-h-48 min-h-[3rem] overflow-y-auto break-words rounded-md border border-gray-300 bg-gray-50 px-3 py-2" [innerHTML]="descHtml()"></div>
+                } @else {
+                  <textarea [(ngModel)]="description" rows="3" maxlength="5000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
+                }
+                <div class="mt-1 flex items-start justify-between gap-2">
+                  <p class="text-xs text-gray-400">{{ tr.t('form.htmlHint') }}</p>
+                  @if (description()) {
+                    <button type="button" (click)="descPreview.set(!descPreview())" class="tap shrink-0 text-xs text-blue-600 hover:underline">
+                      {{ descPreview() ? tr.t('form.htmlEdit') : tr.t('form.htmlPreview') }}
+                    </button>
+                  }
+                </div>
+              </div>
             </div>
           </div>
         }
@@ -647,8 +644,13 @@ export class EventFormModalComponent {
   isAllDay = signal(false);
   location = signal('');
   description = signal('');
+  /** true = đang xem thử mô tả dưới dạng HTML thay vì gõ. Đóng modal thì trả về gõ. */
+  protected readonly descPreview = signal(false);
+  /** Bản xem trước: dựng đúng như lúc mở chi tiết sự kiện. */
+  protected readonly descHtml = computed(() => descriptionToHtml(this.description()));
   guests = signal<Guest[]>([]);
   guestEmailDraft = signal('');
+  /** Màu sự kiện: không cho chọn nữa, mọi sự kiện mới dùng chung một màu. */
   color = signal('sky');
   /** true khi đang SỬA event có sẵn. */
   editing = signal(false);
@@ -810,30 +812,6 @@ export class EventFormModalComponent {
     return undefined;
   }
 
-  readonly colorOptions = [
-    { name: 'sky', label: 'Xanh dương', class: 'bg-sky-600' },
-    { name: 'violet', label: 'Tím', class: 'bg-violet-600' },
-    { name: 'emerald', label: 'Xanh lá', class: 'bg-emerald-600' },
-    { name: 'rose', label: 'Hồng', class: 'bg-rose-600' },
-    { name: 'amber', label: 'Vàng', class: 'bg-amber-600' },
-  ];
-
-  /** Màu hiện tại có phải màu người dùng tự chọn (mã hex) không? */
-  protected isCustomColor(): boolean {
-    return isCustomColor(this.color());
-  }
-
-  /** Giá trị hex để đổ vào <input type="color"> (màu dựng sẵn cũng quy ra hex). */
-  protected colorHex(): string {
-    return eventColorHex(this.color());
-  }
-
-  /** Người dùng vừa kéo bảng màu -> lưu thẳng mã hex làm màu sự kiện. */
-  protected onCustomColor(ev: Event): void {
-    const value = (ev.target as HTMLInputElement).value;
-    if (value) this.color.set(value.toLowerCase());
-  }
-
   private editingId: string | null = null;
 
   constructor() {
@@ -863,6 +841,7 @@ export class EventFormModalComponent {
       this.editing.set(!!editing);
       this.saving.set(false);
       this.formError.set('');
+      this.descPreview.set(false); // mở form lại luôn ở chế độ gõ, không dính xem trước lần trước
 
       if (editing) {
         this.tab.set(editing.kind);

@@ -26,8 +26,7 @@ import { AttachmentsApiService, EventFileGroup } from '../calendar/attachments-a
 import { COMMON_TIMEZONES } from './settings.types';
 import { TimePickerComponent } from '../shared/time-picker.component';
 import { SelectComponent, SelectOption } from '../shared/select.component';
-import { ACCENT_PRESETS, ThemeBuilderService, accentFitsTheme } from '../theme/theme-builder.service';
-import { ThemeService } from '../theme.service';
+import { ThemeBuilderService } from '../theme/theme-builder.service';
 import { SEASONS, Season, SeasonalThemeService } from '../theme/seasonal-theme.service';
 import { Toast } from '../notifications/notification.service';
 import { notifBadgeClass, notifCatKey, notifIconName } from '../notifications/notif-kind.util';
@@ -95,7 +94,7 @@ type Section =
                 <label class="mb-1 block text-sm text-gray-600">{{ tr.t('acc.email') }}</label>
                 <div class="mb-4 flex gap-2">
                   <input [value]="emailShown()" disabled class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
-                  <button type="button" (click)="emailRevealed.set(!emailRevealed())" class="tap shrink-0 rounded-md border border-gray-300 px-3 text-sm text-gray-600 hover:bg-gray-50" [attr.aria-label]="emailRevealed() ? tr.t('acc.hideEmail') : tr.t('acc.showEmail')">
+                  <button type="button" (click)="emailRevealed.set(!emailRevealed())" class="tap flex shrink-0 items-center justify-center rounded-md border border-gray-300 px-3 text-sm text-gray-600 hover:bg-gray-50" [attr.aria-label]="emailRevealed() ? tr.t('acc.hideEmail') : tr.t('acc.showEmail')">
                     <app-icon [name]="emailRevealed() ? 'eye-off' : 'eye'" class="h-4 w-4" />
                   </button>
                 </div>
@@ -253,88 +252,6 @@ type Section =
                 }
               </section>
 
-              <!-- Bộ build màu nhấn của lịch -->
-              <section class="mt-4 rounded-lg border border-gray-200 bg-white p-5 space-y-4">
-                <div>
-                  <h2 class="text-base font-semibold">{{ tr.t('theme.accent') }}</h2>
-                  <p class="mt-0.5 text-xs text-gray-500">{{ tr.t('theme.accentHint') }}</p>
-                </div>
-
-                <!-- Preset màu -->
-                <div class="flex flex-wrap gap-2">
-                  @for (p of accentPresets; track p.id) {
-                    <button
-                      type="button"
-                      (click)="pickPreset(p.id)"
-                      [title]="fitsTheme(p.palette[600]) ? p.name : p.name + ' — ' + tr.t('theme.notFit')"
-                      class="tap relative h-9 w-9 rounded-full border-2 transition"
-                      [style.background-color]="p.palette[600]"
-                      [class.border-gray-900]="themeBuilder.accentId() === p.id"
-                      [class.border-transparent]="themeBuilder.accentId() !== p.id"
-                      [class.opacity-40]="!fitsTheme(p.palette[600])"
-                    >
-                      @if (themeBuilder.accentId() === p.id) {
-                        <span class="absolute inset-0 flex items-center justify-center text-white">
-                          <app-icon name="check" class="h-4 w-4" />
-                        </span>
-                      }
-                    </button>
-                  }
-                </div>
-
-                <!-- Gợi ý theo chế độ sáng/tối đang bật: màu quá tối chìm vào nền tối, màu quá
-                     sáng làm chữ trắng trên nút bị chói trên nền sáng -> làm mờ để dễ tránh. -->
-                <p class="-mt-1 text-xs text-gray-500">
-                  {{ theme.isDark() ? tr.t('theme.hintDark') : tr.t('theme.hintLight') }}
-                </p>
-                @if (dimmedCount() > 0) {
-                  <p class="-mt-1 text-xs text-amber-600">{{ tr.t('theme.dimmedNote') }}</p>
-                }
-
-                <!-- Màu tùy chỉnh: bấm ô màu để chọn bất kỳ màu nào ngoài các màu có sẵn ở trên -->
-                <label class="flex items-center gap-3 text-sm">
-                  <span class="text-gray-700">{{ tr.t('theme.pickOwn') }}</span>
-                  <input
-                    type="color"
-                    [value]="themeBuilder.customBase()"
-                    (input)="onCustomAccent($event)"
-                    class="h-9 w-14 cursor-pointer rounded border border-gray-300 bg-white p-0.5"
-                  />
-                  <span class="font-mono text-xs text-gray-500">{{ themeBuilder.customBase() }}</span>
-                </label>
-
-                <!-- Xem trước -->
-                <div class="rounded-lg border border-gray-200 p-3">
-                  <p class="text-xs font-medium text-gray-600">{{ tr.t('theme.preview') }}</p>
-                  <!-- Nói rõ đây chỉ là HÀNG MẪU, không bấm được — trước đây người dùng tưởng
-                       "Liên kết" là một nút thật và không hiểu nó dùng để làm gì. -->
-                  <p class="mb-2 text-xs text-gray-400">{{ tr.t('theme.previewHint') }}</p>
-                  <div class="flex flex-wrap items-center gap-3">
-                    <span class="flex flex-col items-center gap-1">
-                      <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm text-white">21</span>
-                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleToday') }}</span>
-                    </span>
-                    <span class="flex flex-col items-center gap-1">
-                      <span class="pointer-events-none rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white">{{ tr.t('form.save') }}</span>
-                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleButton') }}</span>
-                    </span>
-                    <span class="flex flex-col items-center gap-1">
-                      <span class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700">{{ tr.t('theme.accent') }}</span>
-                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleBadge') }}</span>
-                    </span>
-                    <span class="flex flex-col items-center gap-1">
-                      <!-- Chỉ là VÍ DỤ minh hoạ kiểu liên kết, không bấm được -->
-                      <span class="text-sm text-blue-600 underline">{{ tr.t('theme.previewLink') }}</span>
-                      <span class="text-[10px] text-gray-400">{{ tr.t('theme.sampleLink') }}</span>
-                    </span>
-                  </div>
-                </div>
-
-                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700">
-                  {{ tr.t('theme.reset') }}
-                </button>
-              </section>
-
               <!-- Giao diện theo dịp lễ -->
               <section class="mt-4 rounded-lg border border-gray-200 bg-white p-5 space-y-3">
                 <div class="flex items-start justify-between gap-3">
@@ -374,6 +291,9 @@ type Section =
                   }
                 </ul>
                 <p class="text-xs text-gray-400">{{ tr.t('theme.seasonalNote') }}</p>
+                <button type="button" (click)="resetTheme()" class="text-sm text-gray-500 hover:text-gray-700">
+                  {{ tr.t('theme.reset') }}
+                </button>
               </section>
             }
 
@@ -825,18 +745,6 @@ export class SettingsPageComponent {
 
   protected readonly themes = ['light', 'dark', 'system'] as const;
   protected readonly themeBuilder = inject(ThemeBuilderService);
-  protected readonly accentPresets = ACCENT_PRESETS;
-  protected readonly theme = inject(ThemeService);
-
-  /** Màu nhấn này có hợp với chế độ sáng/tối đang bật không (dùng để làm mờ ô không hợp). */
-  protected fitsTheme(hex600: string): boolean {
-    return accentFitsTheme(hex600, this.theme.isDark());
-  }
-
-  /** Số màu dựng sẵn đang bị làm mờ vì không hợp chế độ hiện tại. */
-  protected dimmedCount(): number {
-    return ACCENT_PRESETS.filter((p) => !this.fitsTheme(p.palette[600])).length;
-  }
   protected readonly seasonal = inject(SeasonalThemeService);
   protected readonly seasons = SEASONS;
   /** Xóa lịch sử chat AI (lưu trên máy). */
@@ -845,17 +753,6 @@ export class SettingsPageComponent {
     try { localStorage.removeItem('ai-chat-history'); } catch { /* bỏ qua */ }
     this.aiCleared.set(true);
     setTimeout(() => this.aiCleared.set(false), 2000);
-  }
-  /** Đổi màu nhấn tùy chỉnh từ ô chọn màu -> bỏ trang trí dịp lễ đang chọn tay. */
-  protected onCustomAccent(ev: Event): void {
-    const value = (ev.target as HTMLInputElement).value;
-    this.themeBuilder.setCustom(value);
-    this.seasonal.setManualSeason(null);
-  }
-  /** Chọn preset màu -> bỏ trang trí dịp lễ đang chọn tay. */
-  protected pickPreset(id: string): void {
-    this.themeBuilder.setPreset(id);
-    this.seasonal.setManualSeason(null);
   }
   /** Bấm 1 dịp lễ -> dùng luôn theme đó (màu + nền + trang trí, lưu lại). Bật công tắc để hiện. */
   protected useSeason(se: Season): void {

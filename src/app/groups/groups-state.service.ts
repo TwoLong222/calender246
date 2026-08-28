@@ -92,7 +92,11 @@ export class GroupsStateService {
     this.pendingInvites.update((l) => l.filter((i) => i.group_id !== groupId)); // ẩn ngay
     this.api.acceptInvite(groupId).subscribe({
       next: () => this.loadGroups(),
-      error: () => this.loadPendingInvites(),
+      // Bị từ chối (vd đã đủ 5 nhóm) -> hiện lại lời mời + nói rõ lý do máy chủ trả về.
+      error: (e) => {
+        this.loadPendingInvites();
+        this.error.set(e?.error?.message || "Không nhận được lời mời này.");
+      },
     });
   }
 
@@ -197,7 +201,8 @@ export class GroupsStateService {
         this.loadGroupEvents(g.id);
         this.openPanel(g.id);
       },
-      error: () => this.error.set('Tạo nhóm thất bại.'),
+      // Máy chủ có lý do cụ thể (vd: quá hạn mức 5 nhóm) -> đưa nguyên văn ra cho người dùng.
+      error: (e) => this.error.set(e?.error?.message || 'Tạo nhóm thất bại.'),
     });
   }
 
@@ -211,7 +216,7 @@ export class GroupsStateService {
         this.flash.set(`Đã tham gia nhóm "${g.name}".`);
         this.autoClearFlash();
       },
-      error: () => this.error.set('Mã nhóm không đúng hoặc đã xảy ra lỗi.'),
+      error: (e) => this.error.set(e?.error?.message || 'Mã nhóm không đúng hoặc đã xảy ra lỗi.'),
     });
   }
 

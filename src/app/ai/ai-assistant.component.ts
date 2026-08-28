@@ -5,7 +5,7 @@
 
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AiApiService } from './ai-api.service';
+import { AiApiService, AiParseResult } from './ai-api.service';
 import { CalendarStateService } from '../calendar/calendar-state.service';
 import { GroupsStateService } from '../groups/groups-state.service';
 import { GroupChatService } from '../groups/chat.service';
@@ -19,8 +19,10 @@ import { SettingsService } from '../settings/settings.service';
 import { ThemeService, ThemeMode } from '../theme.service';
 import { ThemeBuilderService, ACCENT_PRESETS } from '../theme/theme-builder.service';
 import { Group } from '../groups/groups.types';
+import { RecurrenceOptions } from '../calendar/events-api.service';
 import { IcsService } from '../calendar/ics.service';
 import { PdfService } from '../calendar/pdf.service';
+import { htmlToPlain } from '../shared/html-text';
 
 interface ChatMsg {
   role: 'user' | 'ai';
@@ -51,7 +53,19 @@ interface PlanPreferences {
   allowedWeekdays?: Set<number>;
 }
 type Pending =
-  | { kind: 'create'; title: string; start: Date; end: Date; withMeet: boolean; emails: string[]; eventKind: EventKind }
+  | {
+      kind: 'create';
+      title: string;
+      start: Date;
+      end: Date;
+      withMeet: boolean;
+      emails: string[];
+      eventKind: EventKind;
+      /** Lịch lặp nếu người dùng nói "hàng tuần", "mỗi thứ 2"... (undefined = chỉ 1 lần). */
+      recurrence?: RecurrenceOptions;
+      /** Khách được mời có quyền SỬA hay chỉ xem (mặc định chỉ xem). */
+      guestsCanEdit: boolean;
+    }
   | { kind: 'plan'; title: string; slots: PlannedSlot[]; requestedCount: number }
   | { kind: 'reschedule'; event: CalendarEvent; start: Date; end: Date }
   | { kind: 'delete'; event: CalendarEvent }
@@ -165,8 +179,14 @@ type Pending =
                   @if (p.withMeet) {
                     <p class="text-gray-700">📹 {{ tr.t('ai.withMeet') }}</p>
                   }
+                  @if (p.recurrence) {
+                    <p class="text-gray-700">🔁 {{ recurrenceLabel(p.recurrence) }}</p>
+                  }
                   @if (p.emails.length) {
-                    <p class="text-gray-700">👤 {{ p.emails.join(', ') }}</p>
+                    <p class="text-gray-700">
+                      👤 {{ p.emails.join(', ') }}
+                      <span class="text-xs text-gray-500">({{ p.guestsCanEdit ? tr.t('ai.guestEdit') : tr.t('ai.guestView') }})</span>
+                    </p>
                   }
                 }
                 @case ('plan') {
@@ -549,7 +569,7 @@ export class AiAssistantComponent {
         const matchQ =
           !q ||
           e.title.toLowerCase().includes(q) ||
-          (e.description ?? '').toLowerCase().includes(q) ||
+          htmlToPlain(e.description).toLowerCase().includes(q) ||
           (e.location ?? '').toLowerCase().includes(q);
         // So khớp theo GIAO NHAU của 2 khoảng, không chỉ theo giờ bắt đầu: sự kiện bắt đầu
         // hôm trước mà kéo dài sang ngày đang hỏi (hoặc sự kiện cả ngày) vẫn phải được kể.
@@ -723,7 +743,19 @@ export class AiAssistantComponent {
         if (res.intent === 'create_event' && res.title && res.startTime && res.endTime) {
           const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
           this.push(res.reply);
-          this.pending.set({ kind: 'create', title: res.title, start: new Date(res.startTime), end: new Date(res.endTime), withMeet: !!res.withMeet, emails, eventKind: res.kind ?? 'event' });
+          this.pending.set({
+            kind: 'create',
+            title: res.title,
+            start: new Date(res.startTime),
+            end: new Date(res.endTime),
+            withMeet: !!res.withMeet,
+            emails,
+            eventKind: res.kind ?? 'event',
+            // Máy chủ vẫn luôn đọc được "hàng tuần"/"mỗi thứ 2", nhưng trước đây phần này
+            // bị BỎ QUA hoàn toàn nên AI chỉ tạo được 1 buổi duy nhất.
+            recurrence: this.recurrenceFrom(res),
+            guestsCanEdit: !!res.guestsCanEdit,
+          });
           return;
         }
 
@@ -736,46 +768,46 @@ export class AiAssistantComponent {
           const preferences = this.planPreferences(text, res.preferredStartHour, res.preferredEndHour, res.allowedWeekdays);
           const slots = this.findFreeSlots(window.start, window.end, requestedCount, durationMinutes, preferences);
           if (slots.length === 0) {
-            this.push('Mình chưa tìm được khung giờ trống phù hợp trong khoảng bạn chọn. Bạn thử nới rộng thời gian nhé.');
+            this.push(this.tr.t('ai.q.noFreeSlot'));
             return;
           }
-          this.push(res.reply || 'Mình đã tìm các khung giờ trống để bạn xem trước.');
+          this.push(res.reply || this.tr.t('ai.q.planFound'));
           this.pending.set({ kind: 'plan', title, slots, requestedCount });
           return;
         }
 
         if (res.intent === 'search_events') {
           const found = this.findEvents(res.query, res.rangeStart, res.rangeEnd);
-          this.push(found.length ? `${res.reply}\n${this.listMsg(found)}` : `${res.reply}\n(Không tìm thấy sự kiện nào.)`);
+          this.push(found.length ? `${res.reply}\n${this.listMsg(found)}` : `${res.reply}\n(${this.tr.t('ai.err.noEvents')})`);
           return;
         }
 
         if (res.intent === 'invite_guest') {
           const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
           if (emails.length === 0) {
-            this.push('Bạn muốn mời email nào? Nhập kèm địa chỉ email nhé.');
+            this.push(this.tr.t('ai.q.whichEmail'));
             return;
           }
           const found = this.findEvents(res.query);
           if (found.length === 0) {
-            this.push(`Không tìm thấy sự kiện "${res.query ?? ''}".`);
+            this.push(`${this.tr.t('ai.err.noEvent')} "${res.query ?? ''}".`);
             return;
           }
           if (found.length > 1) {
-            this.push(`Có ${found.length} sự kiện khớp:\n${this.listMsg(found)}\nBạn nói rõ hơn (ngày nào?) nhé.`);
+            this.push(`${this.tr.t('ai.matchA')} ${found.length} ${this.tr.t('ai.matchEvents')}\n${this.listMsg(found)}\n${this.tr.t('ai.beSpecificDay')}`);
             return;
           }
           const e = found[0];
           // Chỉ chủ event mới được thêm khách
           if (e.creatorEmail && e.creatorEmail.toLowerCase() !== this.supabase.user()?.email?.toLowerCase()) {
-            this.push('Bạn chỉ có thể mời người vào sự kiện của chính mình.');
+            this.push(this.tr.t('ai.err.onlyOwnInvite'));
             return;
           }
           // Bỏ những email đã có sẵn trong danh sách khách
           const existing = new Set(e.guests.map((g) => g.email.toLowerCase()));
           const toAdd = emails.filter((em) => !existing.has(em.toLowerCase()));
           if (toAdd.length === 0) {
-            this.push('Những người này đã có trong sự kiện rồi.');
+            this.push(this.tr.t('ai.err.alreadyGuests'));
             return;
           }
           this.push(res.reply);
@@ -786,22 +818,22 @@ export class AiAssistantComponent {
         if (res.intent === 'reschedule_event' || res.intent === 'delete_event') {
           const found = this.findEvents(res.query);
           if (found.length === 0) {
-            this.push(`Không tìm thấy sự kiện "${res.query ?? ''}".`);
+            this.push(`${this.tr.t('ai.err.noEvent')} "${res.query ?? ''}".`);
             return;
           }
           if (found.length > 1) {
-            this.push(`Có ${found.length} sự kiện khớp:\n${this.listMsg(found)}\nBạn nói rõ hơn (ngày nào?) nhé.`);
+            this.push(`${this.tr.t('ai.matchA')} ${found.length} ${this.tr.t('ai.matchEvents')}\n${this.listMsg(found)}\n${this.tr.t('ai.beSpecificDay')}`);
             return;
           }
           const e = found[0];
           // Chỉ chủ event mới được dời/xóa
           if (e.creatorEmail && e.creatorEmail.toLowerCase() !== this.supabase.user()?.email?.toLowerCase()) {
-            this.push('Bạn chỉ có thể dời/xóa sự kiện của chính mình.');
+            this.push(this.tr.t('ai.err.onlyOwnEdit'));
             return;
           }
           if (res.intent === 'reschedule_event') {
             if (!res.newStartTime) {
-              this.push('Bạn muốn dời sang lúc nào?');
+              this.push(this.tr.t('ai.q.whichNewTime'));
               return;
             }
             const start = new Date(res.newStartTime);
@@ -821,11 +853,11 @@ export class AiAssistantComponent {
           const q = (res.query ?? '').trim().toLowerCase();
           const found = q ? tasks.filter((t) => t.title.toLowerCase().includes(q)) : [];
           if (found.length === 0) {
-            this.push(`Không tìm thấy việc cần làm "${res.query ?? ''}".`);
+            this.push(`${this.tr.t('ai.err.noTask')} "${res.query ?? ''}".`);
             return;
           }
           if (found.length > 1) {
-            this.push(`Có ${found.length} việc khớp:\n${this.listMsg(found)}\nBạn nói rõ hơn nhé.`);
+            this.push(`${this.tr.t('ai.matchA')} ${found.length} ${this.tr.t('ai.matchTasks')}\n${this.listMsg(found)}\n${this.tr.t('ai.beSpecific')}`);
             return;
           }
           this.push(res.reply);
@@ -835,7 +867,7 @@ export class AiAssistantComponent {
 
         if (res.intent === 'create_note') {
           if (!res.noteTitle && !res.noteContent) {
-            this.push('Bạn muốn ghi chú nội dung gì?');
+            this.push(this.tr.t('ai.q.whichNoteContent'));
             return;
           }
           this.push(res.reply);
@@ -850,7 +882,7 @@ export class AiAssistantComponent {
               const found = q ? notes.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)) : notes;
               if (res.intent === 'search_notes') {
                 if (found.length === 0) {
-                  this.push(`${res.reply}\n(Không tìm thấy ghi chú nào.)`);
+                  this.push(`${res.reply}\n(${this.tr.t('ai.err.noNotes')})`);
                   return;
                 }
                 const list = found.slice(0, 8).map((n) => `• ${n.title || '(không tiêu đề)'} — ${n.content.slice(0, 40)}`).join('\n');
@@ -859,24 +891,24 @@ export class AiAssistantComponent {
               }
               // delete_note
               if (found.length === 0) {
-                this.push(`Không tìm thấy ghi chú "${res.query ?? ''}".`);
+                this.push(`${this.tr.t('ai.err.noNote')} "${res.query ?? ''}".`);
                 return;
               }
               if (found.length > 1) {
-                this.push(`Có ${found.length} ghi chú khớp, bạn nói rõ hơn nhé.`);
+                this.push(`${this.tr.t('ai.matchA')} ${found.length} ${this.tr.t('ai.matchNotes')} ${this.tr.t('ai.beSpecific')}`);
                 return;
               }
               this.push(res.reply);
               this.pending.set({ kind: 'deleteNote', note: found[0] });
             },
-            error: () => this.push('Không tải được danh sách ghi chú.'),
+            error: () => this.push(this.tr.t('ai.err.loadNotes')),
           });
           return;
         }
 
         if (res.intent === 'create_group') {
           if (!res.groupName?.trim()) {
-            this.push('Bạn muốn đặt tên nhóm là gì?');
+            this.push(this.tr.t('ai.q.whichGroupName'));
             return;
           }
           this.push(res.reply);
@@ -886,7 +918,7 @@ export class AiAssistantComponent {
 
         if (res.intent === 'join_group') {
           if (!res.groupCode?.trim()) {
-            this.push('Bạn có mã tham gia nhóm không?');
+            this.push(this.tr.t('ai.q.whichJoinCode'));
             return;
           }
           this.push(res.reply);
@@ -898,25 +930,25 @@ export class AiAssistantComponent {
           const gq = (res.groupQuery ?? '').trim().toLowerCase();
           const groups = gq ? this.groupsState.groups().filter((g) => g.name.toLowerCase().includes(gq)) : [];
           if (groups.length === 0) {
-            this.push(`Không tìm thấy nhóm "${res.groupQuery ?? ''}".`);
+            this.push(`${this.tr.t('ai.err.noGroup')} "${res.groupQuery ?? ''}".`);
             return;
           }
           if (groups.length > 1) {
-            this.push(`Có ${groups.length} nhóm khớp: ${groups.map((g) => g.name).join(', ')}. Bạn nói rõ hơn nhé.`);
+            this.push(`${this.tr.t('ai.matchA')} ${groups.length} ${this.tr.t('ai.matchGroups')} ${groups.map((g) => g.name).join(', ')}. ${this.tr.t('ai.beSpecific')}`);
             return;
           }
           const g = groups[0];
           if (res.intent === 'invite_group_member') {
             const emails = (res.guestEmails ?? []).map((e) => e.trim()).filter((e) => e.includes('@'));
             if (emails.length === 0) {
-              this.push('Bạn muốn mời email nào vào nhóm?');
+              this.push(this.tr.t('ai.q.whichGroupEmail'));
               return;
             }
             this.push(res.reply);
             this.pending.set({ kind: 'inviteGroupMember', group: g, emails });
           } else {
             if (!res.title || !res.startTime || !res.endTime) {
-              this.push('Bạn muốn tạo sự kiện gì, lúc mấy giờ?');
+              this.push(this.tr.t('ai.q.whichGroupEvent'));
               return;
             }
             this.push(res.reply);
@@ -929,15 +961,15 @@ export class AiAssistantComponent {
           const key = res.settingKey;
           const value = res.settingValue?.trim();
           if (!key || !value) {
-            this.push(res.reply || 'Bạn muốn đổi cài đặt nào?');
+            this.push(res.reply || this.tr.t('ai.q.whichSetting'));
             return;
           }
           if (key === 'accent_color' && !ACCENT_PRESETS.some((p) => p.id === value)) {
-            this.push(`App chưa có màu "${value}". Các màu có sẵn: ${ACCENT_PRESETS.map((p) => p.id).join(', ')}.`);
+            this.push(`${this.tr.t('ai.err.noColor')} "${value}". ${this.tr.t('ai.colorList')} ${ACCENT_PRESETS.map((p) => p.id).join(', ')}.`);
             return;
           }
           if ((key === 'theme_mode' && !['light', 'dark', 'system'].includes(value)) || (key === 'language' && !['vi', 'en'].includes(value))) {
-            this.push(res.reply || 'Mình chưa hiểu giá trị bạn muốn đổi.');
+            this.push(res.reply || this.tr.t('ai.q.whichValue'));
             return;
           }
           const label = key === 'theme_mode' || key === 'language' ? this.tr.t(`ai.settingValue.${value}`) : (ACCENT_PRESETS.find((p) => p.id === value)?.name ?? value);
@@ -952,11 +984,11 @@ export class AiAssistantComponent {
           const ev = this.pickOne(found, res.query);
           if (!ev) return;
           if (!ev.seriesId) {
-            this.push(`"${ev.title}" không phải sự kiện lặp nên không có gì để ngắt.`);
+            this.push(`"${ev.title}" ${this.tr.t('ai.err.notRecurring')}`);
             return;
           }
           if (!res.repeatFrom) {
-            this.push('Bạn muốn áp dụng từ ngày nào? (vd: từ 01/10/2026)');
+            this.push(this.tr.t('ai.q.whichFromDate'));
             return;
           }
           this.push(res.reply);
@@ -964,7 +996,7 @@ export class AiAssistantComponent {
             this.pending.set({ kind: 'stopRepeat', event: ev, from: res.repeatFrom });
           } else {
             if (!res.repeatTo) {
-              this.push('Xoá từ ngày nào đến ngày nào? Bạn nói rõ giúp mình.');
+              this.push(this.tr.t('ai.q.whichRange'));
               return;
             }
             this.pending.set({ kind: 'deleteRepeatRange', event: ev, from: res.repeatFrom, to: res.repeatTo });
@@ -975,7 +1007,7 @@ export class AiAssistantComponent {
         // ---------- Lời mời sự kiện ----------
         if (res.intent === 'respond_invite') {
           if (!res.rsvpStatus) {
-            this.push('Bạn muốn Đồng ý, Từ chối hay Có thể?');
+            this.push(this.tr.t('ai.q.whichRsvp'));
             return;
           }
           const ev = this.pickOne(this.findEvents(res.query), res.query);
@@ -988,18 +1020,18 @@ export class AiAssistantComponent {
         // ---------- Lời mời nhóm ----------
         if (res.intent === 'respond_group_invite') {
           if (!res.rsvpStatus) {
-            this.push('Bạn muốn đồng ý hay từ chối lời mời nhóm này?');
+            this.push(this.tr.t('ai.q.whichGroupRsvp'));
             return;
           }
           const gq = (res.groupQuery ?? '').trim().toLowerCase();
           const invites = this.groupsState.pendingInvites();
           const match = gq ? invites.filter((i) => i.name.toLowerCase().includes(gq)) : invites;
           if (match.length === 0) {
-            this.push(gq ? `Không có lời mời nhóm nào tên "${res.groupQuery}".` : 'Bạn không có lời mời nhóm nào đang chờ.');
+            this.push(gq ? `${this.tr.t('ai.err.noGroupInvite')} "${res.groupQuery}".` : this.tr.t('ai.err.noGroupInvites'));
             return;
           }
           if (match.length > 1) {
-            this.push(`Có ${match.length} lời mời khớp: ${match.map((i) => i.name).join(', ')}. Bạn nói rõ hơn nhé.`);
+            this.push(`${this.tr.t('ai.matchA')} ${match.length} ${this.tr.t('ai.matchInvites')} ${match.map((i) => i.name).join(', ')}. ${this.tr.t('ai.beSpecific')}`);
             return;
           }
           this.push(res.reply);
@@ -1021,11 +1053,11 @@ export class AiAssistantComponent {
             const trashed = this.state.trashedEvents();
             const found = q ? trashed.filter((e) => e.title.toLowerCase().includes(q)) : trashed;
             if (found.length === 0) {
-              this.push(q ? `Không thấy "${res.query}" trong thùng rác.` : 'Thùng rác đang trống.');
+              this.push(q ? `${this.tr.t('ai.err.notInTrash')} "${res.query}".` : this.tr.t('ai.err.trashEmpty'));
               return;
             }
             if (found.length > 1) {
-              this.push(`Có ${found.length} mục khớp: ${found.map((e) => e.title).join(', ')}. Bạn nói rõ hơn nhé.`);
+              this.push(`${this.tr.t('ai.matchA')} ${found.length} ${this.tr.t('ai.matchItems')} ${found.map((e) => e.title).join(', ')}. ${this.tr.t('ai.beSpecific')}`);
               return;
             }
             this.push(res.reply);
@@ -1039,25 +1071,17 @@ export class AiAssistantComponent {
           res.intent === 'leave_group' ||
           res.intent === 'delete_group' ||
           res.intent === 'remove_group_member' ||
-          res.intent === 'mute_group' ||
           res.intent === 'send_group_message'
         ) {
           const g = this.pickGroup(res.groupQuery);
           if (!g) return;
 
-          if (res.intent === 'mute_group') {
-            // Chỉ lưu trên máy, không đụng dữ liệu chung -> làm luôn, khỏi xác nhận.
-            const want = res.muted !== false;
-            if (this.chat.isMuted(g.id) !== want) this.chat.toggleMuted(g.id);
-            this.push(`${want ? 'Đã tắt' : 'Đã bật lại'} thông báo nhóm "${g.name}" ✅`);
-            return;
-          }
           if (res.intent === 'remove_group_member' && !res.memberEmail) {
-            this.push('Bạn muốn xoá thành viên nào? Cho mình email nhé.');
+            this.push(this.tr.t('ai.q.whichMember'));
             return;
           }
           if (res.intent === 'send_group_message' && !res.messageText?.trim()) {
-            this.push('Bạn muốn nhắn nội dung gì vào nhóm?');
+            this.push(this.tr.t('ai.q.whichMessage'));
             return;
           }
 
@@ -1072,7 +1096,7 @@ export class AiAssistantComponent {
 
         if (res.intent === 'export_calendar') {
           if (res.exportFormat !== 'pdf' && res.exportFormat !== 'ics') {
-            this.push(res.reply || 'Bạn muốn xuất định dạng PDF hay ICS?');
+            this.push(res.reply || this.tr.t('ai.q.whichFormat'));
             return;
           }
           // Không phá huỷ gì (chỉ tải file về máy) -> thực thi luôn, không cần bấm Xác nhận.
@@ -1083,7 +1107,7 @@ export class AiAssistantComponent {
           } else {
             this.pdfSvc.exportToFile(this.state.events())
               .then(() => this.push(`${this.tr.t('ai.msg.created')} file PDF ✅`))
-              .catch(() => this.push('Xuất PDF thất bại.'));
+              .catch(() => this.push(this.tr.t('ai.err.pdf')));
           }
           return;
         }
@@ -1095,6 +1119,30 @@ export class AiAssistantComponent {
         this.push(this.tr.t('ai.msg.error'));
       },
     });
+  }
+
+  /** Đổi phần lặp trong câu trả lời của máy chủ thành tùy chọn lặp mà lịch hiểu được. */
+  private recurrenceFrom(res: AiParseResult): RecurrenceOptions | undefined {
+    if (!res.recurrenceFreq) return undefined;
+    const rec: RecurrenceOptions = {
+      freq: res.recurrenceFreq,
+      interval: Math.min(Math.max(res.recurrenceInterval ?? 1, 1), 30),
+    };
+    if (res.recurrenceCount) rec.count = Math.min(Math.max(res.recurrenceCount, 1), 366);
+    if (res.recurrenceUntil) rec.until = res.recurrenceUntil;
+    return rec;
+  }
+
+  /** Câu mô tả lịch lặp để hiện trong thẻ xác nhận, vd "Lặp hàng tuần · 10 lần". */
+  protected recurrenceLabel(rec: RecurrenceOptions): string {
+    const freq = this.tr.t('ai.freq.' + rec.freq);
+    const every = rec.interval > 1 ? ` (${this.tr.t('ai.everyN')} ${rec.interval})` : '';
+    const end = rec.count
+      ? ` · ${rec.count} ${this.tr.t('ai.times')}`
+      : rec.until
+        ? ` · ${this.tr.t('ai.untilDay')} ${new Date(rec.until).toLocaleDateString('vi-VN')}`
+        : ` · ${this.tr.t('ai.noEnd')}`;
+    return `${this.tr.t('ai.repeats')} ${freq}${every}${end}`;
   }
 
   confirm(): void {
@@ -1111,10 +1159,11 @@ export class AiAssistantComponent {
           end: p.end,
           isAllDay: false,
           // Vừa tạo vừa mời: gắn khách ngay lúc tạo -> backend tự thêm attendee + gửi email mời.
-          guests: p.emails.map((email) => ({ email, status: 'needsAction' as const })),
+          // canEdit chỉ bật khi người dùng nói rõ ("cho họ sửa"), mặc định vẫn CHỈ XEM.
+          guests: p.emails.map((email) => ({ email, status: 'needsAction' as const, canEdit: p.guestsCanEdit })),
           color: 'sky',
         },
-        undefined,
+        p.recurrence,
         // Sau khi lưu xong mới có id thật -> nếu người dùng muốn kèm Meet thì tạo phòng luôn.
         // createMeetForEvent tự lo việc xin quyền Google nếu chưa cấp (chuyển hướng rồi tạo tiếp).
         p.withMeet
@@ -1160,12 +1209,12 @@ export class AiAssistantComponent {
     } else if (p.kind === 'createNote') {
       this.notesApi.create({ title: p.title, content: p.content }).subscribe({
         next: () => this.push(`${this.tr.t('ai.msg.created')} "${p.title || p.content}" ✅`),
-        error: () => this.push('Tạo ghi chú thất bại.'),
+        error: () => this.push(this.tr.t('ai.err.createNote')),
       });
     } else if (p.kind === 'deleteNote') {
       this.notesApi.remove(p.note.id).subscribe({
         next: () => this.push(`${this.tr.t('ai.msg.noteDeleted')} "${p.note.title || p.note.content}" ✅`),
-        error: () => this.push('Xóa ghi chú thất bại.'),
+        error: () => this.push(this.tr.t('ai.err.deleteNote')),
       });
     } else if (p.kind === 'createGroup') {
       this.groupsState.createGroup(p.name);
@@ -1200,33 +1249,33 @@ export class AiAssistantComponent {
       this.push(`${this.tr.t('ai.msg.settingChanged')}: ${this.tr.t(`ai.settingKey.${p.settingKey}`)} → ${p.label} ✅`);
     } else if (p.kind === 'stopRepeat') {
       this.state.deleteEvent(p.event.id, 'from', { from: p.from });
-      this.push(`Đã ngắt lặp "${p.event.title}" từ ${p.from} trở đi ✅`);
+      this.push(`${this.tr.t('ai.msg.stoppedRepeat')} "${p.event.title}" — ${this.tr.t('ai.msg.fromDate')} ${p.from} ✅`);
     } else if (p.kind === 'deleteRepeatRange') {
       this.state.deleteEvent(p.event.id, 'range', { from: p.from, to: p.to });
-      this.push(`Đã xoá các lần lặp của "${p.event.title}" từ ${p.from} đến ${p.to} ✅`);
+      this.push(`${this.tr.t('ai.msg.deletedRepeats')} "${p.event.title}" — ${p.from} → ${p.to} ✅`);
     } else if (p.kind === 'respondInvite') {
       this.state.rsvp(p.event.id, p.status);
-      const label = p.status === 'accepted' ? 'Đồng ý' : p.status === 'declined' ? 'Từ chối' : 'Có thể';
-      this.push(`Đã trả lời "${p.event.title}": ${label} ✅`);
+      const label = p.status === 'accepted' ? this.tr.t('rsvp.accepted') : p.status === 'declined' ? this.tr.t('rsvp.declined') : this.tr.t('rsvp.tentative');
+      this.push(`${this.tr.t('ai.msg.replied')} "${p.event.title}": ${label} ✅`);
     } else if (p.kind === 'respondGroupInvite') {
       if (p.accept) this.groupsState.acceptInvite(p.groupId);
       else this.groupsState.declineInvite(p.groupId);
-      this.push(`Đã ${p.accept ? 'đồng ý vào' : 'từ chối'} nhóm "${p.groupName}" ✅`);
+      this.push(`${p.accept ? this.tr.t('ai.msg.groupJoined') : this.tr.t('ai.msg.groupDeclined')} "${p.groupName}" ✅`);
     } else if (p.kind === 'restoreEvent') {
       this.state.restoreFromTrash(p.event.id);
-      this.push(`Đã khôi phục "${p.event.title}" ✅`);
+      this.push(`${this.tr.t('ai.msg.restored')} "${p.event.title}" ✅`);
     } else if (p.kind === 'leaveGroup') {
       this.groupsState.leaveGroup(p.group.id);
-      this.push(`Đã rời nhóm "${p.group.name}" ✅`);
+      this.push(`${this.tr.t('ai.msg.leftGroup')} "${p.group.name}" ✅`);
     } else if (p.kind === 'deleteGroup') {
       this.groupsState.deleteGroup(p.group.id);
-      this.push(`Đã giải tán nhóm "${p.group.name}" ✅`);
+      this.push(`${this.tr.t('ai.msg.groupDisbanded')} "${p.group.name}" ✅`);
     } else if (p.kind === 'removeGroupMember') {
       this.groupsState.removeMember(p.group.id, p.email);
-      this.push(`Đã xoá ${p.email} khỏi nhóm "${p.group.name}" ✅`);
+      this.push(`${this.tr.t('ai.msg.memberRemoved')} ${p.email} — "${p.group.name}" ✅`);
     } else if (p.kind === 'sendGroupMessage') {
       this.chat.send(p.group.id, p.text);
-      this.push(`Đã gửi tin nhắn vào nhóm "${p.group.name}" ✅`);
+      this.push(`${this.tr.t('ai.msg.messageSent')} "${p.group.name}" ✅`);
     }
     this.pending.set(null);
   }
@@ -1237,11 +1286,11 @@ export class AiAssistantComponent {
    */
   private pickOne(found: CalendarEvent[], query?: string): CalendarEvent | null {
     if (found.length === 0) {
-      this.push(query ? `Không tìm thấy sự kiện "${query}".` : 'Bạn muốn thao tác với sự kiện nào?');
+      this.push(query ? `${this.tr.t('ai.err.noEvent')} "${query}".` : this.tr.t('ai.q.whichEvent'));
       return null;
     }
     if (found.length > 1) {
-      this.push(`Có ${found.length} sự kiện khớp: ${found.slice(0, 5).map((e) => e.title).join(', ')}. Bạn nói rõ hơn nhé.`);
+      this.push(`${this.tr.t('ai.matchA')} ${found.length} ${this.tr.t('ai.matchEvents')} ${found.slice(0, 5).map((e) => e.title).join(', ')}. ${this.tr.t('ai.beSpecific')}`);
       return null;
     }
     return found[0];
@@ -1251,16 +1300,16 @@ export class AiAssistantComponent {
   private pickGroup(groupQuery?: string): Group | null {
     const gq = (groupQuery ?? '').trim().toLowerCase();
     if (!gq) {
-      this.push('Bạn muốn thao tác với nhóm nào?');
+      this.push(this.tr.t('ai.q.whichGroup'));
       return null;
     }
     const groups = this.groupsState.groups().filter((g) => g.name.toLowerCase().includes(gq));
     if (groups.length === 0) {
-      this.push(`Không tìm thấy nhóm "${groupQuery}".`);
+      this.push(`${this.tr.t('ai.err.noGroup')} "${groupQuery}".`);
       return null;
     }
     if (groups.length > 1) {
-      this.push(`Có ${groups.length} nhóm khớp: ${groups.map((g) => g.name).join(', ')}. Bạn nói rõ hơn nhé.`);
+      this.push(`${this.tr.t('ai.matchA')} ${groups.length} ${this.tr.t('ai.matchGroups')} ${groups.map((g) => g.name).join(', ')}. ${this.tr.t('ai.beSpecific')}`);
       return null;
     }
     return groups[0];

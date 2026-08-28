@@ -86,21 +86,8 @@ import { IconComponent } from '../shared/icon.component';
                 <span class="rounded-full bg-red-600 px-1.5 text-xs font-medium text-white">{{ unreadCount() }}</span>
               }
             </button>
-
-            <!-- Tắt/bật thông báo riêng nhóm này (lưu trên máy, không ảnh hưởng người khác) -->
-            <button
-              type="button"
-              (click)="chat.toggleMuted(g.id)"
-              class="ml-auto -mb-px px-2 py-1.5 text-gray-400 hover:text-gray-700"
-              [title]="chat.isMuted(g.id) ? 'Bật lại thông báo nhóm này' : 'Tắt thông báo nhóm này'"
-            >{{ chat.isMuted(g.id) ? '🔕' : '🔔' }}</button>
           </div>
 
-          @if (tab() === 'chat' && chat.isMuted(g.id)) {
-            <p class="mb-2 shrink-0 rounded bg-gray-100 px-2 py-1 text-[11px] text-gray-500">
-              🔕 Đã tắt thông báo nhóm này — vẫn đếm tin chưa đọc, chỉ không hiện thông báo.
-            </p>
-          }
 
 
           @if (tab() === 'events') {
@@ -170,7 +157,7 @@ import { IconComponent } from '../shared/icon.component';
                           <input type="checkbox" [(ngModel)]="eAllDay" /> Cả ngày
                         </label>
                         <input type="text" [(ngModel)]="eLocation" (keydown.enter)="saveEventEdit(g.id)" maxlength="200" placeholder="📍 Địa điểm" class="w-full rounded border border-gray-300 px-2 py-1" />
-                        <textarea [(ngModel)]="eDescription" maxlength="200" rows="2" placeholder="Mô tả" class="w-full resize-none rounded border border-gray-300 px-2 py-1"></textarea>
+                        <textarea [(ngModel)]="eDescription" maxlength="5000" rows="2" placeholder="Mô tả" class="w-full resize-none rounded border border-gray-300 px-2 py-1"></textarea>
                         <!-- Đã bỏ hàng chọn màu ở đây: nhóm không còn màu riêng.
                              eColor vẫn giữ nguyên màu cũ của sự kiện khi lưu, và muốn đổi màu
                              thì mở sự kiện từ lịch chính (ở đó có ô tự chọn màu bất kỳ). -->

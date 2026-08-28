@@ -307,6 +307,33 @@ input[type='radio'] {
 }
 
 /* ============================================================
+   SIDEBAR — thanh cuộn chỉ hiện khi thật sự đang cuộn/hover, tránh
+   cảm giác "lúc nào cũng có thanh cuộn" dù nội dung chưa bị cắt.
+   ============================================================ */
+.sidebar-panel {
+  scrollbar-color: transparent transparent;
+}
+.sidebar-panel:hover,
+.sidebar-panel:focus-within {
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+.dark .sidebar-panel:hover,
+.dark .sidebar-panel:focus-within {
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+.sidebar-panel::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+.sidebar-panel:hover::-webkit-scrollbar-thumb,
+.sidebar-panel:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.4);
+}
+.dark .sidebar-panel:hover::-webkit-scrollbar-thumb,
+.dark .sidebar-panel:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.35);
+}
+
+/* ============================================================
    POPUP / DROPDOWN — mờ dần + trượt nhẹ xuống khi hiện ra.
    Dùng cho các menu nhỏ (tìm kiếm, ⚙️ bánh răng, nút Tạo,
    gợi ý email khách...) — cảm giác mượt hơn "đùng cái xuất hiện".
@@ -700,6 +727,61 @@ body { background-color: var(--app-bg); }
    được rule không-lớp phía trên "cứu" -> vẫn nền kem sáng giữa theme tối (đúng lỗi menu ⋮
    trong ảnh: chữ xám nhạt gần như vô hình trên nền kem sáng). Vá thêm nền + chữ mặc định. */
 .dark .surface-panel { background-color: #111a2e; color: #e5e7eb; border-color: #273244; }
+
+/* Mô tả sự kiện cho phép HTML. Tailwind preflight xoá hết style mặc định của thẻ
+   (h1 hết to, ul hết chấm đầu dòng, b hết đậm) nên phải trả lại trong phạm vi
+   .rich-text — ngoài phạm vi này giao diện vẫn giữ nguyên như cũ. */
+.rich-text { white-space: normal; }
+.rich-text > *:first-child { margin-top: 0; }
+.rich-text > *:last-child { margin-bottom: 0; }
+.rich-text p { margin: 0 0 0.5em; }
+.rich-text b, .rich-text strong { font-weight: 600; }
+.rich-text i, .rich-text em { font-style: italic; }
+.rich-text u { text-decoration: underline; }
+.rich-text s, .rich-text del { text-decoration: line-through; }
+.rich-text mark { background-color: #fef08a; color: inherit; padding: 0 0.15em; }
+.rich-text h1, .rich-text h2, .rich-text h3, .rich-text h4 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.6em 0 0.35em;
+}
+.rich-text h1 { font-size: 1.25em; }
+.rich-text h2 { font-size: 1.15em; }
+.rich-text h3 { font-size: 1.05em; }
+.rich-text ul, .rich-text ol { margin: 0 0 0.5em; padding-left: 1.35em; }
+.rich-text ul { list-style: disc; }
+.rich-text ol { list-style: decimal; }
+.rich-text li { margin: 0.15em 0; }
+.rich-text a { color: var(--accent-600); text-decoration: underline; }
+.rich-text a:hover { color: var(--accent-700); }
+.rich-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background-color: rgba(100, 116, 139, 0.14);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+}
+.rich-text pre {
+  background-color: rgba(100, 116, 139, 0.14);
+  border-radius: 6px;
+  padding: 0.5em 0.65em;
+  margin: 0 0 0.5em;
+  overflow-x: auto;
+}
+.rich-text pre code { background: none; padding: 0; }
+.rich-text blockquote {
+  border-left: 3px solid var(--surface-line);
+  padding-left: 0.7em;
+  margin: 0 0 0.5em;
+  color: #6b7280;
+}
+.rich-text hr { border: 0; border-top: 1px solid var(--surface-line); margin: 0.6em 0; }
+.rich-text img { max-width: 100%; height: auto; border-radius: 4px; }
+.rich-text table { border-collapse: collapse; margin: 0 0 0.5em; display: block; overflow-x: auto; }
+.rich-text th, .rich-text td { border: 1px solid var(--surface-line); padding: 0.25em 0.5em; }
+.rich-text th { font-weight: 600; background-color: rgba(100, 116, 139, 0.08); }
+.dark .rich-text mark { background-color: #6b5b16; color: #f3f4f6; }
+.dark .rich-text blockquote { color: #9ca3af; }
 
 } /* /@layer components */
 

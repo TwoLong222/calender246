@@ -33,6 +33,8 @@ import { SupabaseService } from '../auth/supabase.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { SelectComponent, SelectOption } from '../shared/select.component';
+import { htmlToPlain } from '../shared/html-text';
+import { parseDateQuery } from './date-query';
 
 @Component({
   selector: 'app-calendar-page',
@@ -136,6 +138,11 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
           @if (searchFocused() && searchQuery().trim()) {
             <!-- Panel kết quả neo theo mép TRÁI vì ô tìm kiếm giờ nằm bên trái header -->
             <div class="drop-panel surface-panel popup-in absolute left-0 top-full z-40 mt-1.5 max-h-80 w-72 overflow-y-auto py-1 sm:w-80">
+              @if (searchDateLabel()) {
+                <p class="border-b border-gray-100 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                  {{ searchDateLabel() }}
+                </p>
+              }
               @if (searchResults().length === 0) {
                 <p class="px-3 py-2 text-sm text-gray-400">{{ tr.t('nav.searchNone') }}</p>
               } @else {
@@ -303,9 +310,10 @@ import { SelectComponent, SelectOption } from '../shared/select.component';
             <button
               type="button"
               (click)="createMenuOpen.set(!createMenuOpen())"
-              class="btn btn-primary w-full !justify-start !rounded-full !py-2.5 !pl-3.5"
+              class="btn btn-primary !rounded-full !py-2.5 !pl-3.5 !pr-3"
             >
               <app-icon name="plus" class="h-5 w-5" /> {{ tr.t('nav.create') }}
+              <app-icon name="chevron-down" class="h-4 w-4" />
             </button>
 
             @if (createMenuOpen()) {
@@ -663,7 +671,7 @@ export class CalendarPageComponent implements OnInit {
 
   /** Dùng chung cho luồng Nhập .ics và Nhập PDF: tạo từng event, tô nổi bật sau khi lưu xong. */
   private applyImportedEvents(
-    imported: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string }[],
+    imported: { title: string; start: Date; end: Date; isAllDay: boolean; description?: string; location?: string; meetLink?: string }[],
     emptyMsg: string,
   ): void {
     if (imported.length === 0) {
@@ -688,6 +696,9 @@ export class CalendarPageComponent implements OnInit {
         undefined,
         // afterSave: gom id; khi gom đủ -> nhảy tới ngày sớm nhất + highlight.
         (saved) => {
+          // File .ics có sẵn link phòng họp -> gắn luôn, không thì chi tiết sự kiện
+          // vẫn hiện nút "Tạo Google Meet" như chưa có phòng.
+          if (ev.meetLink) this.state.attachMeetLink(saved.id, ev.meetLink);
           newIds.push(saved.id);
           if (newIds.length === imported.length) {
             const earliest = imported.reduce((a, b) => (a.start < b.start ? a : b)).start;
@@ -704,16 +715,71 @@ export class CalendarPageComponent implements OnInit {
   protected readonly searchQuery = signal('');
   protected readonly searchFocused = signal(false);
 
-  /** Lọc sự kiện theo tiêu đề / mô tả / địa điểm (không phân biệt hoa thường), gần nhất lên trước */
+  /**
+   * Câu tìm có nói về thời gian không ("28/8", "hôm nay", "thứ 2", "tháng 9", "mai 9h").
+   * null = câu chữ bình thường -> tìm theo tiêu đề/mô tả/địa điểm như cũ.
+   */
+  protected readonly searchDate = computed(() => parseDateQuery(this.searchQuery()));
+
+  /** Nhãn khoảng thời gian đang tra, hiện ở đầu danh sách kết quả. */
+  protected readonly searchDateLabel = computed(() => this.searchDate()?.label ?? '');
+
+  /** Lọc sự kiện theo NGÀY/GIỜ nếu câu tìm là thời gian, không thì theo chữ; gần nhất lên trước */
   protected readonly searchResults = computed<CalendarEvent[]>(() => {
     const q = this.searchQuery().trim().toLowerCase();
     if (!q) return [];
-    return this.state
-      .events()
+
+    // Phải tìm trên ĐÚNG tập đang vẽ trên lịch (cá nhân + nhóm). Trước đây chỉ dùng
+    // state.events() = lịch CÁ NHÂN, nên mọi sự kiện của NHÓM đều không tìm ra dù
+    // chúng đang hiện rõ trên màn hình.
+    const all = this.mergedEvents();
+
+    const dq = this.searchDate();
+    if (dq) {
+      // Chỉ nêu GIỜ ("13:00") -> so theo giờ TRÊN ĐỒNG HỒ của từng sự kiện, bất kể ngày nào.
+      if (dq.timeOnly && dq.minuteOfDay != null) {
+        const m = dq.minuteOfDay;
+        const now = Date.now();
+        const rank = (e: CalendarEvent) =>
+          e.isAllDay ? 2 : e.start.getHours() * 60 + e.start.getMinutes() === m ? 0 : 1;
+        return all
+          .filter((e) => {
+            if (e.isAllDay) return true; // cả ngày thì giờ nào cũng đang diễn ra
+            const sameDay =
+              e.start.getFullYear() === e.end.getFullYear() &&
+              e.start.getMonth() === e.end.getMonth() &&
+              e.start.getDate() === e.end.getDate();
+            if (!sameDay) return true; // vắt qua đêm/nhiều ngày -> phủ mọi giờ
+            const startMin = e.start.getHours() * 60 + e.start.getMinutes();
+            const endMin = e.end.getHours() * 60 + e.end.getMinutes();
+            return startMin <= m && m <= endMin;
+          })
+          // Xếp hạng: bắt đầu ĐÚNG giờ hỏi lên đầu, rồi tới sự kiện đang diễn ra lúc đó,
+          // cuối cùng mới tới sự kiện cả ngày (kỹ thuật thì giờ nào cũng "đang diễn ra"
+          // nhưng không phải cái người dùng muốn hỏi). Cùng hạng thì gần hôm nay lên trước.
+          .sort((x, y) => rank(x) - rank(y) || Math.abs(x.start.getTime() - now) - Math.abs(y.start.getTime() - now))
+          .slice(0, 50);
+      }
+
+      // Lấy sự kiện CHẠM vào khoảng, không chỉ sự kiện bắt đầu trong khoảng — sự kiện
+      // nhiều ngày phải ra khi tra một ngày nằm giữa nó.
+      let hits = all.filter((e) => e.start <= dq.to && e.end >= dq.from);
+      if (dq.minuteOfDay != null) {
+        const target = new Date(dq.from.getFullYear(), dq.from.getMonth(), dq.from.getDate(), 0, dq.minuteOfDay);
+        hits = hits.filter((e) => {
+          if (e.isAllDay) return true; // cả ngày thì giờ nào cũng tính là đang diễn ra
+          const startMin = e.start.getHours() * 60 + e.start.getMinutes();
+          return (e.start <= target && e.end >= target) || startMin === dq.minuteOfDay;
+        });
+      }
+      return hits.sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 50);
+    }
+
+    return all
       .filter(
         (e) =>
           e.title.toLowerCase().includes(q) ||
-          (e.description ?? '').toLowerCase().includes(q) ||
+          htmlToPlain(e.description).toLowerCase().includes(q) ||
           (e.location ?? '').toLowerCase().includes(q),
       )
       .sort((a, b) => a.start.getTime() - b.start.getTime())
