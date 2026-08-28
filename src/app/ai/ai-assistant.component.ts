@@ -20,6 +20,7 @@ import { ThemeBuilderService, ACCENT_PRESETS } from '../theme/theme-builder.serv
 import { Group } from '../groups/groups.types';
 import { IcsService } from '../calendar/ics.service';
 import { PdfService } from '../calendar/pdf.service';
+import { HolidaysService } from '../calendar/holidays.service';
 
 interface ChatMsg {
   role: 'user' | 'ai';
@@ -276,6 +277,7 @@ export class AiAssistantComponent {
   private readonly themeBuilder = inject(ThemeBuilderService);
   private readonly icsSvc = inject(IcsService);
   private readonly pdfSvc = inject(PdfService);
+  private readonly holidays = inject(HolidaysService);
 
   /** Bấm ra ngoài panel -> tự đóng chatbox (nút nổi + panel đều nằm trong host nên bấm chúng không bị đóng). */
   @HostListener('document:pointerdown', ['$event'])
@@ -507,6 +509,31 @@ export class AiAssistantComponent {
     return events.slice(0, 8).map((e) => `• ${e.title || '(không tiêu đề)'} — ${this.eventLabel(e)}`).join('\n');
   }
 
+  /** Ngày lễ (nếu có) rơi vào 1 khoảng ngày — dùng để kể kèm kết quả tìm sự kiện theo khoảng thời gian. */
+  private holidaysInRange(rangeStart?: string, rangeEnd?: string): { date: Date; name: string }[] {
+    if (!rangeStart || !rangeEnd) return [];
+    const start = new Date(rangeStart);
+    const end = new Date(rangeEnd);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const out: { date: Date; name: string }[] = [];
+    // Chặn khoảng quá dài (vd hỏi "cả năm nay") để không lặp hàng trăm ngày vô ích.
+    for (let i = 0; cursor <= last && i < 370; i++) {
+      const h = this.holidays.get(cursor);
+      if (h) out.push({ date: new Date(cursor), name: h.name });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }
+
+  private holidaysMsg(rangeStart?: string, rangeEnd?: string): string {
+    const list = this.holidaysInRange(rangeStart, rangeEnd);
+    if (list.length === 0) return '';
+    const d = (x: Date) => x.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' });
+    return `${this.tr.t('ai.holidaysInRange')} ${list.map((h) => `${h.name} (${d(h.date)})`).join(', ')}`;
+  }
+
   /** Dự phòng khi AI hiểu câu nhưng trả về thiếu dữ liệu có cấu trúc. */
   private planFromText(text: string): { title: string; count: number; durationMinutes: number } | null {
     const countMatch = text.match(/(?:xếp|sắp xếp|lên kế hoạch)\s+(\d+)\s*(?:buổi|lần|phiên)/i);
@@ -689,7 +716,10 @@ export class AiAssistantComponent {
 
         if (res.intent === 'search_events') {
           const found = this.findEvents(res.query, res.rangeStart, res.rangeEnd);
-          this.push(found.length ? `${res.reply}\n${this.listMsg(found)}` : `${res.reply}\n(Không tìm thấy sự kiện nào.)`);
+          const lines = [res.reply, found.length ? this.listMsg(found) : '(Không tìm thấy sự kiện nào.)'];
+          const holidayLine = this.holidaysMsg(res.rangeStart, res.rangeEnd);
+          if (holidayLine) lines.push(holidayLine);
+          this.push(lines.join('\n'));
           return;
         }
 

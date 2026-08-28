@@ -53,16 +53,22 @@ interface LunarCell {
           </p>
         </div>
 
-        <!-- Thanh điều hướng tháng -->
-        <div class="flex items-center justify-between">
-          <button type="button" (click)="prevMonth()" class="tap rounded-md border border-gray-300 bg-white p-2 hover:bg-gray-100">
+        <!-- Thanh điều hướng tháng. items-start (không phải items-center): khối giữa có 2 dòng
+             (tiêu đề + nút "Hôm nay"), items-center sẽ ép 2 nút mũi tên xuống giữa CẢ khối 2 dòng
+             khiến chúng lệch xuống dưới so với dòng tiêu đề — items-start + mt-0.5 giữ mũi tên
+             ngang hàng đúng dòng tiêu đề.
+             Nút mũi tên PHẢI có flex items-center justify-center (không chỉ p-2): app-icon render
+             ra <svg> inline, để mặc định thì icon lệch theo baseline dòng chữ thay vì nằm giữa ô
+             vuông — cùng cách làm với mini-calendar.component.ts / calendar-page.component.ts. -->
+        <div class="flex items-start justify-between">
+          <button type="button" (click)="prevMonth()" class="tap mt-0.5 flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white hover:bg-gray-100">
             <app-icon name="chevron-left" class="h-5 w-5" />
           </button>
           <div class="text-center">
             <p class="text-base font-medium">{{ monthLabel() }}</p>
             <button type="button" (click)="goToday()" class="text-xs text-blue-600">{{ tr.t('lunar.today') }}</button>
           </div>
-          <button type="button" (click)="nextMonth()" class="tap rounded-md border border-gray-300 bg-white p-2 hover:bg-gray-100">
+          <button type="button" (click)="nextMonth()" class="tap mt-0.5 flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white hover:bg-gray-100">
             <app-icon name="chevron-right" class="h-5 w-5" />
           </button>
         </div>
