@@ -612,6 +612,8 @@ export class GroupPanelComponent implements OnDestroy {
       color: 'sky',
     });
     this.title.set('');
+    // Thêm xong đóng luôn popup — người dùng đã thấy sự kiện xuất hiện trên lịch chính.
+    this.state.closePanel();
   }
 
   async confirmDelete(groupId: string, name: string): Promise<void> {
