@@ -61,10 +61,13 @@ export class IcsService {
 
     const result: ImportedEvent[] = [];
     let cur: Record<string, { params: string; value: string }> | null = null;
+    // Đang ở trong thành phần con lồng bên trong VEVENT (VALARM...) hay không.
+    let subDepth = 0;
 
     for (const line of lines) {
       if (line === 'BEGIN:VEVENT') {
         cur = {};
+        subDepth = 0;
         continue;
       }
       if (line === 'END:VEVENT') {
@@ -73,9 +76,22 @@ export class IcsService {
           if (ev) result.push(ev);
         }
         cur = null;
+        subDepth = 0;
         continue;
       }
       if (!cur) continue;
+
+      // Bỏ qua field của thành phần con (nhất là VALARM có "DESCRIPTION:REMINDER") —
+      // nếu không nó sẽ ĐÈ mất DESCRIPTION/… thật của VEVENT (chứa link phòng họp).
+      if (line.startsWith('BEGIN:')) {
+        subDepth++;
+        continue;
+      }
+      if (line.startsWith('END:')) {
+        if (subDepth > 0) subDepth--;
+        continue;
+      }
+      if (subDepth > 0) continue;
 
       const colon = line.indexOf(':');
       if (colon < 0) continue;
@@ -128,6 +144,11 @@ export class IcsService {
   ): string | undefined {
     const x = fields['X-GOOGLE-CONFERENCE']?.value?.trim();
     if (x) return x;
+    // Teams/Outlook để link ở property riêng của Microsoft.
+    const teams =
+      fields['X-MICROSOFT-SKYPETEAMSMEETINGURL']?.value?.trim() ||
+      fields['X-MICROSOFT-ONLINEMEETINGEXTERNALLINK']?.value?.trim();
+    if (teams && /^https?:\/\//i.test(teams)) return teams;
     // CONFERENCE;VALUE=URI:... (RFC 7986) — Outlook/Teams hay dùng.
     const conf = fields['CONFERENCE']?.value?.trim();
     if (conf && /^https?:\/\//i.test(conf)) return conf;
