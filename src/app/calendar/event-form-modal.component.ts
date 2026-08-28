@@ -215,7 +215,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                           [options]="guestRoleOptions()"
                           [ngModel]="g.canEdit ? 'editor' : 'viewer'"
                           (ngModelChange)="setGuestRole(g.email, $event === 'editor')"
-                          class="w-24 shrink-0 !text-xs"
+                          class="w-28 shrink-0 !text-xs"
                           [title]="tr.t('form.guestRoleHint')"
                         />
                         <button type="button" (click)="removeGuest(g.email)" class="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" [attr.aria-label]="tr.t('form.removeGuest')"><app-icon name="x" class="h-3.5 w-3.5" /></button>
@@ -241,8 +241,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                 } @else {
                   <textarea [(ngModel)]="description" rows="3" maxlength="5000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
                 }
-                <div class="mt-1 flex items-start justify-between gap-2">
-                  <p class="text-xs text-gray-400">{{ tr.t('form.htmlHint') }}</p>
+                <div class="mt-1 flex items-start justify-end gap-2">
                   @if (description()) {
                     <button type="button" (click)="descPreview.set(!descPreview())" class="tap shrink-0 text-xs text-blue-600 hover:underline">
                       {{ descPreview() ? tr.t('form.htmlEdit') : tr.t('form.htmlPreview') }}
@@ -300,16 +299,18 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
               @if (stageError()) {
                 <p class="rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ stageError() }}</p>
               }
-              <!-- Xếp DỌC thay vì grid-cols-2: 2 cột quá chật để vừa ô ngày + 2 ô giờ cạnh
-                   nhau trong modal, gây chồng/cắt chữ. Xếp dọc cho mỗi mốc đủ bề rộng. -->
-              <div class="flex flex-col gap-3 rounded bg-gray-50 p-2 text-xs">
-                <label class="flex flex-col gap-1 text-gray-500">{{ tr.t('attach.from') }}
+              <!-- Mỗi mốc nằm trên MỘT dòng: nhãn — ô ngày — ô giờ. Modal rộng max-w-lg
+                   (~512px) nên thừa chỗ, không cần bản compact như popover chi tiết.
+                   Nhãn cố định w-14 để hai dòng "Mở từ" và "Đến" thẳng cột với nhau. -->
+              <div class="flex flex-col gap-2 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex items-center gap-2 text-gray-500">
+                  <span class="w-14 shrink-0">{{ tr.t('attach.from') }}</span>
                   <app-datetime-picker [(ngModel)]="stageFrom" />
                 </label>
-                <label class="flex flex-col gap-1 text-gray-500">{{ tr.t('attach.until') }}
+                <label class="flex items-center gap-2 text-gray-500">
+                  <span class="w-14 shrink-0">{{ tr.t('attach.until') }}</span>
                   <app-datetime-picker [(ngModel)]="stageUntil" />
                 </label>
-                <p class="text-[11px] text-gray-500">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
               @for (s of stagedFiles(); track $index) {
                 <div class="flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs">
@@ -364,8 +365,7 @@ type CustomFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
                 } @else {
                   <textarea [(ngModel)]="description" rows="3" maxlength="5000" [placeholder]="tr.t('form.addDesc')" class="min-h-[3rem] max-h-48 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words field [field-sizing:content]"></textarea>
                 }
-                <div class="mt-1 flex items-start justify-between gap-2">
-                  <p class="text-xs text-gray-400">{{ tr.t('form.htmlHint') }}</p>
+                <div class="mt-1 flex items-start justify-end gap-2">
                   @if (description()) {
                     <button type="button" (click)="descPreview.set(!descPreview())" class="tap shrink-0 text-xs text-blue-600 hover:underline">
                       {{ descPreview() ? tr.t('form.htmlEdit') : tr.t('form.htmlPreview') }}

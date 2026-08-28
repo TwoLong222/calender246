@@ -22,8 +22,6 @@ export class GroupsStateService {
   /** Lời mời nhóm đang chờ mình đồng ý (hiện nút Đồng ý/Từ chối ở sidebar). */
   readonly pendingInvites = signal<PendingGroupInvite[]>([]);
 
-  /** Nhóm nào đang được "hiện" trên lịch (mặc định: hiện tất cả) */
-  readonly visibleGroupIds = signal<Set<string>>(new Set());
   /** Nhóm nào đang mở panel chi tiết */
   readonly panelGroupId = signal<string | null>(null);
   readonly panelGroup = signal<Group | null>(null);
@@ -48,15 +46,14 @@ export class GroupsStateService {
   }
 
   /**
-   * Sự kiện của các nhóm ĐANG HIỆN — calendar-page gộp cái này vào lịch.
-   * Không còn ép màu theo nhóm nữa: mỗi sự kiện giữ đúng màu do người tạo chọn.
+   * Sự kiện của MỌI nhóm mình đang ở — calendar-page gộp cái này vào lịch.
+   * Không còn ô tick ẩn/hiện từng nhóm nữa: đã ở trong nhóm thì sự kiện luôn lên lịch.
+   * Không ép màu theo nhóm: mỗi sự kiện giữ đúng màu do người tạo chọn.
    */
   readonly visibleGroupEvents = computed<CalendarEvent[]>(() => {
-    const vis = this.visibleGroupIds();
     const map = this.groupEvents();
     const out: CalendarEvent[] = [];
     for (const id of Object.keys(map)) {
-      if (!vis.has(id)) continue;
       for (const e of map[id]) out.push({ ...e, groupId: id });
     }
     return out;
@@ -123,18 +120,6 @@ export class GroupsStateService {
         this.groups.set(groups);
         this.loadPendingInvites(); // lời mời chờ đổi khi có mời/đồng ý/từ chối
 
-        this.visibleGroupIds.update((prevVisible) => {
-          const next = new Set<string>();
-          for (const id of nextIds) {
-            if (prevIds.has(id)) {
-              if (prevVisible.has(id)) next.add(id);
-            } else {
-              next.add(id); // nhóm mới -> mặc định hiện
-            }
-          }
-          return next;
-        });
-
         this.groupEvents.update((m) => {
           const next: Record<string, CalendarEvent[]> = {};
           for (const id of nextIds) if (m[id]) next[id] = m[id];
@@ -161,19 +146,6 @@ export class GroupsStateService {
     });
   }
 
-  // ---------- Hiện/ẩn nhóm trên lịch ----------
-  isVisible(groupId: string): boolean {
-    return this.visibleGroupIds().has(groupId);
-  }
-
-  toggleVisible(groupId: string): void {
-    this.visibleGroupIds.update((s) => {
-      const next = new Set(s);
-      next.has(groupId) ? next.delete(groupId) : next.add(groupId);
-      return next;
-    });
-  }
-
   // ---------- Panel chi tiết ----------
   openPanel(groupId: string, tab: 'events' | 'chat' = 'events'): void {
     this.panelInitialTab.set(tab);
@@ -196,7 +168,6 @@ export class GroupsStateService {
     this.api.create(name).subscribe({
       next: (g) => {
         this.groups.update((list) => [...list, g]);
-        this.visibleGroupIds.update((s) => new Set(s).add(g.id));
         this.realtime.joinGroup(g.id);
         this.loadGroupEvents(g.id);
         this.openPanel(g.id);
@@ -210,7 +181,6 @@ export class GroupsStateService {
     this.api.join(code).subscribe({
       next: (g) => {
         this.groups.update((list) => (list.some((x) => x.id === g.id) ? list : [...list, g]));
-        this.visibleGroupIds.update((s) => new Set(s).add(g.id));
         this.realtime.joinGroup(g.id);
         this.loadGroupEvents(g.id);
         this.flash.set(`Đã tham gia nhóm "${g.name}".`);

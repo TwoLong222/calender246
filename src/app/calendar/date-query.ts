@@ -21,6 +21,11 @@ export interface DateQuery {
    * vào hôm nay — gõ "13:00" là muốn biết mình có gì lúc 13h, không riêng gì hôm nay.
    */
   timeOnly?: boolean;
+  /**
+   * Phần chữ CÒN LẠI sau khi bóc ngày/giờ ra — dùng để lọc tiếp theo TÊN sự kiện.
+   * Vd "13:00 họp nhóm" -> lọc giờ 13:00, rồi lọc tiếp tên/mô tả/địa điểm chứa "họp nhóm".
+   */
+  text?: string;
 }
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
@@ -54,37 +59,74 @@ const MONTH_NAMES = [
  * Đọc câu tìm kiếm. `today` truyền vào để kiểm thử được (không phụ thuộc đồng hồ máy).
  * Trả về null nếu câu không nói về thời gian.
  */
-export function parseDateQuery(raw: string, today: Date = new Date()): DateQuery | null {
-  let q = noAccent(raw.trim().toLowerCase()).replace(/\s+/g, ' ');
-  if (!q) return null;
+/** Khoảng "giờ này, mọi ngày" — dùng khi câu chỉ nêu giờ. */
+function anyDayAt(minuteOfDay: number): DateQuery {
+  const hh = String(Math.floor(minuteOfDay / 60)).padStart(2, '0');
+  const mm = String(minuteOfDay % 60).padStart(2, '0');
+  return {
+    from: new Date(1970, 0, 1),
+    to: new Date(2999, 11, 31, 23, 59, 59, 999),
+    label: `Lúc ${hh}:${mm} · mọi ngày`,
+    minuteOfDay,
+    timeOnly: true,
+  };
+}
 
-  // Tách phần giờ ra trước ("28/8 15:30", "mai 9h") rồi đọc phần ngày còn lại.
+/**
+ * Đọc câu tìm kiếm.
+ *
+ * Người dùng thường gõ LẪN thời gian và tên sự kiện ("13:00 họp nhóm", "28/8 sinh nhật").
+ * Sau khi bóc phần ngày/giờ ra, phần chữ còn lại trả về ở `text` để trang lịch lọc tiếp
+ * theo tên. Trước đây cả câu như vậy KHÔNG khớp mẫu nào nên rơi về tìm chữ nguyên câu
+ * ("13:00 họp") và luôn ra rỗng.
+ *
+ * `today` truyền vào để kiểm thử được (không phụ thuộc đồng hồ máy).
+ */
+export function parseDateQuery(raw: string, today: Date = new Date()): DateQuery | null {
+  const cleaned = noAccent(raw.trim().toLowerCase()).replace(/\s+/g, ' ');
+  if (!cleaned) return null;
+
+  // Tách phần giờ ra trước — giờ có thể nằm bất kỳ đâu trong câu ("mai 9h họp", "họp 9h").
+  let q = cleaned;
   let minuteOfDay: number | undefined;
-  const timeMatch = q.match(/(?:^|\s)(\d{1,2})\s*(?::|h|g)\s*(\d{2})?(?![\d/])/);
+  const timeMatch = q.match(/(?:^|\s)(\d{1,2})\s*(?::|h|g)\s*(\d{2})?(?![\d/a-z])/);
   if (timeMatch) {
     const h = +timeMatch[1];
     const mi = timeMatch[2] ? +timeMatch[2] : 0;
     if (h <= 23 && mi <= 59) {
       minuteOfDay = h * 60 + mi;
-      q = (q.slice(0, timeMatch.index ?? 0) + ' ' + q.slice((timeMatch.index ?? 0) + timeMatch[0].length)).trim();
+      q = (q.slice(0, timeMatch.index ?? 0) + ' ' + q.slice((timeMatch.index ?? 0) + timeMatch[0].length)).replace(/\s+/g, ' ').trim();
     }
   }
 
-  // Chỉ có giờ, không có ngày -> tra giờ đó trên MỌI ngày.
-  // (Trước đây bó vào đúng hôm nay, nên gõ "13:00" mà cuộc họp 13h nằm hôm qua là
-  //  báo "không tìm thấy" — sai với điều người dùng muốn hỏi.)
-  if (!q && minuteOfDay != null) {
-    const hh = String(Math.floor(minuteOfDay / 60)).padStart(2, '0');
-    const mm = String(minuteOfDay % 60).padStart(2, '0');
-    return {
-      from: new Date(1970, 0, 1),
-      to: new Date(2999, 11, 31, 23, 59, 59, 999),
-      label: `Lúc ${hh}:${mm} · mọi ngày`,
-      minuteOfDay,
-      timeOnly: true,
-    };
+  // Chỉ có giờ, không còn chữ nào -> tra giờ đó trên MỌI ngày.
+  if (!q && minuteOfDay != null) return anyDayAt(minuteOfDay);
+
+  // Khớp TRỌN phần còn lại (câu thuần ngày: "mai", "28/8", "tháng 9").
+  const whole = matchDatePhrase(q, today, minuteOfDay);
+  if (whole) return whole;
+
+  const words = q.split(' ');
+  // Ngày đứng ĐẦU, phần sau là tên sự kiện: "28/8 họp nhóm".
+  for (let n = Math.min(3, words.length); n >= 1; n--) {
+    const m = matchDatePhrase(words.slice(0, n).join(' '), today, minuteOfDay);
+    if (m) return { ...m, text: words.slice(n).join(' ') };
+  }
+  // Ngày đứng CUỐI, phần trước là tên sự kiện: "họp nhóm 28/8".
+  for (let n = Math.min(3, words.length - 1); n >= 1; n--) {
+    const m = matchDatePhrase(words.slice(-n).join(' '), today, minuteOfDay);
+    if (m) return { ...m, text: words.slice(0, words.length - n).join(' ') };
   }
 
+  // Không có phần ngày nhưng CÓ giờ -> lọc giờ trên mọi ngày, chữ còn lại lọc tên.
+  if (minuteOfDay != null) return { ...anyDayAt(minuteOfDay), text: q };
+
+  return null; // câu chữ thuần -> trang lịch tự tìm theo tên như cũ
+}
+
+/** Khớp một cụm ĐÚNG NGUYÊN VẸN là ngày (không lẫn chữ khác). */
+function matchDatePhrase(q: string, today: Date, minuteOfDay: number | undefined): DateQuery | null {
+  if (!q) return null;
   const withTime = (from: Date, to: Date, label: string): DateQuery => ({ from, to, label, minuteOfDay });
 
   // ---- Từ chỉ ngày quen thuộc ----
@@ -107,7 +149,7 @@ export function parseDateQuery(raw: string, today: Date = new Date()): DateQuery
   }
 
   // ---- Tuần ----
-  const weekOffset = /^tuan nay$/.test(q) ? 0 : /^tuan sau|^tuan toi$/.test(q) ? 1 : /^tuan truoc$/.test(q) ? -1 : null;
+  const weekOffset = /^tuan nay$/.test(q) ? 0 : /^(tuan sau|tuan toi)$/.test(q) ? 1 : /^tuan truoc$/.test(q) ? -1 : null;
   if (weekOffset !== null) {
     // Tuần bắt đầu từ Thứ 2 cho đúng thói quen ở Việt Nam.
     const dow = (today.getDay() + 6) % 7;
@@ -117,7 +159,7 @@ export function parseDateQuery(raw: string, today: Date = new Date()): DateQuery
   }
 
   // ---- Tháng ----
-  const monthOffset = /^thang nay$/.test(q) ? 0 : /^thang sau|^thang toi$/.test(q) ? 1 : /^thang truoc$/.test(q) ? -1 : null;
+  const monthOffset = /^thang nay$/.test(q) ? 0 : /^(thang sau|thang toi)$/.test(q) ? 1 : /^thang truoc$/.test(q) ? -1 : null;
   if (monthOffset !== null) {
     const first = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
     const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);

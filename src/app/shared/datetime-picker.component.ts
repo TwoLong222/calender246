@@ -2,7 +2,7 @@
 // (TimePickerComponent tự làm). Giá trị "YYYY-MM-DDTHH:mm" giống <input datetime-local>.
 // ControlValueAccessor -> thả vào [(ngModel)] thay cho datetime-local.
 
-import { ChangeDetectionStrategy, Component, forwardRef, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, forwardRef, input, signal } from '@angular/core';
 import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { TimePickerComponent } from './time-picker.component';
 
@@ -15,19 +15,25 @@ import { TimePickerComponent } from './time-picker.component';
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => DateTimePickerComponent), multi: true },
   ],
   template: `
-    <span class="inline-flex flex-wrap items-center gap-1">
+    <!-- compact: KHÔNG cho xuống dòng (flex-nowrap) và thu nhỏ mọi thứ, để trong popover
+         hẹp thì nhãn + ô ngày + ô giờ vẫn nằm trên một đường thẳng. -->
+    <span class="inline-flex items-center gap-1" [class.flex-wrap]="!compact()" [class.flex-nowrap]="compact()">
       <input
         type="date"
         [value]="date()"
         (change)="setDate($event)"
         [disabled]="disabled()"
-        class="rounded border border-gray-300 px-2 py-1 text-sm disabled:opacity-50"
+        class="shrink-0 rounded border border-gray-300 disabled:opacity-50"
+        [class]="compact() ? 'w-[6.25rem] px-1 py-1 text-xs' : 'px-2 py-1 text-sm'"
       />
-      <app-time-picker [ngModel]="time()" (ngModelChange)="setTime($event)" [disabled]="disabled()" />
+      <app-time-picker [ngModel]="time()" (ngModelChange)="setTime($event)" [disabled]="disabled()" [compact]="compact()" />
     </span>
   `,
 })
 export class DateTimePickerComponent implements ControlValueAccessor {
+  /** Bản hẹp cho popover w-80 — xem TimePickerComponent.compact. */
+  readonly compact = input(false);
+
   protected readonly date = signal('');
   protected readonly time = signal('');
   protected readonly disabled = signal(false);

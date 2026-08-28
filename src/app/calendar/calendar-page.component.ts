@@ -215,9 +215,6 @@ import { parseDateQuery } from './date-query';
                 <a routerLink="/tasks" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="check" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.tasks') }}
                 </a>
-                <a routerLink="/am-lich" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
-                  <app-icon name="moon" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.lunar') }}
-                </a>
                 <a routerLink="/notes" (click)="settingsMenuOpen.set(false)" class="tap flex w-full items-center gap-2.5 rounded-[calc(var(--radius-md)-4px)] px-3 py-2.5 text-left text-sm hover:bg-gray-50">
                   <app-icon name="notes" class="h-4 w-4 text-gray-500" /> {{ tr.t('nav.notes') }}
                 </a>
@@ -722,7 +719,12 @@ export class CalendarPageComponent implements OnInit {
   protected readonly searchDate = computed(() => parseDateQuery(this.searchQuery()));
 
   /** Nhãn khoảng thời gian đang tra, hiện ở đầu danh sách kết quả. */
-  protected readonly searchDateLabel = computed(() => this.searchDate()?.label ?? '');
+  protected readonly searchDateLabel = computed(() => {
+    const dq = this.searchDate();
+    if (!dq) return '';
+    const txt = (dq.text ?? '').trim();
+    return txt ? `${dq.label} · "${txt}"` : dq.label;
+  });
 
   /** Lọc sự kiện theo NGÀY/GIỜ nếu câu tìm là thời gian, không thì theo chữ; gần nhất lên trước */
   protected readonly searchResults = computed<CalendarEvent[]>(() => {
@@ -736,6 +738,16 @@ export class CalendarPageComponent implements OnInit {
 
     const dq = this.searchDate();
     if (dq) {
+      // Câu vừa có thời gian vừa có tên ("13:00 họp") -> lọc thời gian TRƯỚC, rồi lọc
+      // tiếp theo tên. Trước đây cả câu không khớp mẫu nào nên rơi về tìm chữ nguyên
+      // câu "13:00 họp" và không bao giờ ra kết quả.
+      const txt = (dq.text ?? '').trim().toLowerCase();
+      const okText = (e: CalendarEvent) =>
+        !txt ||
+        e.title.toLowerCase().includes(txt) ||
+        htmlToPlain(e.description).toLowerCase().includes(txt) ||
+        (e.location ?? '').toLowerCase().includes(txt);
+
       // Chỉ nêu GIỜ ("13:00") -> so theo giờ TRÊN ĐỒNG HỒ của từng sự kiện, bất kể ngày nào.
       if (dq.timeOnly && dq.minuteOfDay != null) {
         const m = dq.minuteOfDay;
@@ -743,6 +755,7 @@ export class CalendarPageComponent implements OnInit {
         const rank = (e: CalendarEvent) =>
           e.isAllDay ? 2 : e.start.getHours() * 60 + e.start.getMinutes() === m ? 0 : 1;
         return all
+          .filter(okText)
           .filter((e) => {
             if (e.isAllDay) return true; // cả ngày thì giờ nào cũng đang diễn ra
             const sameDay =
@@ -763,7 +776,7 @@ export class CalendarPageComponent implements OnInit {
 
       // Lấy sự kiện CHẠM vào khoảng, không chỉ sự kiện bắt đầu trong khoảng — sự kiện
       // nhiều ngày phải ra khi tra một ngày nằm giữa nó.
-      let hits = all.filter((e) => e.start <= dq.to && e.end >= dq.from);
+      let hits = all.filter((e) => e.start <= dq.to && e.end >= dq.from).filter(okText);
       if (dq.minuteOfDay != null) {
         const target = new Date(dq.from.getFullYear(), dq.from.getMonth(), dq.from.getDate(), 0, dq.minuteOfDay);
         hits = hits.filter((e) => {

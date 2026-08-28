@@ -88,7 +88,7 @@ export class NotificationService {
   private readonly settings = inject(SettingsService);
 
   /** Ảnh chụp MỌI sự kiện đang thấy (id -> thông tin) để phát hiện HỦY/ĐỔI ở lần quét sau. */
-  private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean }>();
+  private readonly invitedSnapshot = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean; myStatus: string | null }>();
   /** Id các sự kiện DO CHÍNH MÌNH tạo — để khi chúng biến mất thì không báo "bị huỷ". */
   private readonly ownEventIds = new Set<string>();
 
@@ -169,10 +169,16 @@ export class NotificationService {
       // Thay đổi vừa do mình thao tác -> chỉ cập nhật ảnh chụp, không bắn thông báo.
       const selfEdit = this.state.isRecentLocalChange();
 
-      const next = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean }>();
+      // Lời mời mình CHƯA trả lời (needsAction) thì chưa phải việc của mình -> không báo
+      // mọi thay đổi/huỷ. Lưu luôn trạng thái vào ảnh chụp để nhánh HUỶ (sự kiện đã biến
+      // mất, không đọc được guests nữa) cũng biết mà bỏ qua.
+      const myStatusOf = (e: CalendarEvent) =>
+        e.guests.find((g) => g.email.toLowerCase() === me)?.status ?? null;
+
+      const next = new Map<string, { title: string; start: number; end: number; location: string; description: string; myCanEdit: boolean; myStatus: string | null }>();
       for (const e of alive) {
         const myCanEdit = e.guests.some((g) => g.email.toLowerCase() === me && g.canEdit);
-        next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '', description: e.description ?? '', myCanEdit });
+        next.set(e.id, { title: e.title, start: e.start.getTime(), end: e.end.getTime(), location: e.location ?? '', description: e.description ?? '', myCanEdit, myStatus: myStatusOf(e) });
       }
 
       if (!warmup && !selfEdit) {
@@ -181,6 +187,8 @@ export class NotificationService {
           const prev = this.invitedSnapshot.get(e.id);
           if (!prev) continue; // mới xuất hiện -> không phải "đổi"
           const cur = next.get(e.id)!;
+          // Chưa bấm Đồng ý/Từ chối -> im lặng. Toast "Lời mời mới" là đủ.
+          if (!isMine(e) && cur.myStatus === 'needsAction') continue;
           const lines = this.describeChanges(prev, cur, e);
           if (lines.length) this.fireChanged(e.id, e.title, lines);
           // Vừa được CẤP quyền chỉnh sửa (false -> true) — chỉ có nghĩa với khách mời
@@ -192,7 +200,7 @@ export class NotificationService {
         for (const [id, prev] of this.invitedSnapshot) {
           if (next.has(id)) continue;
           const wasMine = this.ownEventIds.has(id);
-          if (!wasMine) this.fireCancelled(prev.title);
+          if (!wasMine && prev.myStatus !== 'needsAction') this.fireCancelled(prev.title);
         }
       }
 

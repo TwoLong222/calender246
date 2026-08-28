@@ -180,7 +180,13 @@ export class InvitationBellComponent {
    *  người dùng tự bấm "Xóa hết" ở trang Lịch sử), nên hiệu số với seenTotal luôn phản ánh
    *  đúng số thông báo THẬT SỰ mới kể từ lần mở chuông gần nhất. */
   protected readonly total = computed(
-    () => this.reminders().length + this.invites().length + this.notify.history().length,
+    () =>
+      this.reminders().length +
+      this.invites().length +
+      // BỎ mục kind='invite' khỏi lịch sử khi đếm badge: chính lời mời đó ĐÃ được
+      // invites() đếm rồi. Cộng cả hai thì gửi 1 lời mời mà badge nhảy 2 — đúng lỗi
+      // "gửi 1 lời mời mà nhảy ra 2 thông báo". Lịch sử vẫn giữ nguyên mục đó để xem lại.
+      this.notify.history().filter((h) => h.kind !== 'invite').length,
   );
   protected readonly open = signal(false);
 

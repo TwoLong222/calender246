@@ -40,15 +40,6 @@ const COLLAPSED_LIMIT = 2;
         <li class="cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 hover:border-gray-300"
             (click)="openGroup(g.id)">
           <div class="flex items-center gap-2">
-            <!-- Ô tick = HIỆN/ẨN sự kiện của nhóm này trên lịch (không phải tham gia/rời nhóm) -->
-            <input
-              type="checkbox"
-              [checked]="groupsState.isVisible(g.id)"
-              (change)="groupsState.toggleVisible(g.id)"
-              (click)="$event.stopPropagation()"
-              class="accent-blue-600"
-              title="Hiện/ẩn sự kiện của nhóm này trên lịch"
-            />
             <span class="min-w-0 flex-1 truncate py-1 text-left font-medium">{{ g.name }}</span>
             @if (groupsState.onlineCount(g.id) > 0) {
               <span class="shrink-0 text-xs text-emerald-600" title="Đang online">● {{ groupsState.onlineCount(g.id) }}</span>
@@ -84,12 +75,6 @@ const COLLAPSED_LIMIT = 2;
           Xem thêm {{ hiddenCount() }} nhóm ▼
         }
       </button>
-    }
-
-    @if (groupsState.groups().length > 0) {
-      <p class="mt-2 text-[11px] leading-relaxed text-gray-400">
-        ☑️ Ô tick = hiện/ẩn sự kiện của nhóm đó trên lịch. Bỏ tick chỉ ẩn đi, bạn vẫn ở trong nhóm.
-      </p>
     }
 
     <!-- Tạo nhóm / vào nhóm: chặn khi đã đủ MAX_GROUPS nhóm (tính cả nhóm được mời vào) -->

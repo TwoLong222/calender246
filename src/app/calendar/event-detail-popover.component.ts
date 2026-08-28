@@ -175,19 +175,19 @@ import { solarToLunar } from '../lunar/lunar.util';
               <p class="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-600">{{ uploadError() }}</p>
             }
             @if (canManage()) {
-              <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp). Xếp DỌC (không phải
-                   grid-cols-2): popover chỉ rộng w-80, 2 cột không đủ chỗ cho ô ngày + 2 ô
-                   giờ cạnh nhau -> chữ bị cắt/chồng lên nhau. -->
-              <div class="mb-2 flex flex-col gap-3 rounded bg-gray-50 p-2 text-xs">
-                <label class="flex flex-col gap-1 text-gray-500">
-                  {{ tr.t('attach.from') }}
-                  <app-datetime-picker [(ngModel)]="newFrom" />
+              <!-- Hẹn giờ cho file SẼ tải lên (áp cho lần thêm kế tiếp). Mỗi mốc nằm gọn trên
+                   MỘT dòng: nhãn — ô ngày — ô giờ. Popover chỉ rộng w-80 nên dùng bản compact
+                   của datetime-picker (ô hẹp hơn, không cho xuống dòng); nhãn cố định w-10 để
+                   hai dòng "Mở từ" và "Đến" thẳng cột với nhau. -->
+              <div class="mb-2 flex flex-col gap-2 rounded bg-gray-50 p-2 text-xs">
+                <label class="flex items-center gap-1 text-gray-500">
+                  <span class="w-10 shrink-0">{{ tr.t('attach.from') }}</span>
+                  <app-datetime-picker [(ngModel)]="newFrom" [compact]="true" />
                 </label>
-                <label class="flex flex-col gap-1 text-gray-500">
-                  {{ tr.t('attach.until') }}
-                  <app-datetime-picker [(ngModel)]="newUntil" />
+                <label class="flex items-center gap-1 text-gray-500">
+                  <span class="w-10 shrink-0">{{ tr.t('attach.until') }}</span>
+                  <app-datetime-picker [(ngModel)]="newUntil" [compact]="true" />
                 </label>
-                <p class="text-[11px] text-gray-500">{{ tr.t('attach.scheduleHint') }}</p>
               </div>
             }
             @if (attachments().length === 0) {
@@ -236,7 +236,13 @@ import { solarToLunar } from '../lunar/lunar.util';
                     <span class="shrink-0 text-[10px] text-gray-400">{{ commentTime(c.createdAt) }}</span>
                   </div>
                   @if (editingId() === c.id) {
-                    <textarea [(ngModel)]="editText" maxlength="2000" rows="2" class="field mt-1 w-full text-sm"></textarea>
+                    <!-- Sửa bình luận: Enter = Lưu, Shift+Enter = xuống dòng, Esc = Huỷ. -->
+                    <textarea
+                      [(ngModel)]="editText" maxlength="2000" rows="2"
+                      (keydown.enter)="$event.preventDefault(); saveEdit(c.id)"
+                      (keydown.escape)="cancelEdit()"
+                      class="field mt-1 w-full text-sm"
+                    ></textarea>
                     <div class="mt-1 flex gap-3">
                       <button type="button" (click)="saveEdit(c.id)" class="text-xs font-medium text-blue-700">{{ tr.t('form.save') }}</button>
                       <button type="button" (click)="cancelEdit()" class="text-xs text-gray-500">{{ tr.t('del.cancel') }}</button>
@@ -267,9 +273,14 @@ import { solarToLunar } from '../lunar/lunar.util';
             </ul>
 
             <div class="flex gap-2">
+              <!-- Enter = Gửi (thay cho bấm nút bên cạnh), Shift+Enter = xuống dòng.
+                   preventDefault để Enter không chèn thêm dòng trống trước khi gửi.
+                   Angular chỉ khớp (keydown.enter) khi KHÔNG giữ phím bổ trợ, nên
+                   Shift+Enter tự rơi vào hành vi mặc định của textarea. -->
               <textarea
                 [(ngModel)]="newComment" maxlength="2000"
                 rows="1"
+                (keydown.enter)="$event.preventDefault(); sendComment()"
                 [placeholder]="tr.t('detail.writeComment')"
                 class="field flex-1 resize-none text-sm"
               ></textarea>
