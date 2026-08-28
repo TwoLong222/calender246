@@ -17,9 +17,19 @@ export function htmlToPlain(html: string | undefined | null): string {
   return (doc.body.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/** Chuỗi này có chứa thẻ HTML không (dùng để biết nên vẽ HTML hay chữ thuần). */
+/**
+ * Chuỗi này có chứa thẻ HTML THẬT không (dùng để biết nên vẽ HTML hay chữ thuần).
+ * CHỈ nhận các thẻ HTML thường gặp — KHÔNG bắt nhầm kiểu "Nhãn<https://...>" của
+ * Outlook/Teams (URL để trong ngoặc nhọn). Trước đây regex /<[a-z].*>/ coi luôn "<https"
+ * là thẻ -> trình phân tích HTML nuốt mất URL -> link không bấm được.
+ */
 export function looksLikeHtml(text: string | undefined | null): boolean {
-  return !!text && /<[a-z][\s\S]*>/i.test(text);
+  return (
+    !!text &&
+    /<\/?(a|abbr|b|blockquote|br|code|div|em|h[1-6]|hr|i|img|li|ol|p|pre|s|small|span|strong|sub|sup|table|tbody|td|th|thead|tr|u|ul)\b[^>]*>/i.test(
+      text,
+    )
+  );
 }
 
 /** Đổi ký tự đặc biệt thành thực thể HTML để chữ thuần không bị hiểu nhầm là thẻ. */
@@ -52,19 +62,32 @@ function linkifyTextNodes(doc: Document): void {
   for (const node of targets) {
     const frag = doc.createDocumentFragment();
     let last = 0;
-    const re = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+    // (1) "Nhãn<https://...>" kiểu Outlook/Teams -> dùng NHÃN làm chữ hiện, ẩn URL thô + ngoặc nhọn.
+    // (2) URL trần -> tự thành link (chữ hiện = chính URL).
+    const re = /([^\s<>][^<>\n]*?)<(https?:\/\/[^\s<>]+)>|(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(node.data)) !== null) {
-      const raw = m[0].replace(TRAILING, '');
-      if (!raw) continue;
+      let url: string;
+      let label: string;
+      let consumeEnd: number;
+      if (m[2]) {
+        url = m[2].replace(TRAILING, '');
+        label = (m[1] || '').trim() || url; // nhãn rỗng thì rơi về hiện URL
+        consumeEnd = m.index + m[0].length; // nuốt cả "nhãn<url>"
+      } else {
+        url = m[3].replace(TRAILING, '');
+        if (!url) continue;
+        label = url;
+        consumeEnd = m.index + url.length; // TRAILING cắt bớt -> chỉ nuốt phần URL
+      }
       if (m.index > last) frag.appendChild(doc.createTextNode(node.data.slice(last, m.index)));
       const a = doc.createElement('a');
-      a.href = raw.startsWith('www.') ? `https://${raw}` : raw;
+      a.href = url.startsWith('www.') ? `https://${url}` : url;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      a.textContent = raw;
+      a.textContent = label;
       frag.appendChild(a);
-      last = m.index + raw.length;
+      last = consumeEnd;
     }
     if (last < node.data.length) frag.appendChild(doc.createTextNode(node.data.slice(last)));
     node.replaceWith(frag);
