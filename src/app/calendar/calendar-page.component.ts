@@ -781,85 +781,10 @@ export class CalendarPageComponent implements OnInit {
           e.title.toLowerCase().includes(q) ||
           htmlToPlain(e.description).toLowerCase().includes(q) ||
           (e.location ?? '').toLowerCase().includes(q),
-      );
-    }
-    return matched.sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 20);
+      )
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .slice(0, 20);
   });
-
-  /**
-   * Đọc cú pháp ngày/giờ từ ô tìm -> ràng buộc lọc; trả null nếu KHÔNG phải truy vấn ngày/giờ.
-   *   15/8 = ngày·tháng · 8/2026 = tháng·năm · 15/8/2026 = đủ ngày
-   *   th8 = tháng · ng15 = ngày · 2026 = năm  (kết hợp bằng dấu cách: "th8 2026", "ng15 2026")
-   *   14:00 = khớp giờ bắt đầu HOẶC kết thúc · 14:00-16:00 = khớp cả giờ bắt đầu VÀ kết thúc
-   */
-  private parseSearchQuery(raw: string): {
-    day?: number; month?: number; year?: number; startMin?: number; endMin?: number; timeMin?: number;
-  } | null {
-    const q = raw.toLowerCase().replace(/\s+/g, ' ').trim();
-    const c: { day?: number; month?: number; year?: number; startMin?: number; endMin?: number; timeMin?: number } = {};
-    const toMin = (h: string, m?: string): number | null => {
-      const hh = +h, mm = m ? +m : 0;
-      return hh > 23 || mm > 59 ? null : hh * 60 + mm;
-    };
-    // Giờ: khoảng "14:00-16:00" / "14h-16h30"
-    const range = q.match(/(\d{1,2})[:h](\d{2})?\s*[-–]\s*(\d{1,2})[:h](\d{2})?/);
-    if (range) {
-      const s = toMin(range[1], range[2]); const e = toMin(range[3], range[4]);
-      if (s !== null) c.startMin = s;
-      if (e !== null) c.endMin = e;
-    } else {
-      const t = q.match(/(?:^|\s)(\d{1,2})[:h](\d{2})?(?=\s|$)/);
-      if (t) { const s = toMin(t[1], t[2]); if (s !== null) c.timeMin = s; }
-    }
-    // Ngày đủ: d/m/yyyy
-    const dmy = q.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
-    if (dmy) { c.day = +dmy[1]; c.month = +dmy[2]; c.year = +dmy[3]; }
-    else {
-      // Hai phần a/b: b có 4 chữ số -> tháng/năm; ngược lại -> ngày/tháng
-      const two = q.match(/\b(\d{1,2})\/(\d{1,4})\b/);
-      if (two) {
-        if (two[2].length === 4) { c.month = +two[1]; c.year = +two[2]; }
-        else { c.day = +two[1]; c.month = +two[2]; }
-      }
-    }
-    // Thành phần có nhãn: ng/ngày · th/tháng · n/năm
-    if (c.day === undefined) { const m = q.match(/(?:ngày|ngay|ng)\s*(\d{1,2})\b/); if (m) c.day = +m[1]; }
-    if (c.month === undefined) { const m = q.match(/(?:tháng|thang|thg|th)\s*(\d{1,2})\b/); if (m) c.month = +m[1]; }
-    if (c.year === undefined) { const m = q.match(/(?:năm|nam|n)\s*(\d{4})\b/); if (m) c.year = +m[1]; }
-    // Năm "trần" 4 chữ số (1900–2199)
-    if (c.year === undefined) { const m = q.match(/\b(19\d{2}|20\d{2}|21\d{2})\b/); if (m) c.year = +m[1]; }
-    // Hợp lệ hoá phạm vi
-    if (c.day !== undefined && (c.day < 1 || c.day > 31)) delete c.day;
-    if (c.month !== undefined && (c.month < 1 || c.month > 12)) delete c.month;
-    const has =
-      c.day !== undefined || c.month !== undefined || c.year !== undefined ||
-      c.startMin !== undefined || c.endMin !== undefined || c.timeMin !== undefined;
-    return has ? c : null;
-  }
-
-  /** Sự kiện có khớp mọi ràng buộc ngày/giờ không (AND). */
-  private matchDateTime(
-    e: CalendarEvent,
-    c: { day?: number; month?: number; year?: number; startMin?: number; endMin?: number; timeMin?: number },
-  ): boolean {
-    const s = e.start;
-    if (c.day !== undefined && s.getDate() !== c.day) return false;
-    if (c.month !== undefined && s.getMonth() + 1 !== c.month) return false;
-    if (c.year !== undefined && s.getFullYear() !== c.year) return false;
-    const wantsTime = c.startMin !== undefined || c.endMin !== undefined || c.timeMin !== undefined;
-    if (wantsTime) {
-      if (e.isAllDay) return false; // sự kiện "cả ngày" không có giờ cụ thể
-      const sMin = s.getHours() * 60 + s.getMinutes();
-      const eMin = e.end.getHours() * 60 + e.end.getMinutes();
-      if (c.startMin !== undefined || c.endMin !== undefined) {
-        if (c.startMin !== undefined && sMin !== c.startMin) return false; // khớp giờ bắt đầu
-        if (c.endMin !== undefined && eMin !== c.endMin) return false;     // khớp giờ kết thúc
-      } else if (c.timeMin !== undefined) {
-        if (sMin !== c.timeMin && eMin !== c.timeMin) return false;        // khớp bắt đầu HOẶC kết thúc
-      }
-    }
-    return true;
-  }
 
   onSearchInput(ev: Event): void {
     this.searchQuery.set((ev.target as HTMLInputElement).value);
