@@ -8,6 +8,10 @@ import { environment } from '../../environments/environment';
 export const MAX_ATTACHMENT_MB = 10;
 export const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024;
 
+/** Giới hạn TỔNG dung lượng đính kèm của MỘT sự kiện — PHẢI khớp backend (MAX_EVENT_BYTES). */
+export const MAX_EVENT_ATTACHMENT_MB = 100;
+export const MAX_EVENT_ATTACHMENT_BYTES = MAX_EVENT_ATTACHMENT_MB * 1024 * 1024;
+
 export type AttachmentStatus = 'available' | 'scheduled' | 'expired';
 
 export interface EventAttachment {

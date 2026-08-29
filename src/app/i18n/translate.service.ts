@@ -210,7 +210,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'attach.title': 'Tài liệu', 'attach.add': 'Thêm tệp', 'attach.none': 'Chưa có tệp.', 'attach.uploading': 'Đang tải lên…',
     'attach.from': 'Mở từ', 'attach.until': 'Đến', 'attach.scheduleHint': 'Để trống = xem ngay, không giới hạn. Đặt giờ cho tệp thêm kế tiếp.',
     'attach.opensAt': 'Mở lúc', 'attach.expired': 'Đã hết hạn xem', 'attach.viewUntil': 'Xem đến',
-    'attach.limit': 'Tối đa 10MB mỗi tệp.', 'attach.tooLarge': 'Tệp quá lớn — tối đa 10MB.',
+    'attach.limit': 'Tối đa 10MB mỗi tệp · 100MB mỗi sự kiện.', 'attach.tooLarge': 'Tệp quá lớn — tối đa 10MB.', 'attach.eventTooLarge': 'Vượt tổng dung lượng — mỗi sự kiện tối đa 100MB.',
     'rsvp.yes': 'Có', 'rsvp.no': 'Không', 'rsvp.maybe': 'Có thể',
     'rsvp.accepted': 'Đồng ý', 'rsvp.declined': 'Từ chối', 'rsvp.tentative': 'Có thể', 'rsvp.needsAction': 'Chưa trả lời',
     // AI assistant chat
@@ -469,7 +469,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'attach.title': 'Files', 'attach.add': 'Add file', 'attach.none': 'No files.', 'attach.uploading': 'Uploading…',
     'attach.from': 'Open from', 'attach.until': 'Until', 'attach.scheduleHint': 'Leave blank = view now, no limit. Applies to the next file added.',
     'attach.opensAt': 'Opens at', 'attach.expired': 'Viewing expired', 'attach.viewUntil': 'View until',
-    'attach.limit': 'Max 10MB per file.', 'attach.tooLarge': 'File too large — max 10MB.',
+    'attach.limit': 'Max 10MB per file · 100MB per event.', 'attach.tooLarge': 'File too large — max 10MB.', 'attach.eventTooLarge': 'Total size exceeded — max 100MB per event.',
     'rsvp.yes': 'Yes', 'rsvp.no': 'No', 'rsvp.maybe': 'Maybe',
     'rsvp.accepted': 'Accepted', 'rsvp.declined': 'Declined', 'rsvp.tentative': 'Maybe', 'rsvp.needsAction': 'No reply',
     'ai.title': 'Calendar assistant', 'ai.thinking': 'Thinking…', 'ai.createEvent': 'Create event:',

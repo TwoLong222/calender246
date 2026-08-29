@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CalendarStateService } from './calendar-state.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { CommentsService } from './comments.service';
-import { AttachmentsApiService, EventAttachment, MAX_ATTACHMENT_BYTES } from './attachments-api.service';
+import { AttachmentsApiService, EventAttachment, MAX_ATTACHMENT_BYTES, MAX_EVENT_ATTACHMENT_BYTES } from './attachments-api.service';
 import { SettingsService } from '../settings/settings.service';
 import { TranslateService } from '../i18n/translate.service';
 import { ConfirmService } from '../shared/confirm.service';
@@ -463,6 +463,13 @@ export class EventDetailPopoverComponent implements OnDestroy {
     // Chặn ngay ở client nếu file vượt giới hạn -> khỏi tải lên vô ích rồi mới lỗi.
     if (file.size > MAX_ATTACHMENT_BYTES) {
       this.uploadError.set(this.tr.t('attach.tooLarge'));
+      input.value = '';
+      return;
+    }
+    // Chặn khi TỔNG dung lượng đính kèm của sự kiện + file mới vượt 100MB.
+    const usedBytes = this.attachments().reduce((sum, a) => sum + (a.size_bytes ?? 0), 0);
+    if (usedBytes + file.size > MAX_EVENT_ATTACHMENT_BYTES) {
+      this.uploadError.set(this.tr.t('attach.eventTooLarge'));
       input.value = '';
       return;
     }
