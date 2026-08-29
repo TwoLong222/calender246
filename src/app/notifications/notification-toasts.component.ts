@@ -18,7 +18,7 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
         <!-- Có eventId (nhắc lịch / sự kiện bị sửa...) -> bấm vào toast nhảy tới đúng sự kiện -->
         <div
           class="toast-in w-72 max-w-full rounded-lg border bg-white px-4 py-3 shadow-lg"
-          [class]="borderClass(t.kind) + ((t.eventId || t.groupId) && t.kind !== 'invite' ? ' cursor-pointer hover:shadow-xl' : '')"
+          [class]="borderClass(t.kind) + ((t.eventId || t.groupId) && t.kind !== 'invite' && t.kind !== 'groupInvite' ? ' cursor-pointer hover:shadow-xl' : '')"
           (click)="onToastClick(t)"
         >
           <!-- Nhãn phân loại: cho biết ngay đây là loại thông báo gì, tách biệt với nội dung -->
@@ -49,6 +49,15 @@ import { notifBadgeClass, notifBorderClass, notifCatKey, notifIconName } from '.
               <button type="button" (click)="respondInvite(t, 'accepted')"
                 class="tap rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700">{{ tr.t('rsvp.accepted') }}</button>
               <button type="button" (click)="respondInvite(t, 'declined')"
+                class="tap rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50">{{ tr.t('rsvp.declined') }}</button>
+            </div>
+          } @else if (t.kind === 'groupInvite') {
+            <p class="text-sm font-medium text-gray-800">{{ t.title }}</p>
+            <p class="text-xs text-gray-500">{{ tr.t('toast.groupInviteBody') }}</p>
+            <div class="mt-2 flex gap-2">
+              <button type="button" (click)="respondGroupInvite(t, true)"
+                class="tap rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700">{{ tr.t('rsvp.accepted') }}</button>
+              <button type="button" (click)="respondGroupInvite(t, false)"
                 class="tap rounded-md border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50">{{ tr.t('rsvp.declined') }}</button>
             </div>
           } @else if (t.kind === 'chat') {
@@ -83,6 +92,15 @@ export class NotificationToastsComponent {
   protected badgeClass = notifBadgeClass;
   protected borderClass = notifBorderClass;
 
+  /** Đồng ý/Từ chối lời mời VÀO NHÓM ngay trên toast rồi ẩn toast. */
+  protected respondGroupInvite(t: { id: string; groupId?: string }, accept: boolean): void {
+    if (t.groupId) {
+      if (accept) this.groupsState.acceptInvite(t.groupId);
+      else this.groupsState.declineInvite(t.groupId);
+    }
+    this.notify.dismiss(t.id);
+  }
+
   /** Đồng ý/Từ chối lời mời ngay trên toast rồi ẩn toast. */
   protected respondInvite(t: { id: string; eventId?: string }, status: 'accepted' | 'declined'): void {
     if (t.eventId) this.state.respondInvitation(t.eventId, status);
@@ -96,7 +114,7 @@ export class NotificationToastsComponent {
    *  - Lời mời: bỏ qua (đã có nút Đồng ý/Từ chối riêng trên toast).
    */
   protected onToastClick(t: Toast): void {
-    if (t.kind === 'invite') return;
+    if (t.kind === 'invite' || t.kind === 'groupInvite') return;
     if (t.groupId) {
       this.groupsState.openPanel(t.groupId, 'chat');
       this.notify.dismiss(t.id);

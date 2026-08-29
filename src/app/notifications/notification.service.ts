@@ -12,11 +12,13 @@ import { SupabaseService } from '../auth/supabase.service';
 import { TranslateService } from '../i18n/translate.service';
 import { SettingsService } from '../settings/settings.service';
 import { htmlToPlain } from '../shared/html-text';
+import { GroupsStateService } from '../groups/groups-state.service';
 
 export interface Toast {
   id: string;
-  /** 'event' nhắc lịch; 'file' tài liệu; 'chat' tin nhắn; 'invite' lời mời; 'cancelled' hủy; 'changed' cập nhật; 'shared' được chia sẻ lịch. */
-  kind: 'event' | 'file' | 'chat' | 'invite' | 'cancelled' | 'changed' | 'shared';
+  /** 'event' nhắc lịch; 'file' tài liệu; 'chat' tin nhắn; 'invite' lời mời SỰ KIỆN;
+   *  'groupInvite' lời mời vào NHÓM; 'cancelled' hủy; 'changed' cập nhật; 'shared' được chia sẻ lịch. */
+  kind: 'event' | 'file' | 'chat' | 'invite' | 'groupInvite' | 'cancelled' | 'changed' | 'shared';
   title: string;
   /** Dòng phụ: giờ bắt đầu (event), tên sự kiện (file), hoặc email người mời (invite). */
   detail?: string;
@@ -24,7 +26,8 @@ export interface Toast {
   body?: string;
   /** ID sự kiện — dùng cho toast 'invite' để bấm Đồng ý/Từ chối ngay. */
   eventId?: string;
-  /** ID nhóm (toast 'chat') -> bấm vào mở luôn cuộc trò chuyện của nhóm đó. */
+  /** ID nhóm — toast 'chat' bấm vào mở cuộc trò chuyện; toast 'groupInvite' dùng để
+   *  Đồng ý/Từ chối ngay trên toast. */
   groupId?: string;
 }
 
@@ -82,6 +85,7 @@ const RECENT_MAX_ITEMS = 5;
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly state = inject(CalendarStateService);
+  private readonly groupsState = inject(GroupsStateService);
   private readonly attachmentsApi = inject(AttachmentsApiService);
   private readonly supabase = inject(SupabaseService);
   private readonly tr = inject(TranslateService);
@@ -119,6 +123,8 @@ export class NotificationService {
   private readonly notified = new Set<string>();
   /** Các lời mời đã hiện toast (tránh báo lại). */
   private readonly notifiedInvites = new Set<string>();
+  /** Các lời mời NHÓM đã hiện toast. */
+  private readonly notifiedGroupInvites = new Set<string>();
   /** Các lịch được chia sẻ đã báo toast (tránh báo lại). */
   private readonly notifiedShares = new Set<string>();
   /** Mốc mở app: trong ~4s đầu chỉ GHI NHẬN lời mời đang có, không bắn toast (tránh spam lúc mở). */
@@ -142,6 +148,17 @@ export class NotificationService {
         if (this.notifiedInvites.has(iv.eventId)) continue;
         this.notifiedInvites.add(iv.eventId);
         if (!warmup) this.fireInvite(iv);
+      }
+    });
+    // Bắn toast khi có LỜI MỜI VÀO NHÓM mới. Trước đây lời mời nhóm CHỈ hiện ở một khối
+    // nhỏ trong sidebar — không toast, không vào chuông — nên gần như không ai thấy.
+    effect(() => {
+      const invs = this.groupsState.pendingInvites();
+      const warmup = Date.now() - this.startedAt < 4000;
+      for (const iv of invs) {
+        if (this.notifiedGroupInvites.has(iv.group_id)) continue;
+        this.notifiedGroupInvites.add(iv.group_id);
+        if (!warmup) this.fireGroupInvite(iv);
       }
     });
     // Bắn toast khi có LỊCH MỚI được người khác chia sẻ cho mình (phát hiện qua poll).
@@ -475,6 +492,23 @@ export class NotificationService {
     if (this.canDesktopNotify()) {
       try {
         new Notification(`📩 Lời mời mới: ${iv.title || 'Sự kiện'}`, { body: iv.creatorEmail ? `Từ ${iv.creatorEmail}` : '' });
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  }
+
+  /** Toast LỜI MỜI VÀO NHÓM — có nút Đồng ý/Từ chối ngay trên toast. Ẩn sau 60s. */
+  private fireGroupInvite(iv: { group_id: string; name: string }): void {
+    const toastId = `ginvite:${iv.group_id}:${Date.now()}`;
+    const title = iv.name || this.tr.t('toast.catGroupInvite');
+    this.toasts.update((t) => [...t, { id: toastId, kind: 'groupInvite', title, groupId: iv.group_id }]);
+    this.pushHistory({ kind: 'groupInvite', title, groupId: iv.group_id });
+    setTimeout(() => this.dismiss(toastId), 60_000);
+    this.playBeep();
+    if (this.canDesktopNotify()) {
+      try {
+        new Notification(`👥 ${this.tr.t('toast.catGroupInvite')}: ${title}`);
       } catch {
         /* bỏ qua */
       }

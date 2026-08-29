@@ -848,7 +848,7 @@ export class SettingsPageComponent {
 
   /** Các loại thông báo LUÔN bật trong app — không có công tắc tắt riêng cho từng loại
    *  (đồng bộ với danh sách kind trong NotificationService/NotificationToastsComponent). */
-  protected readonly defaultNotifKinds: readonly DefaultNotifKind[] = ['invite', 'changed', 'cancelled', 'file', 'chat', 'shared'];
+  protected readonly defaultNotifKinds: readonly DefaultNotifKind[] = ['invite', 'groupInvite', 'changed', 'cancelled', 'file', 'chat', 'shared'];
 
   protected notifCatKey = notifCatKey;
   protected notifIconName = notifIconName;
@@ -856,7 +856,8 @@ export class SettingsPageComponent {
 
   protected notifDescKey(kind: DefaultNotifKind): string {
     const map: Record<DefaultNotifKind, string> = {
-      invite: 'notif.descInvite', changed: 'notif.descChanged', cancelled: 'notif.descCancelled',
+      invite: 'notif.descInvite', groupInvite: 'notif.descGroupInvite',
+      changed: 'notif.descChanged', cancelled: 'notif.descCancelled',
       file: 'notif.descFile', chat: 'notif.descChat', shared: 'notif.descShared',
     };
     return map[kind];

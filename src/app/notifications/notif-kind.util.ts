@@ -10,6 +10,7 @@ export type NotifKind = Toast['kind'];
 const CAT_KEY: Record<NotifKind, string> = {
   event: 'toast.catReminder',
   invite: 'toast.catInvite',
+  groupInvite: 'toast.catGroupInvite',
   changed: 'toast.catChanged',
   cancelled: 'toast.catCancelled',
   file: 'toast.catFile',
@@ -20,6 +21,7 @@ const CAT_KEY: Record<NotifKind, string> = {
 const ICON_NAME: Record<NotifKind, IconName> = {
   event: 'alarm',
   invite: 'mail',
+  groupInvite: 'user', // khong co icon 'users' trong bo icon
   changed: 'pencil',
   cancelled: 'trash',
   file: 'notes',
@@ -30,6 +32,7 @@ const ICON_NAME: Record<NotifKind, IconName> = {
 const BADGE_CLASS: Record<NotifKind, string> = {
   event: 'bg-sky-50 text-sky-700',
   invite: 'bg-emerald-50 text-emerald-700',
+  groupInvite: 'bg-teal-50 text-teal-700',
   changed: 'bg-amber-50 text-amber-700',
   cancelled: 'bg-red-50 text-red-700',
   file: 'bg-violet-50 text-violet-700',
@@ -40,6 +43,7 @@ const BADGE_CLASS: Record<NotifKind, string> = {
 const BORDER_CLASS: Record<NotifKind, string> = {
   event: 'border-sky-200',
   invite: 'border-emerald-200',
+  groupInvite: 'border-teal-200',
   changed: 'border-amber-200',
   cancelled: 'border-red-200',
   file: 'border-violet-200',
