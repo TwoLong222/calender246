@@ -6,6 +6,8 @@ export type CalendarView = 'day' | 'week' | 'month' | 'year';
 export interface EmailPreferences {
   event_reminder: boolean;
   event_invitation: boolean;
+  /** Email báo được mời vào NHÓM (khác lời mời sự kiện). */
+  group_invitation: boolean;
   rsvp_update: boolean;
   event_updated: boolean;
   event_cancelled: boolean;
@@ -74,6 +76,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   email_preferences: {
     event_reminder: true,
     event_invitation: true,
+    group_invitation: true,
     rsvp_update: true,
     event_updated: true,
     event_cancelled: true,

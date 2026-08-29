@@ -766,7 +766,7 @@ export class SettingsPageComponent {
   }
   protected readonly weekdays = [1, 2, 3, 4, 5, 6, 0];
   protected readonly emailKeys = [
-    'event_invitation', 'event_updated', 'event_cancelled', 'event_reminder',
+    'event_invitation', 'group_invitation', 'event_updated', 'event_cancelled', 'event_reminder',
     'rsvp_update', 'booking_confirmation', 'booking_notification',
   ] as const;
 

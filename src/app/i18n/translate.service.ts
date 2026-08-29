@@ -118,7 +118,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'feed.rotate': 'Đổi link mới (thu hồi link cũ)', 'feed.rangeHint': 'Để trống = chia sẻ tất cả. Đặt khoảng ngày để link chỉ hiện sự kiện trong khoảng đó.',
     // Email prefs
     'email.note': 'Backend kiểm tra các tuỳ chọn này trước khi gửi email.',
-    'email.event_invitation': 'Lời mời sự kiện', 'email.event_updated': 'Sự kiện được cập nhật',
+    'email.event_invitation': 'Lời mời sự kiện', 'email.group_invitation': 'Lời mời vào nhóm', 'email.event_updated': 'Sự kiện được cập nhật',
     'email.event_cancelled': 'Sự kiện bị huỷ', 'email.event_reminder': 'Nhắc lịch',
     'email.rsvp_update': 'Cập nhật phản hồi (RSVP)', 'email.booking_confirmation': 'Xác nhận đặt lịch',
     'email.booking_notification': 'Thông báo đặt lịch mới',
@@ -386,7 +386,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'feed.link': 'Subscription link', 'feed.hint': 'Anyone with this link can see your events. Subscribing apps refresh every few hours (not instant).',
     'feed.rotate': 'Reset link (revoke old one)', 'feed.rangeHint': 'Leave blank = share everything. Set a date range so the link only shows events within it.',
     'email.note': 'The server checks these preferences before sending email.',
-    'email.event_invitation': 'Event invitations', 'email.event_updated': 'Event updates',
+    'email.event_invitation': 'Event invitations', 'email.group_invitation': 'Group invitations', 'email.event_updated': 'Event updates',
     'email.event_cancelled': 'Event cancellations', 'email.event_reminder': 'Event reminders',
     'email.rsvp_update': 'RSVP updates', 'email.booking_confirmation': 'Booking confirmations',
     'email.booking_notification': 'New booking notifications',
