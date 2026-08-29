@@ -9,7 +9,8 @@
   <!-- Font đồng bộ với landing page: Bricolage (tiêu đề) · Hanken (nội dung) · IBM Plex Mono (nhãn) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" /></noscript>
   <!-- ================= MÀN HÌNH CHỜ TĨNH =================
        Nằm thẳng trong index.html nên trình duyệt vẽ NGAY khi nhận HTML — trước cả khi
        tải xong main.js. Trước đây màn hình chờ nằm trong calendar-page (Angular), tức
@@ -59,6 +60,9 @@
         var saved = localStorage.getItem('theme') || 'dark';
         var dark = saved === 'dark' || (saved === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
         if (dark) document.documentElement.classList.add('dark');
+        // Đặt nền ngay trên <html>: lần vẽ ĐẦU TIÊN đã đúng màu, không chớp đen/trắng
+        // trong lúc chờ styles.css. Angular ghi đè sau bằng --app-bg của theme.
+        document.documentElement.style.backgroundColor = dark ? '#0f1729' : '#f9fafb';
         document.addEventListener('DOMContentLoaded', function () {
           var el = document.getElementById('app-splash');
           if (el && !dark) el.classList.add('is-light');
